@@ -9,6 +9,10 @@ import numpy as np
 
 import random
 
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
+
+
 # europarl-en-50k.txt
 # europarl-v7.fr-en.en
 with open('../data/europarl/europarl-en-500k.txt','r') as en_file:
@@ -248,7 +252,8 @@ update_step = optimizer.apply_gradients(
 
 print('Graph built')
 
-with tf.train.MonitoredSession() as sess:
+
+with tf.train.MonitoredSession(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     # sess.run(tf.global_variables_initializer())
 
     for e in range(num_epochs):
