@@ -7,7 +7,7 @@
 import tensorflow as tf
 import numpy as np
 
-import random
+import random,os
 
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
@@ -36,8 +36,10 @@ def process_raw(raw_data, limit_length=32):
         #     print(l)
         # if len(l) ==0 or l[0] == '<':
         #     continue
-        id_line=[vocab[SOS]]
-        token_line = [SOS]
+        # id_line=[vocab[SOS]]
+        # token_line = [SOS]
+        id_line=[]
+        token_line = []
         for w in l.split():
             if len(id_line) > max_sent_len:
                 max_sent_len = len(id_line)
@@ -253,8 +255,8 @@ update_step = optimizer.apply_gradients(
 print('Graph built')
 
 
-with tf.train.MonitoredSession(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-    # sess.run(tf.global_variables_initializer())
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    sess.run(tf.global_variables_initializer())
 
     for e in range(num_epochs):
         print('Training... epoch',e)
