@@ -172,7 +172,7 @@ decoder_emb_inp = tf.nn.embedding_lookup(
     embedding_decoder, out_sent)
 
 # Build RNN cell
-encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units)
+encoder_cell = tf.nn.rnn_cell.GRUCell(num_units)
 
 # Run Dynamic RNN
 #   encoder_outpus: [max_time, batch_size, num_units]
