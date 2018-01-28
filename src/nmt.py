@@ -24,13 +24,21 @@ SOS = '<Sent>'
 EOS = '<PAD>'
 
 import re
+from collections import defaultdict
 def process_raw(raw_data, limit_length=32):
     lines = [re.sub(r'([\,\?\!\.]+)',r' \1 ', line).lower() for line in raw_data]
     # lines = re.split('[\n]+',raw_data.lower())
     vocab = {'<PAD>':0,'<OOV>':1, SOS:2}
+    word_count = defaultdict(float)
     ids=[]
     tokenised=[]
     max_sent_len=0
+    for l in lines:
+        for w in l.split():
+            word_count[w] +=1
+    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(10000,len(word_count))]
+    for w in vocab_list:
+        vocab[w] = len(vocab)
     for l in lines:
         # if l[0] == '<':
         #     print(l)
@@ -49,7 +57,8 @@ def process_raw(raw_data, limit_length=32):
             if len(w) == 0:
                 continue
             if w not in vocab.keys():
-                vocab[w] = len(vocab)
+                # vocab[w] = len(vocab)
+                w = '<OOV>'
             id_line.append(vocab[w])
             token_line.append(w)
         # if len(id_line) > 400:
@@ -115,7 +124,7 @@ print(max_in_seq_len, n)
 embedding_size = 2**6
 num_units=2**7
 
-batch_size = 32
+batch_size = 16
 num_epochs=20
 
 
@@ -143,7 +152,9 @@ def lrelu(x, alpha=0.1):
 
 # define graph
 in_sent = tf.placeholder(tf.int64, [None, max_in_seq_len])
-out_sent = tf.placeholder(tf.int64,[None, max_out_seq_len])
+out_sent_raw = tf.placeholder(tf.int64,[None, max_out_seq_len])
+out_sent = tf.gather(out_sent_raw, tf.range(tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))),axis=1)
+train_out_len = tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))
 
 curr_batch_size = tf.shape(in_sent)[0]
 
@@ -171,8 +182,9 @@ embedding_decoder = tf.concat([oov_pad_embeddings, embedding_decoder],0)
 decoder_emb_inp = tf.nn.embedding_lookup(
     embedding_decoder, out_sent)
 
+
 # Build RNN cell
-encoder_cell = tf.nn.rnn_cell.GRUCell(num_units)
+encoder_cell = tf.nn.rnn_cell.GRUCell(num_units,activation=tf.nn.leaky_relu)
 
 # Run Dynamic RNN
 #   encoder_outpus: [max_time, batch_size, num_units]
@@ -183,7 +195,7 @@ encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
 
 
 # Build RNN cell
-decoder_cell = tf.nn.rnn_cell.GRUCell(num_units)
+decoder_cell = tf.nn.rnn_cell.GRUCell(num_units,activation=tf.nn.leaky_relu)
 
 
 # Helper
@@ -197,6 +209,8 @@ else:
 projection_layer = tf.layers.Dense(
     tgt_vocab_size, use_bias=False)
 
+# print(decoder_emb_inp)
+
 # Decoder
 decoder = tf.contrib.seq2seq.BasicDecoder(
     decoder_cell, helper, encoder_state)
@@ -205,9 +219,10 @@ outputs, _,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=
 logits = projection_layer(outputs.rnn_output)
 
 target_weights = tf.sequence_mask(
-        length(decoder_emb_inp)+1, max_out_seq_len, dtype=logits.dtype)
+        length(decoder_emb_inp)+1, train_out_len, dtype=logits.dtype)
 
 # logits = tf.Print(logits, [length(encoder_emb_inp)], 'in_length')
+# logits = tf.Print(logits, [length(decoder_emb_inp)], 'out_length')
 # logits = tf.Print(logits, [tf.shape(in_sent)], 'insent')
 # logits = tf.Print(logits, [out_lens], 'outlens')
 # logits = tf.Print(logits, [tf.shape(outputs.sample_id)], 'sample_id')
@@ -264,7 +279,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         for i in range(n // batch_size):
             en_batch = en_sents[i*batch_size : (i+1)*batch_size,:]
             fr_batch = fr_sents[i*batch_size : (i+1)*batch_size,:]
-            _,loss = sess.run([update_step,train_loss], feed_dict={in_sent:fr_batch, out_sent:en_batch})
+            _,loss = sess.run([update_step,train_loss], feed_dict={in_sent:fr_batch, out_sent_raw:en_batch})
             if i % 250 == 0:
                 print('Epoch ', e,' Step ',i,' -> ', loss)
 
@@ -274,7 +289,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                 en_batch = en_sents[rand_ix : rand_ix+ num_infer,:]
                 fr_batch = fr_sents[rand_ix : rand_ix+num_infer,:]
 
-                tgt_est_ids = sess.run(translations, feed_dict={in_sent:fr_batch, out_sent:en_batch})
+                tgt_est_ids = sess.run(translations, feed_dict={in_sent:fr_batch, out_sent_raw:en_batch})
                 for i in range(num_infer):
                     print(" ".join([en_vocab_rev[ix] for ix in en_sents[rand_ix+i,:]]))
                     print(" ".join([fr_vocab_rev[ix] for ix in fr_sents[rand_ix+i,:]]))
