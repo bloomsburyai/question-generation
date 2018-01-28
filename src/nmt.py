@@ -112,11 +112,11 @@ assert en_sents.shape[0] == fr_sents.shape[0]
 print(max_in_seq_len, n)
 
 # model params
-embedding_size = 2**5
-num_units=2**6
+embedding_size = 2**6
+num_units=2**7
 
 batch_size = 32
-num_epochs=10
+num_epochs=20
 
 
 training_mode = True
@@ -183,13 +183,14 @@ encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
 
 
 # Build RNN cell
-decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units)
+decoder_cell = tf.nn.rnn_cell.GRUCell(num_units)
 
 
 # Helper
 if training_mode:
     helper = tf.contrib.seq2seq.TrainingHelper(
-        decoder_emb_inp, tf.fill([curr_batch_size], max_out_seq_len))
+        # decoder_emb_inp, tf.fill([curr_batch_size], max_out_seq_len))
+        decoder_emb_inp, length(decoder_emb_inp))
 else:
     exit('Not implemented yet')
 
@@ -204,7 +205,7 @@ outputs, _,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=
 logits = projection_layer(outputs.rnn_output)
 
 target_weights = tf.sequence_mask(
-        length(decoder_emb_inp), max_out_seq_len, dtype=logits.dtype)
+        length(decoder_emb_inp)+1, max_out_seq_len, dtype=logits.dtype)
 
 # logits = tf.Print(logits, [length(encoder_emb_inp)], 'in_length')
 # logits = tf.Print(logits, [tf.shape(in_sent)], 'insent')
@@ -230,7 +231,7 @@ train_loss = (tf.reduce_sum(crossent * target_weights)/tf.to_float(curr_batch_si
 # inference Graph# Helper
 inf_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
     embedding_decoder,
-    tf.fill([curr_batch_size], fr_vocab[SOS]), fr_vocab[EOS])
+    tf.fill([curr_batch_size], fr_vocab[SOS]), fr_vocab['<PAD>'])
 
 # Decoder
 inf_decoder = tf.contrib.seq2seq.BasicDecoder(
@@ -265,7 +266,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             fr_batch = fr_sents[i*batch_size : (i+1)*batch_size,:]
             _,loss = sess.run([update_step,train_loss], feed_dict={in_sent:fr_batch, out_sent:en_batch})
             if i % 250 == 0:
-                print('Step ',i,' -> ', loss)
+                print('Epoch ', e,' Step ',i,' -> ', loss)
 
                 #  infer!
                 num_infer=2
@@ -279,3 +280,4 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                     print(" ".join([fr_vocab_rev[ix] for ix in fr_sents[rand_ix+i,:]]))
                     # print(tgt_est_ids[0])
                     print(" ".join([fr_vocab_rev[ix] for ix in tgt_est_ids[i,:]]))
+print('Done!')
