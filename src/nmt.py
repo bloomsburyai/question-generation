@@ -123,6 +123,8 @@ print(max_in_seq_len, n)
 # model params
 embedding_size = 2**6
 num_units=2**7
+rnn_depth = 3
+dropout_prob=0.2
 
 batch_size = 16
 num_epochs=20
@@ -156,6 +158,8 @@ out_sent_raw = tf.placeholder(tf.int64,[None, max_out_seq_len])
 out_sent = tf.gather(out_sent_raw, tf.range(tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))),axis=1)
 train_out_len = tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))
 
+use_dropout = tf.placeholder_with_default(False,(), 'use_dropout')
+
 curr_batch_size = tf.shape(in_sent)[0]
 
 # curr_batch_size = tf.Print(curr_batch_size, [tf.shape(in_sent)], 'in size', first_n=1)
@@ -184,7 +188,9 @@ decoder_emb_inp = tf.nn.embedding_lookup(
 
 
 # Build RNN cell
-encoder_cell = tf.nn.rnn_cell.GRUCell(num_units,activation=tf.nn.leaky_relu)
+encoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
+        cell=tf.nn.rnn_cell.BasicLSTMCell(num_units,activation=tf.nn.tanh),
+        input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
 
 # Run Dynamic RNN
 #   encoder_outpus: [max_time, batch_size, num_units]
@@ -195,7 +201,9 @@ encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
 
 
 # Build RNN cell
-decoder_cell = tf.nn.rnn_cell.GRUCell(num_units,activation=tf.nn.leaky_relu)
+decoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
+        cell=tf.nn.rnn_cell.BasicLSTMCell(num_units,activation=tf.nn.tanh),
+        input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
 
 
 # Helper
@@ -279,7 +287,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         for i in range(n // batch_size):
             en_batch = en_sents[i*batch_size : (i+1)*batch_size,:]
             fr_batch = fr_sents[i*batch_size : (i+1)*batch_size,:]
-            _,loss = sess.run([update_step,train_loss], feed_dict={in_sent:fr_batch, out_sent_raw:en_batch})
+            _,loss = sess.run([update_step,train_loss], feed_dict={in_sent:fr_batch, out_sent_raw:en_batch, use_dropout:True})
             if i % 250 == 0:
                 print('Epoch ', e,' Step ',i,' -> ', loss)
 
