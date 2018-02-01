@@ -21,14 +21,14 @@ with open('../data/europarl/europarl-fr-500k.txt','r') as fr_file:
     fr_raw = fr_file.readlines()
 
 SOS = '<Sent>'
-EOS = '<PAD>'
+EOS = '</Sent>'
 
 import re
 from collections import defaultdict
 def process_raw(raw_data, limit_length=32):
     lines = [re.sub(r'([\,\?\!\.]+)',r' \1 ', line).lower() for line in raw_data]
     # lines = re.split('[\n]+',raw_data.lower())
-    vocab = {'<PAD>':0,'<OOV>':1, SOS:2}
+    vocab = {'<PAD>':0,'<OOV>':1, SOS:2, EOS:3}
     word_count = defaultdict(float)
     ids=[]
     tokenised=[]
@@ -36,7 +36,7 @@ def process_raw(raw_data, limit_length=32):
     for l in lines:
         for w in l.split():
             word_count[w] +=1
-    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(10000,len(word_count))]
+    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(5000,len(word_count))]
     for w in vocab_list:
         vocab[w] = len(vocab)
     for l in lines:
@@ -44,8 +44,8 @@ def process_raw(raw_data, limit_length=32):
         #     print(l)
         # if len(l) ==0 or l[0] == '<':
         #     continue
-        # id_line=[vocab[SOS]]
-        # token_line = [SOS]
+        id_line=[vocab[SOS]]
+        token_line = [SOS]
         id_line=[]
         token_line = []
         for w in l.split():
@@ -128,6 +128,7 @@ dropout_prob=0.2
 
 batch_size = 16
 num_epochs=20
+beam_width=5
 
 
 training_mode = True
@@ -254,7 +255,22 @@ train_loss = (tf.reduce_sum(crossent * target_weights)/tf.to_float(curr_batch_si
 # inference Graph# Helper
 inf_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
     embedding_decoder,
-    tf.fill([curr_batch_size], fr_vocab[SOS]), fr_vocab['<PAD>'])
+    tf.fill([curr_batch_size], fr_vocab[SOS]), fr_vocab[EOS])
+
+# Replicate encoder infos beam_width times
+decoder_initial_state = tf.contrib.seq2seq.tile_batch(
+encoder_state, multiplier=beam_width)
+
+# Define a beam-search decoder
+# inf_decoder = tf.contrib.seq2seq.BeamSearchDecoder(
+#     cell=decoder_cell,
+#     embedding=embedding_decoder,
+#     start_tokens=tf.fill([curr_batch_size], fr_vocab[SOS]),
+#     end_token= fr_vocab['<PAD>'],
+#     initial_state=decoder_initial_state,
+#     beam_width=beam_width,
+#     output_layer=projection_layer,
+#     length_penalty_weight=0.0)
 
 # Decoder
 inf_decoder = tf.contrib.seq2seq.BasicDecoder(
