@@ -80,15 +80,18 @@ def lrelu(x, alpha=0.1):
 
 # define graph
 # placeholders
-in_sent = tf.placeholder(tf.int64, [None, max_in_seq_len])
+in_sent_raw = tf.placeholder(tf.int64, [None, max_in_seq_len])
 out_sent_raw = tf.placeholder(tf.int64,[None, max_out_seq_len])
 use_dropout = tf.placeholder_with_default(False,(), 'use_dropout')
 
 # do some preprocessing - get lengths, and remove padding for target output
-curr_batch_size = tf.shape(in_sent)[0]
+curr_batch_size = tf.shape(in_sent_raw)[0]
 out_sent_in = tf.gather(out_sent_raw, tf.range(tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))),axis=1)
 train_out_max_len = tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_in,fr_vocab['<PAD>']),tf.int32),axis=1))
+
+# Remove the start token from non training sequences. This is ugly, it would be better to just add when it's needed
 out_sent_tgt = tf.concat([out_sent_in[:,1:], tf.zeros([curr_batch_size,1],dtype=tf.int64)],1) # remove the SoS token
+in_sent = tf.concat([in_sent_raw[:,1:], tf.zeros([curr_batch_size,1],dtype=tf.int64)],1) # remove the SoS token
 
 
 
@@ -216,7 +219,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         for i in range(n // batch_size):
             en_batch = en_sents[i*batch_size : (i+1)*batch_size,:]
             fr_batch = fr_sents[i*batch_size : (i+1)*batch_size,:]
-            _,loss = sess.run([update_step,train_loss], feed_dict={in_sent:fr_batch, out_sent_raw:en_batch, use_dropout:True})
+            _,loss = sess.run([update_step,train_loss], feed_dict={in_sent_raw:en_batch, out_sent_raw:fr_batch, use_dropout:True})
             if i % 250 == 0:
                 print('Epoch ', e,' Step ',i,' -> ', loss)
 
@@ -226,7 +229,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                 en_batch = en_sents[rand_ix : rand_ix+ num_infer,:]
                 fr_batch = fr_sents[rand_ix : rand_ix+num_infer,:]
 
-                tgt_est_ids,this_in, this_out_tgt,this_out_train = sess.run([translations,in_sent,out_sent_tgt,out_sent_in], feed_dict={in_sent:fr_batch, out_sent_raw:en_batch})
+                tgt_est_ids,this_in, this_out_tgt,this_out_train = sess.run([translations,in_sent,out_sent_tgt,out_sent_in], feed_dict={in_sent_raw:en_batch, out_sent_raw:fr_batch})
                 for i in range(num_infer):
                     print('In, Tgt, Train decoder in, est')
                     print("  "," ".join([en_vocab_rev[ix] for ix in this_in[i,:]]))
