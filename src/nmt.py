@@ -9,105 +9,38 @@ import numpy as np
 
 import random,os
 
+import helpers.loader as loader
+
+# Limit GPU usage for shared environments
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
 
 
+# Load europarl
 # europarl-en-50k.txt
 # europarl-v7.fr-en.en
-with open('../data/europarl/europarl-en-500k.txt','r') as en_file:
-    en_raw = en_file.readlines()
-with open('../data/europarl/europarl-fr-500k.txt','r') as fr_file:
-    fr_raw = fr_file.readlines()
-
-SOS = '<Sent>'
-EOS = '</Sent>'
-
-import re
-from collections import defaultdict
-def process_raw(raw_data, limit_length=32):
-    lines = [re.sub(r'([\,\?\!\.]+)',r' \1 ', line).lower() for line in raw_data]
-    # lines = re.split('[\n]+',raw_data.lower())
-    vocab = {'<PAD>':0,'<OOV>':1, SOS:2, EOS:3}
-    word_count = defaultdict(float)
-    ids=[]
-    tokenised=[]
-    max_sent_len=0
-    for l in lines:
-        for w in l.split():
-            word_count[w] +=1
-    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(5000,len(word_count))]
-    for w in vocab_list:
-        vocab[w] = len(vocab)
-    for l in lines:
-        # if l[0] == '<':
-        #     print(l)
-        # if len(l) ==0 or l[0] == '<':
-        #     continue
-        id_line=[vocab[SOS]]
-        token_line = [SOS]
-        # id_line=[]
-        # token_line = []
-        for w in l.split():
-            if len(id_line) > max_sent_len:
-                max_sent_len = len(id_line)
-            if len(id_line) >= limit_length-1:
-                continue
-            w = w.strip()
-            if len(w) == 0:
-                continue
-            if w not in vocab.keys():
-                # vocab[w] = len(vocab)
-                w = '<OOV>'
-            id_line.append(vocab[w])
-            token_line.append(w)
-        # if len(id_line) > 400:
-        #     print(token_line)
-        #     print(id_line)
-        #     exit()
-        id_line.append(vocab[EOS])
-        token_line.append(EOS)
-
-        # if len(token_line) >= limit_length:
-        #     print(token_line)
-        #     print(len(token_line))
-        #     exit()
-        ids.append(id_line)
-        tokenised.append(token_line)
-
-    if limit_length:
-        max_sent_len = min(max_sent_len+1, limit_length)
-    id_arr = np.full([len(ids), max_sent_len], vocab['<PAD>'], dtype=np.int32)
-
-    for i, sent in enumerate(ids):
-        this_len = min(len(sent), max_sent_len)
-        id_arr[i,  0:this_len] = (sent if len(sent) <= max_sent_len else sent[:max_sent_len])
-
-    return id_arr, tokenised, vocab
-
-en_sents, en_tokenised, en_vocab = process_raw(en_raw)
-fr_sents, fr_tokenised, fr_vocab = process_raw(fr_raw)
+en_sents, en_vocab = loader.load_multiline('../data/europarl/europarl-en-50k.txt')
+fr_sents, fr_vocab = loader.load_multiline('../data/europarl/europarl-fr-50k.txt')
 
 en_vocab_rev = {v:k for k,v in en_vocab.items()}
 fr_vocab_rev = {v:k for k,v in fr_vocab.items()}
 
-# kill blanks
-for i,line in enumerate(en_tokenised):
-    if len(line) == 0:
-        en_tokenised.pop(i)
-        fr_tokenised.pop(i)
+# kill blanks, but keep synchronised - use while loop so we can edit in place
+i=0
+while i < len(en_sents):
+    line = en_sents[i]
+    if sum(line) <= en_vocab[loader.SOS] + en_vocab[loader.EOS]:
         en_sents = np.delete(en_sents, (i), axis=0)
         fr_sents = np.delete(fr_sents, (i), axis=0)
-for i,line in enumerate(fr_tokenised):
-    if len(line) == 0:
-        en_tokenised.pop(i)
-        fr_tokenised.pop(i)
+    i+=1
+i=0
+while i < len(fr_sents):
+    line = fr_sents[i]
+    if sum(line) <= fr_vocab[loader.SOS] + fr_vocab[loader.EOS]:
         en_sents = np.delete(en_sents, (i), axis=0)
         fr_sents = np.delete(fr_sents, (i), axis=0)
-
+    i+=1
 print('Data loaded')
-# print(np.shape(en_sents))
-# print(np.shape(fr_sents))
 
 max_in_seq_len = en_sents.shape[1]
 max_out_seq_len = fr_sents.shape[1]
@@ -133,102 +66,89 @@ beam_width=5
 
 training_mode = True
 
-
+# get length of embedded sequence, assuming zero embedding for pad token
 def length(sequence, time_major=False):
   used = tf.sign(tf.reduce_max(tf.abs(sequence), 2))
   length = tf.reduce_sum(used, (0 if time_major else 1))
   length = tf.cast(length, tf.int32)
   return length
 
-def last_relevant(output, length, time_major=False):
-  batch_size = tf.shape(output)[(1 if time_major else 0)]
-  max_length = tf.shape(output)[(0 if time_major else 1)]
-  out_size = int(output.get_shape()[2])
-  index = tf.range(0, batch_size) * max_length + (length - 1)
-  flat = tf.reshape(output, [-1, out_size])
-  relevant = tf.gather(flat, index)
-  return relevant
 
 
 def lrelu(x, alpha=0.1):
   return tf.maximum(x, alpha * x)
 
 # define graph
+# placeholders
 in_sent = tf.placeholder(tf.int64, [None, max_in_seq_len])
 out_sent_raw = tf.placeholder(tf.int64,[None, max_out_seq_len])
-out_sent = tf.gather(out_sent_raw, tf.range(tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))),axis=1)
-train_out_len = tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))
-
 use_dropout = tf.placeholder_with_default(False,(), 'use_dropout')
 
+# do some preprocessing - get lengths, and remove padding for target output
 curr_batch_size = tf.shape(in_sent)[0]
+out_sent_in = tf.gather(out_sent_raw, tf.range(tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_raw,fr_vocab['<PAD>']),tf.int32),axis=1))),axis=1)
+train_out_max_len = tf.reduce_max(tf.reduce_sum(tf.cast(tf.not_equal(out_sent_in,fr_vocab['<PAD>']),tf.int32),axis=1))
+out_sent_tgt = tf.concat([out_sent_in[:,1:], tf.zeros([curr_batch_size,1],dtype=tf.int64)],1) # remove the SoS token
+
+
+
 
 # curr_batch_size = tf.Print(curr_batch_size, [tf.shape(in_sent)], 'in size', first_n=1)
 
-# Embedding
-oov_pad_embeddings = tf.zeros([1,embedding_size])
+# Embedding - encoder
 embedding_encoder = tf.get_variable("encoder_embed", [src_vocab_size-1, embedding_size], initializer=tf.orthogonal_initializer())
-embedding_encoder = tf.concat([oov_pad_embeddings, embedding_encoder],0)
-# embedding_encoder = tf.get_variable(
-#     "embedding_encoder", [src_vocab_size, embedding_size], tf.float32, initializer=tf.orthogonal_initializer())
-# Look up embedding:
-#   encoder_inputs: [max_time, batch_size]
-#   encoder_emb_inp: [max_time, batch_size, embedding_size]
+embedding_encoder = tf.concat([tf.zeros([1,embedding_size]), embedding_encoder],0)
+
 encoder_emb_inp = tf.nn.embedding_lookup(
     embedding_encoder, in_sent)
 
-# Embedding
-# oov_pad_embeddings = tf.zeros([1,embedding_size])
+# Embedding - decoder
 embedding_decoder = tf.get_variable("decoder_embed", [tgt_vocab_size-1, embedding_size], initializer=tf.orthogonal_initializer())
-embedding_decoder = tf.concat([oov_pad_embeddings, embedding_decoder],0)
-# Look up embedding:
-#   encoder_inputs: [max_time, batch_size]
-#   encoder_emb_inp: [max_time, batch_size, embedding_size]
+embedding_decoder = tf.concat([tf.zeros([1,embedding_size]), embedding_decoder],0)
+
 decoder_emb_inp = tf.nn.embedding_lookup(
-    embedding_decoder, out_sent)
+    embedding_decoder, out_sent_in)
 
 
-# Build RNN cell
+# Build RNN cell for encoder
 encoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
         cell=tf.nn.rnn_cell.BasicLSTMCell(num_units,activation=tf.nn.tanh),
         input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
 
-# Run Dynamic RNN
-#   encoder_outpus: [max_time, batch_size, num_units]
-#   encoder_state: [batch_size, num_units]
+# Unroll encoder RNN
 encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
     encoder_cell, encoder_emb_inp,
     sequence_length=length(encoder_emb_inp), initial_state = encoder_cell.zero_state(curr_batch_size, tf.float32))
 
 
-# Build RNN cell
+# Build RNN cell for decoder
 decoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
         cell=tf.nn.rnn_cell.BasicLSTMCell(num_units,activation=tf.nn.tanh),
         input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
 
-
-# Helper
-if training_mode:
-    helper = tf.contrib.seq2seq.TrainingHelper(
-        # decoder_emb_inp, tf.fill([curr_batch_size], max_out_seq_len))
-        decoder_emb_inp, length(decoder_emb_inp))
-else:
-    exit('Not implemented yet')
-
+# project RNN outputs into vocab space
 projection_layer = tf.layers.Dense(
     tgt_vocab_size, use_bias=False)
 
-# print(decoder_emb_inp)
+# Helper - training
+helper = tf.contrib.seq2seq.TrainingHelper(
+    # decoder_emb_inp, tf.fill([curr_batch_size], max_out_seq_len))
+    decoder_emb_inp, length(decoder_emb_inp))
 
-# Decoder
+# Decoder - training
 decoder = tf.contrib.seq2seq.BasicDecoder(
     decoder_cell, helper, encoder_state)
-# Dynamic decoding
+
+# Unroll the decoder
 outputs, _,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=max_out_seq_len)
+
+# Project into vocab space
 logits = projection_layer(outputs.rnn_output)
 
+# set up training loss - mask padding
+train_out_len = tf.reduce_sum(tf.cast(tf.not_equal(out_sent_in,fr_vocab['<PAD>']),tf.int32),axis=1)
 target_weights = tf.sequence_mask(
-        length(decoder_emb_inp), train_out_len, dtype=logits.dtype)
+        train_out_len, train_out_max_len, dtype=logits.dtype)
 
 # logits = tf.Print(logits, [length(encoder_emb_inp)], 'in_length')
 # logits = tf.Print(logits, [length(decoder_emb_inp)], 'out_length')
@@ -241,23 +161,16 @@ target_weights = tf.sequence_mask(
 # logits = tf.Print(logits, [tf.shape(target_weights)], 'w')
 
 crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-    labels=out_sent, logits=logits)
+    labels=out_sent_tgt, logits=logits)
 train_loss = (tf.reduce_sum(crossent * target_weights)/tf.to_float(curr_batch_size))
 
 
-
-# weights = tf.to_float(tf.not_equal(out_sent[:, :], fr_vocab['<PAD>']))
-#
-#
-# train_loss = tf.contrib.seq2seq.sequence_loss(
-#         logits, out_sent, weights=weights)
-
-# inference Graph# Helper
+# inference Helper
 inf_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
     embedding_decoder,
-    tf.fill([curr_batch_size], fr_vocab[SOS]), fr_vocab[EOS])
+    tf.fill([curr_batch_size], fr_vocab[loader.SOS]), fr_vocab[loader.EOS])
 
-# Replicate encoder infos beam_width times
+# Replicate encoder state beam_width times
 decoder_initial_state = tf.contrib.seq2seq.tile_batch(
 encoder_state, multiplier=beam_width)
 
@@ -309,14 +222,15 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
                 #  infer!
                 num_infer=2
-                rand_ix = random.randint(0, len(en_tokenised)-num_infer)
+                rand_ix = random.randint(0, len(en_sents)-num_infer)
                 en_batch = en_sents[rand_ix : rand_ix+ num_infer,:]
                 fr_batch = fr_sents[rand_ix : rand_ix+num_infer,:]
 
-                tgt_est_ids = sess.run(translations, feed_dict={in_sent:fr_batch, out_sent_raw:en_batch})
+                tgt_est_ids,this_in, this_out_tgt,this_out_train = sess.run([translations,in_sent,out_sent_tgt,out_sent_in], feed_dict={in_sent:fr_batch, out_sent_raw:en_batch})
                 for i in range(num_infer):
-                    print(" ".join([en_vocab_rev[ix] for ix in en_sents[rand_ix+i,:]]))
-                    print(" ".join([fr_vocab_rev[ix] for ix in fr_sents[rand_ix+i,:]]))
-                    # print(tgt_est_ids[0])
-                    print(" ".join([fr_vocab_rev[ix] for ix in tgt_est_ids[i,:]]))
+                    print('In, Tgt, Train decoder in, est')
+                    print("  "," ".join([en_vocab_rev[ix] for ix in this_in[i,:]]))
+                    print("  "," ".join([fr_vocab_rev[ix] for ix in this_out_tgt[i,:]]))
+                    print("  "," ".join([fr_vocab_rev[ix] for ix in this_out_train[i,:]]))
+                    print("  "," ".join([fr_vocab_rev[ix] for ix in tgt_est_ids[i,:]]))
 print('Done!')
