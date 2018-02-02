@@ -19,8 +19,8 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
 # Load europarl
 # europarl-en-50k.txt
 # europarl-v7.fr-en.en
-en_sents, en_vocab = loader.load_multiline('../data/europarl/europarl-en-50k.txt')
-fr_sents, fr_vocab = loader.load_multiline('../data/europarl/europarl-fr-50k.txt')
+en_sents, en_vocab = loader.load_multiline('../data/europarl/europarl-v7.fr-en.en')
+fr_sents, fr_vocab = loader.load_multiline('../data/europarl/europarl-v7.fr-en.fr')
 
 en_vocab_rev = {v:k for k,v in en_vocab.items()}
 fr_vocab_rev = {v:k for k,v in fr_vocab.items()}
@@ -60,7 +60,7 @@ rnn_depth = 3
 dropout_prob=0.2
 
 batch_size = 16
-num_epochs=20
+num_epochs=100
 beam_width=5
 
 
