@@ -46,8 +46,8 @@ def process_raw(raw_data, limit_length=32):
         #     continue
         id_line=[vocab[SOS]]
         token_line = [SOS]
-        id_line=[]
-        token_line = []
+        # id_line=[]
+        # token_line = []
         for w in l.split():
             if len(id_line) > max_sent_len:
                 max_sent_len = len(id_line)
@@ -228,7 +228,7 @@ outputs, _,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=
 logits = projection_layer(outputs.rnn_output)
 
 target_weights = tf.sequence_mask(
-        length(decoder_emb_inp)+1, train_out_len, dtype=logits.dtype)
+        length(decoder_emb_inp), train_out_len, dtype=logits.dtype)
 
 # logits = tf.Print(logits, [length(encoder_emb_inp)], 'in_length')
 # logits = tf.Print(logits, [length(decoder_emb_inp)], 'out_length')
