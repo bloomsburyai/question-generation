@@ -19,8 +19,10 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
 # Load europarl
 # europarl-en-50k.txt
 # europarl-v7.fr-en.en
-en_sents, en_vocab = loader.load_multiline('../data/europarl/europarl-v7.fr-en.en')
-fr_sents, fr_vocab = loader.load_multiline('../data/europarl/europarl-v7.fr-en.fr')
+# en_sents, en_vocab = loader.load_multiline('../data/europarl/europarl-v7.fr-en.en')
+# fr_sents, fr_vocab = loader.load_multiline('../data/europarl/europarl-v7.fr-en.fr')
+en_sents, en_vocab = loader.load_multiline('../data/europarl/europarl-en-50k.txt')
+fr_sents, fr_vocab = loader.load_multiline('../data/europarl/europarl-fr-50k.txt')
 
 en_vocab_rev = {v:k for k,v in en_vocab.items()}
 fr_vocab_rev = {v:k for k,v in fr_vocab.items()}
@@ -115,7 +117,7 @@ decoder_emb_inp = tf.nn.embedding_lookup(
 
 # Build RNN cell for encoder
 encoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-        cell=tf.nn.rnn_cell.BasicLSTMCell(num_units,activation=tf.nn.tanh),
+        cell=tf.contrib.rnn.GRUCell(num_units=num_units),
         input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
 
 # Unroll encoder RNN
@@ -125,9 +127,15 @@ encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
 
 
 # Build RNN cell for decoder
+
+
+attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
+                num_units=num_units, memory=encoder_outputs,
+                memory_sequence_length=length(encoder_emb_inp))
 decoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-        cell=tf.nn.rnn_cell.BasicLSTMCell(num_units,activation=tf.nn.tanh),
+        cell=tf.contrib.rnn.GRUCell(num_units=num_units),
         input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
+decoder_cell = tf.contrib.seq2seq.AttentionWrapper(decoder_cell, attention_mechanism, attention_layer_size=num_units / 2)
 
 # project RNN outputs into vocab space
 projection_layer = tf.layers.Dense(
@@ -140,7 +148,11 @@ helper = tf.contrib.seq2seq.TrainingHelper(
 
 # Decoder - training
 decoder = tf.contrib.seq2seq.BasicDecoder(
-    decoder_cell, helper, encoder_state)
+    decoder_cell, helper,
+    initial_state=decoder_cell.zero_state(
+                    dtype=tf.float32, batch_size=curr_batch_size)
+    # initial_state=encoder_state
+    )
 
 # Unroll the decoder
 outputs, _,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=max_out_seq_len)
@@ -167,21 +179,25 @@ crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
     labels=out_sent_tgt, logits=logits)
 train_loss = (tf.reduce_sum(crossent * target_weights)/tf.to_float(curr_batch_size))
 
-
 # inference Helper
 inf_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
     embedding_decoder,
     tf.fill([curr_batch_size], fr_vocab[loader.SOS]), fr_vocab[loader.EOS])
 
 # Replicate encoder state beam_width times
-decoder_initial_state = tf.contrib.seq2seq.tile_batch(
-encoder_state, multiplier=beam_width)
+# tiled_encoder_final_state = tf.contrib.seq2seq.tile_batch(
+#     encoder_state, multiplier=beam_width)
+#
+# decoder_initial_state = decoder_cell.zero_state(
+#     dtype=tf.float32, batch_size=curr_batch_size * beam_width)
+# decoder_initial_state = decoder_initial_state.clone(
+#     cell_state=tiled_encoder_final_state)
 
 # Define a beam-search decoder
 # inf_decoder = tf.contrib.seq2seq.BeamSearchDecoder(
 #     cell=decoder_cell,
 #     embedding=embedding_decoder,
-#     start_tokens=tf.fill([curr_batch_size], fr_vocab[SOS]),
+#     start_tokens=tf.fill([curr_batch_size], fr_vocab[loader.SOS]),
 #     end_token= fr_vocab['<PAD>'],
 #     initial_state=decoder_initial_state,
 #     beam_width=beam_width,
@@ -190,11 +206,14 @@ encoder_state, multiplier=beam_width)
 
 # Decoder
 inf_decoder = tf.contrib.seq2seq.BasicDecoder(
-    decoder_cell, inf_helper, encoder_state,
+    decoder_cell,
+    inf_helper,
+    decoder_cell.zero_state(dtype=tf.float32, batch_size=curr_batch_size ),
     output_layer=projection_layer)
 # Dynamic decoding
 inf_outputs, _,inf_out_lens = tf.contrib.seq2seq.dynamic_decode(
-    inf_decoder, maximum_iterations=max_out_seq_len,impute_finished=True)
+    inf_decoder, maximum_iterations=max_out_seq_len,impute_finished=False)
+# translations = inf_outputs.predicted_ids[:,:,0]
 translations = inf_outputs.sample_id
 
 # Calculate and clip gradients
@@ -230,6 +249,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
                 fr_batch = fr_sents[rand_ix : rand_ix+num_infer,:]
 
                 tgt_est_ids,this_in, this_out_tgt,this_out_train = sess.run([translations,in_sent,out_sent_tgt,out_sent_in], feed_dict={in_sent_raw:en_batch, out_sent_raw:fr_batch})
+                # print(tgt_est_ids)
                 for i in range(num_infer):
                     print('In, Tgt, Train decoder in, est')
                     print("  "," ".join([en_vocab_rev[ix] for ix in this_in[i,:]]))
