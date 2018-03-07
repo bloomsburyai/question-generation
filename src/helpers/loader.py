@@ -10,10 +10,10 @@ EOS = '</Sent>'
 PAD='<PAD>'
 OOV='<OOV>'
 
-def load_squad_dataset(dev=False):
+def load_squad_dataset(path, dev=False):
     expected_version = '1.1'
     filename = 'train-v1.1.json' if not dev else 'dev-v1.1.json'
-    with open('../data/'+filename) as dataset_file:
+    with open(path+filename) as dataset_file:
         dataset_json = json.load(dataset_file)
         if (dataset_json['version'] != expected_version):
             print('Expected SQuAD v-' + expected_version +
@@ -22,8 +22,8 @@ def load_squad_dataset(dev=False):
         dataset = dataset_json['data']
         return(dataset)
 
-def load_squad_triples(dev=False):
-    raw_data = load_squad_dataset(dev)
+def load_squad_triples(path, dev=False):
+    raw_data = load_squad_dataset(path, dev)
     triples=[]
     for doc in raw_data:
         for para in doc['paragraphs']:

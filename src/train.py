@@ -6,9 +6,6 @@ import helpers.loader as loader
 from qgen_model import QGenMaluuba
 
 
-# load dataset
-train_data = loader.load_squad_triples(False)
-dev_data = loader.load_squad_triples(True)
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -19,13 +16,14 @@ tf.app.flags.DEFINE_boolean("train", False, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epoch", 5, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
+tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
 
 FLAGS = tf.app.flags.FLAGS
 
-# Data loader
-# Should return a tuple of a batch of x,y
-def get_batch(epoch, step, dev=False, test=False, size=FLAGS.batch_size):
-    pass
+
+# load dataset
+train_data = loader.load_squad_triples(FLAGS.data_path, False)
+dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
 
 def main(_):
