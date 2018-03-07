@@ -22,6 +22,26 @@ def load_squad_dataset(dev=False):
         dataset = dataset_json['data']
         return(dataset)
 
+def load_squad_triples(dev=False):
+    raw_data = load_squad_dataset(dev)
+    triples=[]
+    for doc in raw_data:
+        for para in doc['paragraphs']:
+            for qa in para['qas']:
+                # NOTE: this only takes the first answer per question! ToDo handle this more intelligently
+                triples.append( (para['context'], qa['question'], qa['answers'][0]['text']) )
+    return triples
+
+def get_vocab(corpus, vocab_size=2000):
+    vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
+
+    for l in corpus:
+        for w in l.split():
+            word_count[w] +=1
+    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
+    for w in vocab_list:
+        vocab[w] = len(vocab)
+    return vocab
 
 def load_multiline(path, limit_length=32, vocab_size=5000):
     with open(path,'r') as fp:
@@ -80,7 +100,86 @@ def load_multiline(path, limit_length=32, vocab_size=5000):
 
     return id_arr, vocab
 
+def get_vocab(corpus, vocab_size=1000):
+    lines = [re.sub(r'([\,\?\!\.]+)',r' \1 ', line).lower() for line in corpus]
+    # lines = re.split('[\n]+',raw_data.lower())
+    vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
+    word_count = defaultdict(float)
+    for l in lines:
+        for w in l.split():
+            word_count[w] +=1
+    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
+    for w in vocab_list:
+        vocab[w] = len(vocab)
+    return vocab
 
+def get_line_ids(line, ref_line, vocab, limit_length):
+    line_ids=[vocab[SOS]]
+
+    for w in line:
+        if len(line_ids) >= limit_length-1:
+            break
+        w = w.strip()
+        if len(w) == 0:
+            continue
+        if w not in vocab.keys():
+            if w in ref_line and ref_line.index(w) < limit_length+2:
+                line_ids.append(len(vocab)+ref_line.index(w))
+            else:
+                line_ids.append(vocab[OOV])
+        else:
+            line_ids.append(vocab[w])
+
+    line_ids.append(vocab[EOS])
+    return line_ids
+
+def load_multiline_aligned(path_src, path_tgt, limit_length=32, vocab_size=1000):
+    with open(path_src,'r') as fp_src:
+        raw_data_src = fp_src.readlines()
+    with open(path_tgt,'r') as fp_tgt:
+        raw_data_tgt = fp_tgt.readlines()
+    vocab_src = get_vocab(raw_data_src, vocab_size=1000)
+    vocab_tgt = get_vocab(raw_data_tgt, vocab_size=1000)
+
+    assert len(raw_data_src) == len(raw_data_tgt)
+
+    out_src=[]
+    out_tgt=[]
+    max_sent_len_src=0
+    max_sent_len_tgt=0
+
+    for l in range(len(raw_data_src)):
+        line_src = re.sub(r'([\,\?\!\.]+)',r' \1 ', raw_data_src[l]).lower().split()
+        line_tgt = re.sub(r'([\,\?\!\.]+)',r' \1 ', raw_data_tgt[l]).lower().split()
+        if line_src == '' or line_tgt == '':
+            continue
+
+        line_ids_src = get_line_ids(line_src, line_tgt, vocab_src, limit_length)
+        line_ids_tgt = get_line_ids(line_tgt, line_src, vocab_tgt, limit_length)
+
+        if np.sum(line_ids_src) > vocab_src[SOS]+vocab_src[EOS] and np.sum(line_ids_tgt) > vocab_tgt[SOS]+vocab_tgt[EOS]:
+            out_src.append(line_ids_src)
+            out_tgt.append(line_ids_tgt)
+
+            max_sent_len_src = max(max_sent_len_src, len(out_src))
+            max_sent_len_tgt = max(max_sent_len_tgt, len(out_tgt))
+
+    if limit_length:
+        # max_sent_len = min(max(max_sent_len_src,max_sent_len_tgt)+1, limit_length)
+        max_sent_len = limit_length
+
+    id_arr_src = np.full([len(out_src), max_sent_len], vocab_src['<PAD>'], dtype=np.int32)
+    id_arr_tgt = np.full([len(out_tgt), max_sent_len], vocab_tgt['<PAD>'], dtype=np.int32)
+
+    for i, sent in enumerate(out_src):
+        this_len = min(len(sent), max_sent_len)
+        id_arr_src[i,  0:this_len] = (sent if len(sent) <= max_sent_len else sent[:max_sent_len])
+
+    for i, sent in enumerate(out_tgt):
+        this_len = min(len(sent), max_sent_len)
+        id_arr_tgt[i,  0:this_len] = (sent if len(sent) <= max_sent_len else sent[:max_sent_len])
+
+    return id_arr_src, id_arr_tgt, vocab_src, vocab_tgt
 
 if __name__ == "__main__":
     print(load_squad_dataset(False)[0]['paragraphs'][0]['qas'][0])
