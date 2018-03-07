@@ -29,4 +29,4 @@ class TFModel():
 
 
     def predict(self):
-        return self.y_hat
+        pass

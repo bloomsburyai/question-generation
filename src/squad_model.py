@@ -11,9 +11,9 @@ class SQuADModel(TFModel):
         self.vocab=vocab
         self.batch_size = batch_size
         super().__init__()
-        
 
-    def build_dataset(self, batch_size):
+
+    def build_data_pipeline(self, batch_size):
         self.context_ph = tf.placeholder(tf.string, [None])
         self.qs_ph = tf.placeholder(tf.string, [None])
         self.as_ph = tf.placeholder(tf.string, [None])
@@ -31,6 +31,7 @@ class SQuADModel(TFModel):
                     ids.append(decoded_context.index(w.decode()))
                 else:
                     ids.append(self.vocab[OOV])
+            ids.append(self.vocab[EOS]) # HIDING THIS IS BAD
             embedded = np.asarray(ids, dtype=np.int32)
 
             return embedded
@@ -69,7 +70,7 @@ class SQuADModel(TFModel):
 
 
         self.iterator = batched_dataset.make_initializable_iterator()
-        self.this_context, self.this_q, self.this_a = self.iterator.get_next()
+        self.this_context, self.this_question, self.this_answer = self.iterator.get_next()
         (self.context_raw, self.context_ids, self.context_length) = self.this_context
-        (self.q_raw, self.q_ids, self.q_length) = self.this_q
-        (self.a_raw, self.a_ids, self.a_length) = self.this_a
+        (self.question_raw, self.question_ids, self.question_length) = self.this_question
+        (self.answer_raw, self.answer_ids, self.answer_length) = self.this_answer

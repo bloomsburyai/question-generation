@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
-import tqdm,os
+import os
 import helpers.loader as loader
+from tqdm import tqdm
 
 from qgen_model import QGenMaluuba
 
@@ -11,63 +12,64 @@ from qgen_model import QGenMaluuba
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
 mem_limit=0.5
 
-# Hyperparameters
-tf.app.flags.DEFINE_boolean("train", False, "Training mode?")
+# config
+tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
-tf.app.flags.DEFINE_integer("num_epoch", 5, "Train the model for this many epochs")
-tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
+tf.app.flags.DEFINE_integer("num_epochs", 1, "Train the model for this many epochs")
+tf.app.flags.DEFINE_integer("batch_size", 2, "Batch size")
 tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
+tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
+
+# hyperparams
+tf.app.flags.DEFINE_integer("embedding_size", 2**3, "Dimensionality to use for learned word embeddings")
 
 FLAGS = tf.app.flags.FLAGS
 
-
-# load dataset
-train_data = loader.load_squad_triples(FLAGS.data_path, False)
-dev_data = loader.load_squad_triples(FLAGS.data_path, True)
-
-
 def main(_):
-    model = TFModel()
+    # load dataset
+    train_data = loader.load_squad_triples(FLAGS.data_path, False)
+    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+
+    print('Loaded SQuAD with ',len(train_data),' triples')
+    train_contexts, train_qs, train_as = zip(*train_data)
+    vocab = loader.get_vocab(train_contexts, 20)
+
+    # Create model
+
+    model = QGenMaluuba(vocab, batch_size=FLAGS.batch_size)
+    # saver = tf.train.Saver()
+
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        summary_writer = tf.train.SummaryWriter(summary_dir_name, sess.graph)
-        saver = tf.train.Saver()
+        if not os.path.exists(FLAGS.log_dir):
+            os.makedirs(FLAGS.log_dir)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
-        if to_restore:
-            saver.restore(sess, chkpt_path+ '/model.checkpoint')
+        if not FLAGS.train:
+            # saver.restore(sess, chkpt_path+ '/model.checkpoint')
+            print('Loading not implemented yet')
         else:
             sess.run(tf.global_variables_initializer())
 
-        x,y,is_training = model.placeholders()
-        for e in range(num_epochs):
-            for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                batch_xs, batch_ys = get_batch(e,i)
-                _,train_summary = sess.run([model.optimizer, model.train_summary], feed_dict={x: batch_xs, y: batch_ys, is_training:True})
-                summary_writer.add_summary(train_summary, global_step=(e*num_steps+i))
+        num_steps = len(train_data)//FLAGS.batch_size
 
-                if i % FLAGS.eval_freq == 0:
-                    batch_xs, batch_ys = get_batch(e,i, dev=True)
-                    dev_summary = sess.run([model.eval_summary], feed_dict={x: batch_xs, y: batch_ys, is_training:False})
-                    summary_writer.add_summary(dev_summary, global_step=(e*num_steps+i))
-                # if save_cond:
-                #     saver.save(sess, chkpt_path+'/model.checkpoint')
-
-if __name__ == '__main__':
-    # print(train_data[1]['paragraphs'][0].keys())
-    # print(train_data[1]['paragraphs'][0]['context'])
-    # print(train_data[1]['paragraphs'][0]['qas'][0]['question'])
-    # print(train_data[1]['paragraphs'][0]['qas'][0]['answers'][0]['text'])
-
-    print(len(train_data))
-    # tf.app.run()
-
-    train_contexts, train_qs, train_as = zip(*train_data)
-    vocab = loader.get_vocab(train_contexts, 2000)
-
-    model = QGenMaluuba(vocab, batch_size=FLAGS.batch_size)
-
-    with tf.Session() as sess:
+        # Initialise the dataset
         sess.run(model.iterator.initializer, feed_dict={model.context_ph: train_contexts,
                                           model.qs_ph: train_qs, model.as_ph: train_as})
-        print(sess.run([model.this_q, model.this_a]))
-        # print(sess.run(model.this_q))
+
+        for e in range(FLAGS.num_epochs):
+            for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
+                _,train_summary = sess.run([model.optimizer, model.train_summary])
+                summary_writer.add_summary(train_summary, global_step=(e*num_steps+i))
+
+                if i == 0:
+                    print(sess.run([model.answer_teach,model.answer_ids]))
+                # ToDo: implement dev pipeline
+                # if i % FLAGS.eval_freq == 0:
+                #     dev_summary = sess.run([model.eval_summary], feed_dict={x: batch_xs, y: batch_ys, is_training:False})
+                #     summary_writer.add_summary(dev_summary, global_step=(e*num_steps+i))
+                # if save_cond:
+                #     saver.save(sess, chkpt_path+'/model.checkpoint')
+        print(sess.run(model.W))
+if __name__ == '__main__':
+    tf.app.run()
