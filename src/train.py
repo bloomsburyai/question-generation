@@ -22,6 +22,7 @@ tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 
 # hyperparams
 tf.app.flags.DEFINE_integer("embedding_size", 2**3, "Dimensionality to use for learned word embeddings")
+tf.app.flags.DEFINE_integer("context_encoder_units", 2**3, "Number of hidden units for context encoder")
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -31,7 +32,7 @@ def main(_):
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     print('Loaded SQuAD with ',len(train_data),' triples')
-    train_contexts, train_qs, train_as = zip(*train_data)
+    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     vocab = loader.get_vocab(train_contexts, 20)
 
     # Create model
@@ -55,15 +56,15 @@ def main(_):
 
         # Initialise the dataset
         sess.run(model.iterator.initializer, feed_dict={model.context_ph: train_contexts,
-                                          model.qs_ph: train_qs, model.as_ph: train_as})
+                                          model.qs_ph: train_qs, model.as_ph: train_as, model.a_pos_ph: train_a_pos})
 
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                _,train_summary = sess.run([model.optimizer, model.train_summary])
+                _,train_summary = sess.run([model.optimizer, model.train_summary], feed_dict={model.is_training:True})
                 summary_writer.add_summary(train_summary, global_step=(e*num_steps+i))
 
                 if i == 0:
-                    print(sess.run([model.answer_teach,model.answer_ids]))
+                    print(sess.run([model.context_length,model.answer_length, model.answer_pos,model.indices]))
                 # ToDo: implement dev pipeline
                 # if i % FLAGS.eval_freq == 0:
                 #     dev_summary = sess.run([model.eval_summary], feed_dict={x: batch_xs, y: batch_ys, is_training:False})

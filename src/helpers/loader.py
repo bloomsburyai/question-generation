@@ -29,7 +29,7 @@ def load_squad_triples(path, dev=False):
         for para in doc['paragraphs']:
             for qa in para['qas']:
                 # NOTE: this only takes the first answer per question! ToDo handle this more intelligently
-                triples.append( (para['context'], qa['question'], qa['answers'][0]['text']) )
+                triples.append( (para['context'], qa['question'], qa['answers'][0]['text'], int(qa['answers'][0]['answer_start'])) )  #
     return triples
 
 def get_vocab(corpus, vocab_size=2000):
@@ -182,4 +182,9 @@ def load_multiline_aligned(path_src, path_tgt, limit_length=32, vocab_size=1000)
     return id_arr_src, id_arr_tgt, vocab_src, vocab_tgt
 
 if __name__ == "__main__":
-    print(load_squad_dataset(False)[0]['paragraphs'][0]['qas'][0])
+    item = load_squad_dataset('./data/',False)[0]['paragraphs'][0]
+    q = item['qas'][0]['answers'][0]
+    context = item['context']
+    print(context)
+    print(q)
+    print(context[q['answer_start']:])

@@ -11,6 +11,7 @@ from helpers.loader import OOV, PAD, EOS, SOS
 class QGenMaluuba(SQuADModel):
     def __init__(self, vocab, batch_size):
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
+        self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
         super().__init__(vocab, batch_size)
 
     def build_model(self):
@@ -30,6 +31,8 @@ class QGenMaluuba(SQuADModel):
         answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
         self.answer_teach = tf.concat([tf.constant(self.vocab[SOS], shape=[self.batch_size, 1]), answer_coerced[:,:-1]], axis=1)
 
+        # TODO: augment doc embeddings with in(answer)=true
+
         # Embed c,q,a
         self.embeddings = tf.get_variable('word_embeddings', [len(self.vocab), self.embedding_size], initializer=tf.orthogonal_initializer)
 
@@ -43,17 +46,39 @@ class QGenMaluuba(SQuADModel):
         self.answer_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.answer_teach)
 
         # Build encoder for context
-        # # Build RNN cell for encoder
-        # encoder_cell = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-        #         cell=tf.contrib.rnn.GRUCell(num_units=num_units),
-        #         input_keep_prob=(tf.cond(use_dropout,lambda: 1.0 - dropout_prob,lambda: 1.))) for n in range(rnn_depth)])
-        #
-        # # Unroll encoder RNN
-        # encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
-        #     encoder_cell, encoder_emb_inp,
-        #     sequence_length=length(encoder_emb_inp), initial_state = encoder_cell.zero_state(curr_batch_size, tf.float32))
+        # Build RNN cell for encoder
+        with tf.variable_scope('context_encoder'):
+            context_encoder_cell_fwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.))) for n in range(1)])
+            context_encoder_cell_bwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.))) for n in range(1)])
+
+            # Unroll encoder RNN
+            context_encoder_outputs, context_encoder_state = tf.nn.bidirectional_dynamic_rnn(
+                context_encoder_cell_fwd, context_encoder_cell_bwd, self.context_embedded,
+                sequence_length=self.context_length, dtype=tf.float32)
 
         # Build encoder for mean(encoder(context)) + answer
+        # Build RNN cell for encoder
+        with tf.variable_scope('q_encoder'):
+            # To build the "extractive condition encoding" input, take embeddings of answer words concated with encoded context at that position
+            self.indices = tf.concat([[tf.range(self.answer_pos[i], self.answer_pos[i]+tf.reduce_max(self.answer_length)) for i in range(self.batch_size)]], axis=1)
+            # max_ix=tf.tile(tf.expand_dims(self.context_length), [1,tf.reduce_max(self.answer_length)])
+            # self.indices = tf.minimum(self.indices, max_ix)
+
+            q_encoder_cell_fwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.))) for n in range(1)])
+            q_encoder_cell_bwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.))) for n in range(1)])
+
+            # Unroll encoder RNN
+            q_encoder_outputs, q_encoder_state = tf.nn.bidirectional_dynamic_rnn(
+                q_encoder_cell_fwd, q_encoder_cell_bwd, self.context_embedded,
+                sequence_length=self.question_length, dtype=tf.float32)
 
         # build init state
 
