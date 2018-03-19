@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import os
+import os,time
 import helpers.loader as loader
 from tqdm import tqdm
 
@@ -21,8 +21,11 @@ tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 
 # hyperparams
-tf.app.flags.DEFINE_integer("embedding_size", 2**3, "Dimensionality to use for learned word embeddings")
-tf.app.flags.DEFINE_integer("context_encoder_units", 2**3, "Number of hidden units for context encoder")
+tf.app.flags.DEFINE_integer("embedding_size", 2**4, "Dimensionality to use for learned word embeddings")
+tf.app.flags.DEFINE_integer("context_encoder_units", 2**4, "Number of hidden units for context encoder (ie 1st stage)")
+tf.app.flags.DEFINE_integer("answer_encoder_units", 2**4, "Number of hidden units for answer encoder (ie 2nd stage)")
+tf.app.flags.DEFINE_integer("decoder_units", 2**4, "Number of hidden units for decoder")
+tf.app.flags.DEFINE_integer("vocab_size", 500, "Shortlist vocab size")
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -33,7 +36,7 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    vocab = loader.get_vocab(train_contexts, 20)
+    vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
 
     # Create model
 
@@ -42,9 +45,9 @@ def main(_):
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        if not os.path.exists(FLAGS.log_dir):
-            os.makedirs(FLAGS.log_dir)
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
+        # if not os.path.exists(FLAGS.log_dir+str(time.time())):
+        #     os.makedirs(FLAGS.log_dir+str(time.time()))
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+str(int(time.time())), sess.graph)
 
         if not FLAGS.train:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')
@@ -63,14 +66,18 @@ def main(_):
                 _,train_summary = sess.run([model.optimizer, model.train_summary], feed_dict={model.is_training:True})
                 summary_writer.add_summary(train_summary, global_step=(e*num_steps+i))
 
-                if i == 0:
-                    print(sess.run([model.context_length,model.answer_length, model.answer_pos,model.indices]))
+                # if i == 0:
+                    # print(sess.run([tf.shape(model.context_encoder_output),model.indices]))
+                    # print(sess.run([tf.shape(model.context_condition_encoding), tf.shape(model.full_condition_encoding)]))
+
+                    # print(sess.run([model.answer_length, model.question_length]))
+                    # print(sess.run([tf.shape(model.s0)]))
                 # ToDo: implement dev pipeline
                 # if i % FLAGS.eval_freq == 0:
                 #     dev_summary = sess.run([model.eval_summary], feed_dict={x: batch_xs, y: batch_ys, is_training:False})
                 #     summary_writer.add_summary(dev_summary, global_step=(e*num_steps+i))
                 # if save_cond:
                 #     saver.save(sess, chkpt_path+'/model.checkpoint')
-        print(sess.run(model.W))
+
 if __name__ == '__main__':
     tf.app.run()
