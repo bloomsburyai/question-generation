@@ -36,7 +36,7 @@ def get_vocab(corpus, vocab_size=2000):
     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
 
     for l in corpus:
-        for w in l.split():
+        for w in l.lower().split():
             word_count[w] +=1
     vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
     for w in vocab_list:

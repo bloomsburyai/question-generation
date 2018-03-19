@@ -43,7 +43,7 @@ def lookup_vocab(words, vocab, context=None):
         if w in vocab.keys():
             ids.append(vocab[w])
         elif context is not None and w in decoded_context:
-            ids.append(decoded_context.index(w))
+            ids.append(len(vocab) + decoded_context.index(w))
         else:
             ids.append(vocab[OOV])
     ids.append(vocab[EOS]) # HIDING THIS IS BAD
@@ -69,13 +69,14 @@ def tokenise(text):
     text = text.decode()
     for char in string.punctuation+'()-–':
         text = text.replace(char, ' '+char+' ')
-    tokens = text.split(' ')
+    tokens = text.lower().split(' ')
     tokens = np.asarray([w.encode() for w in tokens])
     # tokens = np.asarray(tokens)
     return tokens
 
 def char_pos_to_word(text, tokens, char_pos):
     ix=0
+    text=text.lower()
     if char_pos>len(text):
         print('Char pos doesnt fall within size of text!')
 

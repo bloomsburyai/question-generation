@@ -7,6 +7,7 @@ class TFModel():
 
         self._train_summaries=[]
         self._eval_summaries=[]
+        self._output_summaries=[]
 
         self.build_model()
 
@@ -17,6 +18,7 @@ class TFModel():
             [tf.summary.scalar("loss", self.loss),
              tf.summary.scalar("accuracy", self.accuracy)])
         self.train_summary = tf.summary.merge(self._train_summaries)
+        self.output_summary = tf.summary.merge(self._output_summaries)
         self.eval_summary = tf.summary.merge(self._eval_summaries)
 
     # Implement this method!

@@ -11,6 +11,7 @@ import helpers.preprocessing as preprocessing
 class SQuADModel(TFModel):
     def __init__(self, vocab, batch_size):
         self.vocab=vocab
+        self.rev_vocab = {v:k for k,v in self.vocab.items()}
         self.batch_size = batch_size
         super().__init__()
 
