@@ -43,6 +43,8 @@ def lookup_vocab(words, vocab, context=None):
         if w in vocab.keys():
             ids.append(vocab[w])
         elif context is not None and w in decoded_context:
+            # if decoded_context.count(w) > 1:
+            #     print(w, decoded_context.count(w))
             ids.append(len(vocab) + decoded_context.index(w))
         else:
             ids.append(vocab[OOV])
@@ -70,13 +72,14 @@ def tokenise(text):
     for char in string.punctuation+'()-–':
         text = text.replace(char, ' '+char+' ')
     tokens = text.lower().split(' ')
-    tokens = np.asarray([w.encode() for w in tokens])
+    tokens = np.asarray([w.encode() for w in tokens if w.strip() != ''])
     # tokens = np.asarray(tokens)
     return tokens
 
 def char_pos_to_word(text, tokens, char_pos):
     ix=0
-    text=text.lower()
+    text=text.decode().lower()
+    tokens = [t.decode() for t in tokens]
     if char_pos>len(text):
         print('Char pos doesnt fall within size of text!')
 
@@ -112,7 +115,11 @@ def process_squad_answer(vocab):
     def _process_squad_answer(answer, answer_pos, context):
         answer_ids = lookup_vocab(answer, vocab, context=context)
         answer_len = np.asarray(len(answer_ids), dtype=np.int32)
+        max_len = np.amax(answer_len)
 
         answer_token_pos=np.asarray(char_pos_to_word(context, tokenise(context), answer_pos), dtype=np.int32)
-        return [tokenise(answer), answer_ids, answer_len, answer_token_pos]
+
+        answer_locs = np.arange(answer_token_pos, answer_token_pos+max_len, dtype=np.int32)
+
+        return [tokenise(answer), answer_ids, answer_len, answer_locs]
     return _process_squad_answer

@@ -1,10 +1,11 @@
 import tensorflow as tf
 import numpy as np
-import os,time
+import os,time, json
 import helpers.loader as loader
+from helpers.output import output_pretty
 from tqdm import tqdm
 
-from qgen_model import QGenMaluuba
+from seq2seq_model import Seq2SeqModel
 
 
 
@@ -15,17 +16,18 @@ mem_limit=0.5
 # config
 tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
-tf.app.flags.DEFINE_integer("num_epochs", 1, "Train the model for this many epochs")
-tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
+tf.app.flags.DEFINE_integer("num_epochs", 4, "Train the model for this many epochs")
+tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size")
 tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 
-# hyperparams
+# hyperparams - these should probably be within the model?
 tf.app.flags.DEFINE_integer("embedding_size", 2**5, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 2**5, "Number of hidden units for context encoder (ie 1st stage)")
 tf.app.flags.DEFINE_integer("answer_encoder_units", 2**5, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 2**5, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
+tf.app.flags.DEFINE_float("learning_rate", 1e-3, "Optimizer learning rate")
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -40,7 +42,7 @@ def main(_):
 
     # Create model
 
-    model = QGenMaluuba(vocab, batch_size=FLAGS.batch_size)
+    model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size)
     # saver = tf.train.Saver()
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
@@ -63,12 +65,17 @@ def main(_):
 
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                _,train_summary = sess.run([model.optimizer, model.train_summary], feed_dict={model.is_training:True})
-                summary_writer.add_summary(train_summary, global_step=(e*num_steps+i))
+                ops = [model.optimizer, model.train_summary]
+                if i %100== 0:
+                    ops.extend([model.output_summary, model.q_hat_string, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids])
+                res= sess.run(ops, feed_dict={model.is_training:True})
+                summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
+                if i %100== 0:
+                    # summary_writer.add_summary(res[2], global_step=(e*num_steps+i))
 
-                if i %500== 0:
-                    out_summary = sess.run(model.output_summary)
-                    summary_writer.add_summary(out_summary, global_step=(e*num_steps+i))
+                    q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist())
+                    with open(FLAGS.log_dir+'out.htm', 'w') as fp:
+                        fp.write(q_hat_decoded)
                     # a_raw, a_str, q_str = sess.run([model.answer_raw,model.a_string, model.q_hat_string])
                     # print(a_raw.tolist(), a_str, q_str)
                     # print(sess.run([tf.shape(model.context_condition_encoding), tf.shape(model.full_condition_encoding)]))
@@ -81,6 +88,8 @@ def main(_):
                 #     summary_writer.add_summary(dev_summary, global_step=(e*num_steps+i))
                 # if save_cond:
                 #     saver.save(sess, chkpt_path+'/model.checkpoint')
+
+
 
 if __name__ == '__main__':
     tf.app.run()

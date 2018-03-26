@@ -24,7 +24,7 @@ class SQuADModel(TFModel):
 
         dataset = tf.data.Dataset.from_tensor_slices( (self.context_ph, self.qs_ph, self.as_ph, self.a_pos_ph) )
 
-
+        dataset = dataset.shuffle(buffer_size=100000)
 
         # processing pipeline
         # split
@@ -51,8 +51,12 @@ class SQuADModel(TFModel):
         #              tf.size(context))
         #              ,q,a))
 
+        # dataset = dataset.shuffle()
+
+
+
         # pad out to batches
-        batched_dataset = dataset.padded_batch(
+        dataset = dataset.padded_batch(
             batch_size,
             padded_shapes=((tf.TensorShape([None]),  # source vectors of unknown size
                             tf.TensorShape([None]),  # source vectors of unknown size
@@ -63,7 +67,7 @@ class SQuADModel(TFModel):
                            (tf.TensorShape([None]),  # target vectors of unknown size
                             tf.TensorShape([None]),  # target vectors of unknown size
                             tf.TensorShape([]),
-                            tf.TensorShape([]))
+                            tf.TensorShape([None]))
                             ),    # size(target)
             padding_values=((PAD,
                             self.vocab[PAD],  # source vectors padded on the right with src_eos_id
@@ -73,12 +77,15 @@ class SQuADModel(TFModel):
                              0),          # size(source) -- unused
                             (PAD,
                             self.vocab[PAD],  # target vectors padded on the right with tgt_eos_id
-                             0, # size(target) -- unused
-                             0)))
+                             0, # answer len
+                             0))) # answer locs
 
+        dataset = dataset.repeat(tf.app.flags.FLAGS.num_epochs)
 
-        self.iterator = batched_dataset.make_initializable_iterator()
+        dataset = dataset.prefetch(buffer_size=batch_size*4)
+
+        self.iterator = dataset.make_initializable_iterator()
         self.this_context, self.this_question, self.this_answer = self.iterator.get_next()
         (self.context_raw, self.context_ids, self.context_length) = self.this_context
         (self.question_raw, self.question_ids, self.question_length) = self.this_question
-        (self.answer_raw, self.answer_ids, self.answer_length, self.answer_pos) = self.this_answer
+        (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs) = self.this_answer
