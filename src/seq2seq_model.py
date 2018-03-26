@@ -204,7 +204,7 @@ class Seq2SeqModel(SQuADModel):
             self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
 
         # build overall prediction prob vector
-        self.q_hat_shortlist = tf.nn.softmax(logits,axis=2)
+        self.q_hat_shortlist = tf.nn.softmax(logits,dim=2) #NOTE kwarg dim is deprecated in favour of axis, but blaze == 1.4
 
         self.q_hat = tf.concat([(1-self.switch)*self.q_hat_shortlist,self.switch*self.attention], axis=2)
 
