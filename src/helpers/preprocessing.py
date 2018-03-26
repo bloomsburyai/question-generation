@@ -43,8 +43,6 @@ def lookup_vocab(words, vocab, context=None):
         if w in vocab.keys():
             ids.append(vocab[w])
         elif context is not None and w in decoded_context:
-            # if decoded_context.count(w) > 1:
-            #     print(w, decoded_context.count(w))
             ids.append(len(vocab) + decoded_context.index(w))
         else:
             ids.append(vocab[OOV])

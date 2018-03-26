@@ -152,6 +152,7 @@ class Seq2SeqModel(SQuADModel):
             self.s0 = tf.nn.tanh(tf.matmul(r,W0) + b0)
 
         # decode
+        # TODO: for Maluuba model, decoder inputs are concat of context and answer encoding
         with tf.variable_scope('decoder'):
             init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
 
@@ -190,26 +191,34 @@ class Seq2SeqModel(SQuADModel):
 
         # calc switch prob
         with tf.variable_scope('switch'):
+            # switch takes st, vt and yt−1 as inputs
+            # vt = concat(weighted context encoding at t; condition encoding)
+            # st = hidden state at t
+            # y_t-1 is previous generated token
             context = tf.matmul( self.attention, self.context_embedded)
-            switch_h1 = tf.layers.dense(tf.concat([context, outputs.rnn_output],axis=2), 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
+            ha_tiled = tf.tile(tf.expand_dims(context_encoding,axis=1),[1,tf.reduce_max(self.question_length),1])
+            vt = tf.concat([context, ha_tiled], axis=2)
+            switch_input = tf.concat([vt, outputs.rnn_output, self.question_teach_embedded],axis=2)
+            switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
             switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
             self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
 
         # build overall prediction prob vector
-
         self.q_hat_shortlist = tf.nn.softmax(logits,axis=2)
 
-        self.q_hat = tf.concat([self.switch*self.q_hat_shortlist,(1-self.switch)*self.attention], axis=2)
+        self.q_hat = tf.concat([(1-self.switch)*self.q_hat_shortlist,self.switch*self.attention], axis=2)
 
+
+        # TODO: include answer-suppression loss and variety loss terms
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
-                        self.question_length, tf.reduce_max(self.question_length), dtype=logits.dtype)
+                        self.question_length, tf.reduce_max(self.question_length), dtype=tf.float32)
             epsilon = tf.cast(tf.keras.backend.epsilon(), tf.float32)
             logits = tf.log(tf.clip_by_value(self.q_hat, epsilon, 1-epsilon))
 
-            crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels=self.question_coerced, logits=logits)
-            self.loss = tf.reduce_mean(tf.reduce_sum(crossent * self.target_weights,axis=1),axis=0)
+            self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=self.question_ids, logits=logits)
+            self.loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1),axis=0)
 
 
 
@@ -235,7 +244,7 @@ class Seq2SeqModel(SQuADModel):
         self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
             zip(clipped_gradients, params))
 
-        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32))
+        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)
 
     def predict(self):
         return self.answer_hat

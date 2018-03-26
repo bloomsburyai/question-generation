@@ -1,6 +1,11 @@
+import os,time, json
+
+# CUDA config
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
+mem_limit=0.5
+
 import tensorflow as tf
 import numpy as np
-import os,time, json
 import helpers.loader as loader
 from helpers.output import output_pretty
 from tqdm import tqdm
@@ -9,14 +14,11 @@ from seq2seq_model import Seq2SeqModel
 
 
 
-# CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
-mem_limit=0.5
 
 # config
 tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
-tf.app.flags.DEFINE_integer("num_epochs", 4, "Train the model for this many epochs")
+tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size")
 tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
@@ -67,13 +69,13 @@ def main(_):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 ops = [model.optimizer, model.train_summary]
                 if i %100== 0:
-                    ops.extend([model.output_summary, model.q_hat_string, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids])
+                    ops.extend([model.output_summary, model.q_hat_string, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
                 res= sess.run(ops, feed_dict={model.is_training:True})
                 summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
                 if i %100== 0:
                     # summary_writer.add_summary(res[2], global_step=(e*num_steps+i))
 
-                    q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist())
+                    q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist(), res[7].tolist())
                     with open(FLAGS.log_dir+'out.htm', 'w') as fp:
                         fp.write(q_hat_decoded)
                     # a_raw, a_str, q_str = sess.run([model.answer_raw,model.a_string, model.q_hat_string])
