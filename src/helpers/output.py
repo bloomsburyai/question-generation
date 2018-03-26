@@ -19,7 +19,7 @@ def output_pretty(tokens, switch, source, gold_ids, loss):
         for j, tok in enumerate(row):
             out_html += '<span class="word">' + tok.decode().replace('>','&gt;').replace('<','&lt;') +'<small>'
             out_html += "{:0.2f}".format(loss[i][j]) +'<br/>'
-            out_html += '<span style="background:rgb('+str(round(switch[i][j]*200)) + ','+str(round((1-switch[i][j])*130)) + ',0); color:white;">{:d}</span>'.format(source[i][j])+ '</br>('
+            out_html += '<span style="background:rgb('+str(round(switch[i][j]*160)) + ','+str(round((1-switch[i][j])*160)) + ',0); color:white;">{:d}</span>'.format(source[i][j])+ '</br>('
             out_html += '<span style="background:' + ('red' if gold_ids[i][j] > 2004 else 'green') + '; color:white;">{:d}</span>'.format(gold_ids[i][j]) + ')</small></span>&nbsp;'
         out_html += '</p>'
     return out_html

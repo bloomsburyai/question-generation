@@ -3,7 +3,7 @@ import tensorflow as tf
 class TFModel():
     def __init__(self):
         self.is_training = tf.placeholder_with_default(False,(), "is_training")
-        self.dropout_prob = 0.2 # TODO: add this to FLAGS
+        self.dropout_prob = tf.app.flags.FLAGS.dropout_rate # TODO: add this to FLAGS
 
         self._train_summaries=[]
         self._eval_summaries=[]
