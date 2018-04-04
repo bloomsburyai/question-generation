@@ -274,8 +274,11 @@ class Seq2SeqModel(SQuADModel):
             answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keepdims=True), [1,tf.reduce_max(self.question_length),1])
             self.suppression_loss = tf.reduce_sum(answer_mask * self.q_hat)
 
+            # entropy maximiser
+            self.entropy_loss = tf.reduce_sum(self.q_hat * logits)
 
-            self.loss = self.xe_loss + 0.01*self.suppression_loss
+
+            self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 
 
         self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
