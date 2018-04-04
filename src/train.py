@@ -23,6 +23,8 @@ tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
 tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 
+tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
+
 # hyperparams - these should probably be within the model?
 tf.app.flags.DEFINE_integer("embedding_size", 2**7, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
