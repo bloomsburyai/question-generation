@@ -2,7 +2,7 @@ import os,time, json
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
-mem_limit=0.5
+mem_limit=0.95
 
 import tensorflow as tf
 import numpy as np
@@ -27,7 +27,7 @@ tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
 
 # hyperparams - these should probably be within the model?
-tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
+tf.app.flags.DEFINE_integer("embedding_size", 50, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
@@ -48,7 +48,7 @@ def main(_):
 
     # Create model
 
-    model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size)
+    model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+str(time.time())

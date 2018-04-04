@@ -40,11 +40,12 @@ def get_gpu_if_available():
 
 
 class Seq2SeqModel(SQuADModel):
-    def __init__(self, vocab, batch_size):
+    def __init__(self, vocab, batch_size, training_mode=False):
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
         self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
         self.answer_encoder_units = tf.app.flags.FLAGS.answer_encoder_units
         self.decoder_units = tf.app.flags.FLAGS.decoder_units
+        self.training_mode = training_mode
         super().__init__(vocab, batch_size)
 
     def build_model(self):
@@ -171,38 +172,71 @@ class Seq2SeqModel(SQuADModel):
         with tf.variable_scope('decoder'):
             init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
 
+            if not self.training_mode:
+                memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
+                memory_sequence_length = tf.contrib.seq2seq.tile_batch( self.context_length, multiplier=FLAGS.beam_width)
+            else:
+                memory = self.context_encoder_output
+                memory_sequence_length = self.context_length
 
             attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
-                            num_units=self.decoder_units, memory=self.context_encoder_output,
-                            memory_sequence_length=self.context_length)
+                            num_units=self.decoder_units, memory=memory,
+                            memory_sequence_length=memory_sequence_length)
             decoder_cell = tf.contrib.rnn.DropoutWrapper(
                     cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
             decoder_cell = tf.contrib.seq2seq.AttentionWrapper(decoder_cell, attention_mechanism, attention_layer_size=self.decoder_units / 2, alignment_history=True)
 
+            if self.training_mode:
+                # Helper - training
+                helper = tf.contrib.seq2seq.TrainingHelper(
+                    self.question_teach_embedded, self.question_length)
+                    # decoder_emb_inp, length(decoder_emb_inp)+1)
 
-            # Helper - training
-            helper = tf.contrib.seq2seq.TrainingHelper(
-                self.question_teach_embedded, self.question_length)
-                # decoder_emb_inp, length(decoder_emb_inp)+1)
+                init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
 
-            # Decoder - training
-            decoder = tf.contrib.seq2seq.BasicDecoder(
-                decoder_cell, helper,
-                initial_state=decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
-                # initial_state=encoder_state
-                )
+                # Decoder - training
+                decoder = tf.contrib.seq2seq.BasicDecoder(
+                    decoder_cell, helper,
+                    initial_state=init_state
+                    # initial_state=encoder_state
+                    )
 
-            # Unroll the decoder
-            outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
+                # Unroll the decoder
+                outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
 
-            projection_layer = tf.layers.Dense(
-                len(self.vocab), use_bias=False)
-            logits = projection_layer(outputs.rnn_output)
+                projection_layer = tf.layers.Dense(
+                    len(self.vocab), use_bias=False)
+                logits = projection_layer(outputs.rnn_output)
 
 
 
-            self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
+                self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
+            else:
+                start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size * FLAGS.beam_width ] )
+                end_token = self.vocab[EOS]
+
+                projection_layer = tf.layers.Dense(
+                    len(self.vocab), use_bias=False)
+
+                init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width )
+                init_state = decoder_cell.zero_state(curr_batch_size * FLAGS.beam_width, tf.float32).clone(cell_state=init_state)
+
+
+
+                my_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = decoder_cell,
+                                                                   embedding = self.embeddings,
+                                                                   start_tokens = start_tokens,
+                                                                   end_token = end_token,
+                                                                   initial_state = init_state,
+                                                                   beam_width = FLAGS.beam_width,
+                                                                   output_layer = projection_layer )
+
+                outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(  my_decoder,
+                                                                       maximum_iterations=64 )
+
+                logits = tf.no_op()
+                self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
 
         # calc switch prob
         with tf.variable_scope('switch'):
@@ -233,8 +267,15 @@ class Seq2SeqModel(SQuADModel):
 
             self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=self.question_ids, logits=logits)
-            self.loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1),axis=0)
+            self.xe_loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1),axis=0)
 
+            # get sum of all probabilities for words that are also in answer
+            answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +tf.reduce_max(self.context_length))
+            answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keepdims=True), [1,tf.reduce_max(self.question_length),1])
+            self.suppression_loss = tf.reduce_sum(answer_mask * self.q_hat)
+
+
+            self.loss = self.xe_loss + 0.01*self.suppression_loss
 
 
         self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
