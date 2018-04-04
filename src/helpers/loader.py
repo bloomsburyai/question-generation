@@ -181,6 +181,17 @@ def load_multiline_aligned(path_src, path_tgt, limit_length=32, vocab_size=1000)
 
     return id_arr_src, id_arr_tgt, vocab_src, vocab_tgt
 
+def load_glove(path, d=200):
+    glove = {}
+    with open(path+'glove.6B/glove.6B.'+str(d)+'d.txt') as fp:
+        entries = fp.readlines()
+    for row in entries:
+        cols = row.strip().split(' ')
+        if len(cols) < d+1:
+            print(row)
+        glove[cols[0]] = np.asarray(cols[1:], dtype=float)
+    return glove
+
 if __name__ == "__main__":
     item = load_squad_dataset('./data/',False)[0]['paragraphs'][0]
     q = item['qas'][0]['answers'][0]
