@@ -9,6 +9,10 @@ import helpers.preprocessing as preprocessing
 from squad_model import SQuADModel
 from helpers.loader import OOV, PAD, EOS, SOS, load_glove
 
+from decoders import basic_decoder
+
+print(basic_decoder)
+
 FLAGS = tf.app.flags.FLAGS
 
 def ids_to_string(rev_vocab):
@@ -31,12 +35,6 @@ def ids_to_string(rev_vocab):
 def id_tensor_to_string(ids, rev_vocab, context):
 
     return tf.py_func(ids_to_string(rev_vocab), [ids, context], tf.string)
-
-def get_gpu_if_available():
-    if FLAGS.use_gpu:
-        return tf.device('/device:GPU:*')
-    else:
-        return tf.device('/cpu:*')
 
 
 class Seq2SeqModel(SQuADModel):
@@ -68,8 +66,6 @@ class Seq2SeqModel(SQuADModel):
         self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
         self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_coerced[:,:-1]], axis=1)
 
-        # TODO: augment doc embeddings with in(answer)=true
-
         # Embed c,q,a
         self.embeddings = tf.get_variable('word_embeddings', [len(self.vocab), self.embedding_size], initializer=tf.orthogonal_initializer)
 
@@ -90,7 +86,6 @@ class Seq2SeqModel(SQuADModel):
         self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
         self.answer_embedded = tf.nn.embedding_lookup(self.embeddings, self.answer_coerced) # batch x seq x embed
 
-        # with get_gpu_if_available():
         # Is context token in answer?
         max_context_len = tf.reduce_max(self.context_length)
         context_ix = tf.tile(tf.expand_dims(tf.range(max_context_len),axis=0), [curr_batch_size,1])
@@ -196,7 +191,7 @@ class Seq2SeqModel(SQuADModel):
                 init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
 
                 # Decoder - training
-                decoder = tf.contrib.seq2seq.BasicDecoder(
+                decoder = basic_decoder.BasicDecoder(
                     decoder_cell, helper,
                     initial_state=init_state
                     # initial_state=encoder_state
@@ -236,7 +231,9 @@ class Seq2SeqModel(SQuADModel):
                                                                        maximum_iterations=64 )
 
                 logits = tf.no_op()
-                self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
+                # print(decoder_states)
+                print(outputs.beam_search_decoder_output.scores)
+                self.attention = decoder_states.cell_state.alignment_history # batch x seq x attn
 
         # calc switch prob
         with tf.variable_scope('switch'):
@@ -247,6 +244,7 @@ class Seq2SeqModel(SQuADModel):
             context = tf.matmul( self.attention, self.context_embedded)
             ha_tiled = tf.tile(tf.expand_dims(context_encoding,axis=1),[1,tf.reduce_max(self.question_length),1])
             vt = tf.concat([context, ha_tiled], axis=2)
+            # NOTE: outputs.rnn_output is y_t-1, should be prev state
             switch_input = tf.concat([vt, outputs.rnn_output, self.question_teach_embedded],axis=2)
             switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
             switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
@@ -269,6 +267,7 @@ class Seq2SeqModel(SQuADModel):
                 labels=self.question_ids, logits=logits)
             self.xe_loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1),axis=0)
 
+            # TODO: Check these should be included in baseline?
             # get sum of all probabilities for words that are also in answer
             answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +tf.reduce_max(self.context_length))
             answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keepdims=True), [1,tf.reduce_max(self.question_length),1])
