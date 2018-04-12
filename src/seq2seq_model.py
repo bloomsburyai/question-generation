@@ -298,7 +298,7 @@ class Seq2SeqModel(SQuADModel):
             # TODO: Check these should be included in baseline?
             # get sum of all probabilities for words that are also in answer
             answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +815)
-            answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keepdims=True), [1,tf.reduce_max(self.question_length),1])
+            answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keep_dims=True), [1,tf.reduce_max(self.question_length),1])
             self.suppression_loss = tf.reduce_sum(answer_mask * self.q_hat)
 
             # entropy maximiser
