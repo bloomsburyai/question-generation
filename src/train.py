@@ -7,7 +7,7 @@ mem_limit=0.95
 import tensorflow as tf
 import numpy as np
 import helpers.loader as loader
-from helpers.output import output_pretty
+from helpers.output import output_pretty, output_basic
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
@@ -28,9 +28,9 @@ tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system
 
 # hyperparams - these should probably be within the model?
 tf.app.flags.DEFINE_integer("embedding_size", 50, "Dimensionality to use for learned word embeddings")
-tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
-tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
-tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
+tf.app.flags.DEFINE_integer("context_encoder_units", 64, "Number of hidden units for context encoder (ie 1st stage)")
+tf.app.flags.DEFINE_integer("answer_encoder_units", 64, "Number of hidden units for answer encoder (ie 2nd stage)")
+tf.app.flags.DEFINE_integer("decoder_units", 64, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
@@ -76,15 +76,15 @@ def main(_):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 ops = [model.optimizer, model.train_summary]
                 if i%FLAGS.eval_freq==0:
-                    ops.extend([model.output_summary, model.q_hat_string, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
+                    ops.extend([model.output_summary, model.q_hat_string, model.q_hat_ids]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
                 res= sess.run(ops, feed_dict={model.is_training:True})
                 summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
                 if i%FLAGS.eval_freq==0:
                     # summary_writer.add_summary(res[2], global_step=(e*num_steps+i))
 
-                    q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist(), res[7].tolist())
+                    # q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist(), res[7].tolist())
                     with open(FLAGS.log_dir+'out.htm', 'w') as fp:
-                        fp.write(q_hat_decoded)
+                        fp.write(output_basic(res[3], res[4]))
                     # a_raw, a_str, q_str = sess.run([model.answer_raw,model.a_string, model.q_hat_string])
                     # print(a_raw.tolist(), a_str, q_str)
                     # print(sess.run([tf.shape(model.context_condition_encoding), tf.shape(model.full_condition_encoding)]))

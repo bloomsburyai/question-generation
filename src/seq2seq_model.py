@@ -3,15 +3,18 @@
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.python.layers import base
+from tensorflow.python.framework import tensor_shape
+
 import helpers.preprocessing as preprocessing
 
 
 from squad_model import SQuADModel
 from helpers.loader import OOV, PAD, EOS, SOS, load_glove
 
-from decoders import basic_decoder
+from copy_mechanism import copy_attention_wrapper, copy_layer
 
-print(basic_decoder)
+import helpers.ops as ops
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -155,11 +158,11 @@ class Seq2SeqModel(SQuADModel):
             b0 = tf.get_variable('decoder_b0', [self.decoder_units], initializer=tf.zeros_initializer(), dtype=tf.float32)
 
             if False:
-                context_encoding = self.a_encoder_final_state # this would be the maluuba model
+                self.context_encoding = self.a_encoder_final_state # this would be the maluuba model
             else:
-                context_encoding = tf.reduce_mean(self.context_condition_encoding, axis=1) # this is the baseline model
+                self.context_encoding = tf.reduce_mean(self.context_condition_encoding, axis=1) # this is the baseline model
 
-            r = tf.reduce_sum(self.context_encoder_output, axis=1)/tf.tile(tf.expand_dims(tf.cast(self.context_length,tf.float32),axis=1),[1,self.context_encoder_units*2]) + tf.matmul(context_encoding,L)
+            r = tf.reduce_sum(self.context_encoder_output, axis=1)/tf.tile(tf.expand_dims(tf.cast(self.context_length,tf.float32),axis=1),[1,self.context_encoder_units*2]) + tf.matmul(self.context_encoding,L)
             self.s0 = tf.nn.tanh(tf.matmul(r,W0) + b0)
 
         # decode
@@ -174,13 +177,28 @@ class Seq2SeqModel(SQuADModel):
                 memory = self.context_encoder_output
                 memory_sequence_length = self.context_length
 
-            attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
+            attention_mechanism = copy_attention_wrapper.BahdanauAttention(
                             num_units=self.decoder_units, memory=memory,
                             memory_sequence_length=memory_sequence_length)
+
+            # copy_mechanism = copy_attention_wrapper.BahdanauAttention(
+            #                 num_units=self.decoder_units, memory=memory,
+            #                 memory_sequence_length=memory_sequence_length)
+
             decoder_cell = tf.contrib.rnn.DropoutWrapper(
                     cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
-            decoder_cell = tf.contrib.seq2seq.AttentionWrapper(decoder_cell, attention_mechanism, attention_layer_size=self.decoder_units / 2, alignment_history=True)
+
+            # decoder_cell = tf.contrib.seq2seq.AttentionWrapper(decoder_cell,
+            #                                                     attention_mechanism,
+            #                                                     attention_layer_size=self.decoder_units / 2,
+            #                                                     alignment_history=True)
+
+            decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(decoder_cell,
+                                                                attention_mechanism,
+                                                                attention_layer_size=self.decoder_units / 2,
+                                                                alignment_history=True,
+                                                                copy_mechanism=attention_mechanism)
 
             if self.training_mode:
                 # Helper - training
@@ -191,22 +209,32 @@ class Seq2SeqModel(SQuADModel):
                 init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
 
                 # Decoder - training
-                decoder = basic_decoder.BasicDecoder(
+                decoder = tf.contrib.seq2seq.BasicDecoder(
                     decoder_cell, helper,
-                    initial_state=init_state
+                    initial_state=init_state,
                     # initial_state=encoder_state
+                    # TODO: hardcoded 815 is longest context in SQuAD - this will need changing for a new dataset!!!
+                    output_layer=copy_layer.CopyLayer(FLAGS.embedding_size, 815,
+                                                    source_provider=lambda: self.context_ids,
+                                                    condition_encoding=lambda: self.context_encoding,
+                                                    vocab_size=len(self.vocab))
                     )
 
                 # Unroll the decoder
                 outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
 
-                projection_layer = tf.layers.Dense(
-                    len(self.vocab), use_bias=False)
-                logits = projection_layer(outputs.rnn_output)
+                # projection_layer = tf.layers.Dense(
+                #     len(self.vocab), use_bias=False)
+                # logits = projection_layer(outputs.rnn_output)
+                #
+                #
+                #
+                # self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
 
-
-
-                self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
+                logits=outputs.rnn_output
+                # print(outputs)
+                # print(logits)
+                # exit()
             else:
                 start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size * FLAGS.beam_width ] )
                 end_token = self.vocab[EOS]
@@ -236,32 +264,32 @@ class Seq2SeqModel(SQuADModel):
                 self.attention = decoder_states.cell_state.alignment_history # batch x seq x attn
 
         # calc switch prob
-        with tf.variable_scope('switch'):
-            # switch takes st, vt and yt−1 as inputs
-            # vt = concat(weighted context encoding at t; condition encoding)
-            # st = hidden state at t
-            # y_t-1 is previous generated token
-            context = tf.matmul( self.attention, self.context_embedded)
-            ha_tiled = tf.tile(tf.expand_dims(context_encoding,axis=1),[1,tf.reduce_max(self.question_length),1])
-            vt = tf.concat([context, ha_tiled], axis=2)
-            # NOTE: outputs.rnn_output is y_t-1, should be prev state
-            switch_input = tf.concat([vt, outputs.rnn_output, self.question_teach_embedded],axis=2)
-            switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-            switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-            self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
-
-        # build overall prediction prob vector
-        self.q_hat_shortlist = tf.nn.softmax(logits,dim=2) #NOTE kwarg dim is deprecated in favour of axis, but blaze == 1.4
-
-        self.q_hat = tf.concat([(1-self.switch)*self.q_hat_shortlist,self.switch*self.attention], axis=2)
+        # with tf.variable_scope('switch'):
+        #     # switch takes st, vt and yt−1 as inputs
+        #     # vt = concat(weighted context encoding at t; condition encoding)
+        #     # st = hidden state at t
+        #     # y_t-1 is previous generated token
+        #     context = tf.matmul( self.attention, self.context_embedded)
+        #     ha_tiled = tf.tile(tf.expand_dims(context_encoding,axis=1),[1,tf.reduce_max(self.question_length),1])
+        #     vt = tf.concat([context, ha_tiled], axis=2)
+        #     # NOTE: outputs.rnn_output is y_t-1, should be prev state
+        #     switch_input = tf.concat([vt, outputs.rnn_output, self.question_teach_embedded],axis=2)
+        #     switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
+        #     switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
+        #     self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
+        #
+        # # build overall prediction prob vector
+        # self.q_hat_shortlist = tf.nn.softmax(logits,dim=2) #NOTE kwarg dim is deprecated in favour of axis, but blaze == 1.4
+        #
+        # self.q_hat = tf.concat([(1-self.switch)*self.q_hat_shortlist,self.switch*self.attention], axis=2)
+        self.q_hat = tf.nn.softmax(logits, dim=2)
 
 
         # TODO: include answer-suppression loss and variety loss terms
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
                         self.question_length, tf.reduce_max(self.question_length), dtype=tf.float32)
-            epsilon = tf.cast(tf.keras.backend.epsilon(), tf.float32)
-            logits = tf.log(tf.clip_by_value(self.q_hat, epsilon, 1-epsilon))
+            logits = ops.safe_log(self.q_hat)
 
             self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=self.question_ids, logits=logits)
@@ -269,7 +297,7 @@ class Seq2SeqModel(SQuADModel):
 
             # TODO: Check these should be included in baseline?
             # get sum of all probabilities for words that are also in answer
-            answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +tf.reduce_max(self.context_length))
+            answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +815)
             answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keepdims=True), [1,tf.reduce_max(self.question_length),1])
             self.suppression_loss = tf.reduce_sum(answer_mask * self.q_hat)
 
@@ -304,5 +332,59 @@ class Seq2SeqModel(SQuADModel):
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)
 
-    def predict(self):
-        return self.answer_hat
+    class OutputLayer(base.Layer):
+        def __init__(self, model):
+            super(model.OutputLayer, self).__init__(trainable=True,
+                                        activity_regularizer=None)
+            self.model = model
+
+        def call(self, t,  prev_input, output, state, attention):
+            with tf.variable_scope('decode_output', reuse=tf.AUTO_REUSE):
+                print("t", t)
+                print("y_t-1", prev_input)
+                print("out_t", output)
+                print("s_t", state)
+                print("attn", attention)
+                # switch takes st, vt and yt−1 as inputs
+                # vt = concat(weighted context encoding at t; condition encoding)
+                # st = hidden state at t
+                # y_t-1 is previous generated token
+                context = tf.matmul( attention, self.model.context_embedded[:,t,:])
+                print("cntxt",context)
+                # ha_tiled = tf.tile(tf.expand_dims(self.model.context_encoding,axis=1),[1,tf.reduce_max(self.model.question_length),1])
+                vt = tf.concat([context, self.model.context_encoding], axis=1)
+                # NOTE: outputs.rnn_output is y_t-1, should be prev state
+                switch_input = tf.concat([vt, state, prev_input],axis=1)
+                switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
+                switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
+                switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
+
+                # exit()
+
+                # build shortlist prediction prob vector
+                projection_layer = tf.layers.Dense(
+                    len(self.model.vocab), use_bias=False)
+                logits = projection_layer(output)
+                q_hat_shortlist = tf.nn.softmax(logits,dim=1) #NOTE kwarg dim is deprecated in favour of axis, but blaze == 1.4
+
+                # combine
+                q_hat = tf.concat([(1-switch)*q_hat_shortlist,switch*attention], axis=1)
+
+                print("qhat",q_hat)
+
+                return ops.safe_log(q_hat)
+
+        def build(self,input_shape):
+            self.built=True
+
+        def compute_output_shape(self, input_shape):
+            # print(input_shape)
+            # exit()
+            input_shape = tensor_shape.TensorShape(input_shape)
+
+            input_shape = input_shape.with_rank_at_least(2)
+            if input_shape[-1].value is None:
+              raise ValueError(
+                  'The innermost dimension of input_shape must be defined, but saw: %s'
+                  % input_shape)
+            return input_shape[:-1].concatenate(1)

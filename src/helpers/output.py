@@ -23,3 +23,13 @@ def output_pretty(tokens, switch, source, gold_ids, loss):
             out_html += '<span style="background:' + ('red' if gold_ids[i][j] > 2004 else 'green') + '; color:white;">{:d}</span>'.format(gold_ids[i][j]) + ')</small></span>&nbsp;'
         out_html += '</p>'
     return out_html
+
+
+def output_basic(tokens, ids):
+    out_html=''
+    for i,row in enumerate(tokens):
+        out_html += '<p>'
+        for j, tok in enumerate(row):
+            out_html += tok.decode().replace('>','&gt;').replace('<','&lt;') + '('+ str(ids[i][j]) +') '
+        out_html += '</p>'
+    return out_html
