@@ -133,6 +133,7 @@ class CopyLayer(base.Layer):
     def call(self, inputs):
         inputs = ops.convert_to_tensor(inputs, dtype=self.dtype)  #
         # inputs = debug_shape(inputs, "inputs")
+        # print(inputs)
         #  [batch_size, emb_dim + len_source] in eval,
         #  [len_target, batch_size,emb_dim + len_source] in train
         source = self.source_provider()  # [batch_size, len_source]
@@ -161,6 +162,7 @@ class CopyLayer(base.Layer):
 
         # attention = debug_shape(attention, "attn")
         # alignments = debug_shape(alignments, "align")
+        # print(alignments)
         # shortlist = debug_shape(shortlist, "outputs")
 
         # pad the alignments to the longest possible source st output vocab is fixed size
@@ -183,6 +185,8 @@ class CopyLayer(base.Layer):
         target_shape = tf.concat([shape[:-1], [-1]], 0)
         result =tf.reshape(result, target_shape)
         # result = debug_shape(result, "res")
+        # print(result)
+        # exit()
         return result
         # return tf.Print(result, [tf.reduce_max(switch), tf.reduce_max(shortlist),
         #                          tf.reduce_max(alignments)], summarize=10)
@@ -191,12 +195,16 @@ class CopyLayer(base.Layer):
         input_shape = tensor_shape.TensorShape(input_shape)
         input_shape = input_shape.with_rank_at_least(2)
 
+        # print(input_shape)
         if input_shape[-1].value is None:
             raise ValueError(
                 'The innermost dimension of input_shape must be defined, but saw: %s'
                 % input_shape)
         return input_shape[:-1].concatenate(self.units+self.vocab_size)
 
+    # this for older tf versions
+    def _compute_output_shape(self, input_shape):
+        return self.compute_output_shape(input_shape)
 
 def dense(
         inputs, units,

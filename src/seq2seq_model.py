@@ -65,10 +65,10 @@ class Seq2SeqModel(SQuADModel):
 
         # build teacher output - coerce to vocab and pad with SOS/EOS
         # also build output for loss - one hot over vocab+context
-        self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)], [curr_batch_size])+self.context_length)
+        self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)+815], [curr_batch_size])+self.context_length)
         self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
-        self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_coerced[:,:-1]], axis=1)
-
+        self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
+        self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+815)
         # Embed c,q,a
         self.embeddings = tf.get_variable('word_embeddings', [len(self.vocab), self.embedding_size], initializer=tf.orthogonal_initializer)
 
@@ -198,12 +198,13 @@ class Seq2SeqModel(SQuADModel):
                                                                 attention_mechanism,
                                                                 attention_layer_size=self.decoder_units / 2,
                                                                 alignment_history=True,
-                                                                copy_mechanism=attention_mechanism)
+                                                                copy_mechanism=attention_mechanism,
+                                                                output_attention=True)
 
             if self.training_mode:
                 # Helper - training
                 helper = tf.contrib.seq2seq.TrainingHelper(
-                    self.question_teach_embedded, self.question_length)
+                    self.question_teach_oh, self.question_length)
                     # decoder_emb_inp, length(decoder_emb_inp)+1)
 
                 init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
@@ -232,6 +233,7 @@ class Seq2SeqModel(SQuADModel):
                 # self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
 
                 logits=outputs.rnn_output
+                # print(out_lens)
                 # print(outputs)
                 # print(logits)
                 # exit()
