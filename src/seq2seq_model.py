@@ -19,6 +19,8 @@ from helpers.misc_utils import debug_shape, debug_tensor
 
 FLAGS = tf.app.flags.FLAGS
 
+max_copy_size = 818 # 815 plus start, end, pad for good measure..
+
 def ids_to_string(rev_vocab):
     def _ids_to_string(ids, context):
         row_str=[]
@@ -66,10 +68,10 @@ class Seq2SeqModel(SQuADModel):
 
         # build teacher output - coerce to vocab and pad with SOS/EOS
         # also build output for loss - one hot over vocab+context
-        self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)+815], [curr_batch_size])+self.context_length)
+        self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)+max_copy_size], [curr_batch_size])+self.context_length)
         self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
         self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
-        self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+815)
+        self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+max_copy_size)
         # Embed c,q,a
         self.embeddings = tf.get_variable('word_embeddings', [len(self.vocab), self.embedding_size], initializer=tf.orthogonal_initializer)
 
@@ -211,7 +213,7 @@ class Seq2SeqModel(SQuADModel):
                                                                 output_attention=True,
                                                                 initial_cell_state=init_state)
 
-            init_state = decoder_cell.zero_state(curr_batch_size*FLAGS.beam_width, tf.float32).clone(cell_state=init_state)
+            init_state = decoder_cell.zero_state(curr_batch_size*(FLAGS.beam_width if not self.training_mode else 1), tf.float32).clone(cell_state=init_state)
 
             if self.training_mode:
                 # Helper - training
@@ -226,8 +228,8 @@ class Seq2SeqModel(SQuADModel):
                     decoder_cell, helper,
                     initial_state=init_state,
                     # initial_state=encoder_state
-                    # TODO: hardcoded 815 is longest context in SQuAD - this will need changing for a new dataset!!!
-                    output_layer=copy_layer.CopyLayer(FLAGS.embedding_size, 815,
+                    # TODO: hardcoded max_copy_size is longest context in SQuAD - this will need changing for a new dataset!!!
+                    output_layer=copy_layer.CopyLayer(FLAGS.embedding_size, max_copy_size,
                                                     source_provider=lambda: self.context_ids,
                                                     condition_encoding=lambda: self.context_encoding,
                                                     vocab_size=len(self.vocab))
@@ -253,7 +255,7 @@ class Seq2SeqModel(SQuADModel):
                 start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
                 end_token = self.vocab[EOS]
 
-                projection_layer = copy_layer.CopyLayer(FLAGS.embedding_size, 815,
+                projection_layer = copy_layer.CopyLayer(FLAGS.embedding_size, max_copy_size,
                                                 source_provider=lambda: self.context_ids,
                                                 condition_encoding=lambda: self.context_encoding,
                                                 vocab_size=len(self.vocab))
@@ -265,7 +267,7 @@ class Seq2SeqModel(SQuADModel):
 
 
                 my_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = decoder_cell,
-                                                                   embedding = tf.eye(len(self.vocab) + 815),
+                                                                   embedding = tf.eye(len(self.vocab) + max_copy_size),
                                                                    start_tokens = start_tokens,
                                                                    end_token = end_token,
                                                                    initial_state = init_state,
@@ -273,7 +275,7 @@ class Seq2SeqModel(SQuADModel):
                                                                    output_layer = projection_layer )
 
                 # helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                #       embedding=tf.eye(len(self.vocab) + 815),
+                #       embedding=tf.eye(len(self.vocab) + max_copy_size),
                 #       start_tokens=tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size ] ),
                 #       end_token=end_token)
                 # my_decoder = tf.contrib.seq2seq.BasicDecoder( cell = decoder_cell,
@@ -287,7 +289,7 @@ class Seq2SeqModel(SQuADModel):
 
                 # logits = outputs.rnn_output
 
-                logits = tf.one_hot(outputs.predicted_ids[:,:,0], depth=len(self.vocab)+815)
+                logits = tf.one_hot(outputs.predicted_ids[:,:,0], depth=len(self.vocab)+max_copy_size)
 
 
         # calc switch prob
@@ -325,7 +327,7 @@ class Seq2SeqModel(SQuADModel):
 
             # TODO: Check these should be included in baseline?
             # get sum of all probabilities for words that are also in answer
-            answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +815)
+            answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +max_copy_size)
             answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keep_dims=True), [1,tf.reduce_max(self.question_length),1])
             self.suppression_loss = tf.reduce_sum(answer_mask * self.q_hat)
 
