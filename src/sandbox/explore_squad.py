@@ -2,7 +2,7 @@ from helpers import loader, preprocessing
 
 import string
 
-squad =  loader.load_squad_triples('./data/',True)
+squad =  loader.load_squad_triples('./data/',False)
 
 def tokenise(text):
 

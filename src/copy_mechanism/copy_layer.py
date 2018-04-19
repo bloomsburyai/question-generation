@@ -127,13 +127,13 @@ class CopyLayer(base.Layer):
     def build(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape)
         print("building copy layer")
-        # print(input_shape)
+        print(input_shape)
         self.built = True
 
     def call(self, inputs):
-        inputs = ops.convert_to_tensor(inputs, dtype=self.dtype)  #
+        inputs = ops.convert_to_tensor(inputs, dtype=self.dtype)  # batch x len_source+emb_dim
         # inputs = debug_shape(inputs, "inputs")
-        # print(inputs)
+        print(inputs)
         #  [batch_size, emb_dim + len_source] in eval,
         #  [len_target, batch_size,emb_dim + len_source] in train
         source = self.source_provider()  # [batch_size, len_source]
@@ -166,6 +166,7 @@ class CopyLayer(base.Layer):
         # shortlist = debug_shape(shortlist, "outputs")
 
         # pad the alignments to the longest possible source st output vocab is fixed size
+        # TODO: Check for non zero alignments outside the seq length
         alignments_padded = tf.pad(alignments, [[0, 0],[0, 0],[0, self.units-tf.shape(alignments)[2]]], 'CONSTANT')
         # alignments_padded = debug_shape(alignments_padded, "align padded")
         # switch takes st, vt and yt−1 as inputs

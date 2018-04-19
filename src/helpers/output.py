@@ -25,8 +25,8 @@ def output_pretty(tokens, switch, source, gold_ids, loss):
     return out_html
 
 
-def output_basic(tokens, ids):
-    out_html=''
+def output_basic(tokens, ids, epoch, step_num):
+    out_html='<h1>'+str(epoch)+', '+str(step_num)+'</h1>'
     for i,row in enumerate(tokens):
         out_html += '<p>'
         for j, tok in enumerate(row):

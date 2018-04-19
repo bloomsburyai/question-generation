@@ -44,7 +44,7 @@ from tensorflow.python.util import nest
 
 import tensorflow as tf
 
-from helpers.misc_utils import debug_shape
+from helpers.misc_utils import debug_shape, debug_tensor
 
 import sys
 
@@ -1185,6 +1185,7 @@ class CopyAttentionWrapper(rnn_cell_impl.RNNCell):
             "the BeamSearchDecoder?  You may need to tile your initial state "
             "via the tf.contrib.seq2seq.tile_batch function with argument "
             "multiple=beam_width.")
+        print(state_batch_size, initial_cell_state)
         with ops.control_dependencies(
             self._batch_size_checks(state_batch_size, error_message)):
           self._initial_cell_state = nest.map_structure(
@@ -1331,10 +1332,12 @@ class CopyAttentionWrapper(rnn_cell_impl.RNNCell):
     # previous attention value.
     cell_inputs = self._cell_input_fn(inputs, state.attention)
     cell_state = state.cell_state
+
     cell_output, next_cell_state = self._cell(cell_inputs, cell_state)
 
     cell_batch_size = (
         cell_output.shape[0].value or array_ops.shape(cell_output)[0])
+        
     error_message = (
         "When applying AttentionWrapper %s: " % self.name +
         "Non-matching batch sizes between the memory "

@@ -12,31 +12,30 @@ from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
 
-
+import flags
 
 
 # config
-tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
-tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
-tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")
-tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
-tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
-tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
-tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
+# tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
+# tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
+# tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")
+# tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
+# tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
+# tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
+# tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
+#
+# tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
+#
+# # hyperparams - these should probably be within the model?
+# tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
+# tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
+# tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
+# tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
+# tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
+# tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
+# tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 
-tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
 
-# hyperparams - these should probably be within the model?
-tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
-tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
-tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
-tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
-tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
-tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
-tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
-
-# eval params
-tf.app.flags.DEFINE_integer("beam_width", 10, "Beam width for decoding")
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -54,7 +53,7 @@ def main(_):
     model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=False)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'1522845633'
+    chkpt_path = FLAGS.model_dir+'1524131882.312672'
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -63,7 +62,7 @@ def main(_):
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+str(int(time.time())), sess.graph)
 
         saver.restore(sess, chkpt_path+ '/model.checkpoint')
-        print('Loading not implemented yet')
+        # print('Loading not implemented yet')
         # else:
         #     sess.run(tf.global_variables_initializer())
         #     sess.run(model.glove_init_ops)
