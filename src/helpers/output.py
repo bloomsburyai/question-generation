@@ -1,3 +1,5 @@
+import datetime
+
 def output_pretty(tokens, switch, source, gold_ids, loss):
     out_html = '''<style type="text/css">small {
     position: absolute;
@@ -26,7 +28,7 @@ def output_pretty(tokens, switch, source, gold_ids, loss):
 
 
 def output_basic(tokens, ids, epoch, step_num):
-    out_html='<h1>'+str(epoch)+', '+str(step_num)+'</h1>'
+    out_html='<h1>'+str(epoch)+', '+str(step_num)+'('+ str(datetime.now()) +')</h1>'
     for i,row in enumerate(tokens):
         out_html += '<p>'
         for j, tok in enumerate(row):
