@@ -174,12 +174,14 @@ class Seq2SeqModel(SQuADModel):
                 memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
                 memory_sequence_length = tf.contrib.seq2seq.tile_batch( self.context_length, multiplier=FLAGS.beam_width)
                 s0_tiled = tf.contrib.seq2seq.tile_batch( self.s0, multiplier=FLAGS.beam_width)
-                init_state = tf.contrib.rnn.LSTMStateTuple(s0_tiled, tf.zeros([curr_batch_size*FLAGS.beam_width, self.decoder_units]))
-
+                init_state = tf.contrib.rnn.LSTMStateTuple(s0_tiled, tf.contrib.seq2seq.tile_batch(tf.zeros([curr_batch_size, self.decoder_units]), multiplier=FLAGS.beam_width))
+                # init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
+                # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width)
             else:
                 memory = self.context_encoder_output
                 memory_sequence_length = self.context_length
                 init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
+
 
 
             attention_mechanism = copy_attention_wrapper.BahdanauAttention(
@@ -194,6 +196,8 @@ class Seq2SeqModel(SQuADModel):
                     cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
 
+
+
             # decoder_cell = tf.contrib.seq2seq.AttentionWrapper(decoder_cell,
             #                                                     attention_mechanism,
             #                                                     attention_layer_size=self.decoder_units / 2,
@@ -207,13 +211,15 @@ class Seq2SeqModel(SQuADModel):
                                                                 output_attention=True,
                                                                 initial_cell_state=init_state)
 
+            init_state = decoder_cell.zero_state(curr_batch_size*FLAGS.beam_width, tf.float32).clone(cell_state=init_state)
+
             if self.training_mode:
                 # Helper - training
                 helper = tf.contrib.seq2seq.TrainingHelper(
                     self.question_teach_oh, self.question_length)
                     # decoder_emb_inp, length(decoder_emb_inp)+1)
 
-                init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
+
 
                 # Decoder - training
                 decoder = tf.contrib.seq2seq.BasicDecoder(
@@ -244,7 +250,7 @@ class Seq2SeqModel(SQuADModel):
                 # print(logits)
                 # exit()
             else:
-                start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size * FLAGS.beam_width ] )
+                start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
                 end_token = self.vocab[EOS]
 
                 projection_layer = copy_layer.CopyLayer(FLAGS.embedding_size, 815,
@@ -253,35 +259,35 @@ class Seq2SeqModel(SQuADModel):
                                                 vocab_size=len(self.vocab))
 
                 # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width )
-                init_state = decoder_cell.zero_state(curr_batch_size * FLAGS.beam_width, tf.float32).clone(cell_state=init_state)
+                # init_state = decoder_cell.zero_state(curr_batch_size * FLAGS.beam_width, tf.float32).clone(cell_state=init_state)
                 # init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
 
 
 
-                # my_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = decoder_cell,
-                #                                                    embedding = tf.eye(len(self.vocab) + 815),
-                #                                                    start_tokens = start_tokens,
-                #                                                    end_token = end_token,
-                #                                                    initial_state = init_state,
-                #                                                    beam_width = FLAGS.beam_width,
-                #                                                    output_layer = projection_layer )
+                my_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = decoder_cell,
+                                                                   embedding = tf.eye(len(self.vocab) + 815),
+                                                                   start_tokens = start_tokens,
+                                                                   end_token = end_token,
+                                                                   initial_state = init_state,
+                                                                   beam_width = FLAGS.beam_width,
+                                                                   output_layer = projection_layer )
 
-                helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                      embedding=tf.eye(len(self.vocab) + 815),
-                      start_tokens=tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size ] ),
-                      end_token=end_token)
-                my_decoder = tf.contrib.seq2seq.BasicDecoder( cell = decoder_cell,
-                                                                helper=helper,
-                                                                  initial_state = init_state,
-                                                                  output_layer = projection_layer )
+                # helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                #       embedding=tf.eye(len(self.vocab) + 815),
+                #       start_tokens=tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size ] ),
+                #       end_token=end_token)
+                # my_decoder = tf.contrib.seq2seq.BasicDecoder( cell = decoder_cell,
+                #                                                 helper=helper,
+                #                                                   initial_state = init_state,
+                #                                                   output_layer = projection_layer )
 
                 outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(  my_decoder,
                                                                         impute_finished=False,
                                                                        maximum_iterations=32 )
 
-                logits = outputs.rnn_output
+                # logits = outputs.rnn_output
 
-                # logits = tf.one_hot(outputs.predicted_ids[:,:,0], depth=len(self.vocab)+815)
+                logits = tf.one_hot(outputs.predicted_ids[:,:,0], depth=len(self.vocab)+815)
 
 
         # calc switch prob

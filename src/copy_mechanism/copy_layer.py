@@ -127,19 +127,19 @@ class CopyLayer(base.Layer):
     def build(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape)
         print("building copy layer")
-        print(input_shape)
+        # print(input_shape)
         self.built = True
 
     def call(self, inputs):
         inputs = ops.convert_to_tensor(inputs, dtype=self.dtype)  # batch x len_source+emb_dim
         # inputs = debug_shape(inputs, "inputs")
-        print(inputs)
+        # print(inputs)
         #  [batch_size, emb_dim + len_source] in eval,
         #  [len_target, batch_size,emb_dim + len_source] in train
         source = self.source_provider()  # [batch_size, len_source]
         # source = debug_shape(source,"src")
 
-        condition_encoding = tf.expand_dims(self.condition_encoding(), 0)
+        condition_encoding = self.condition_encoding()
         # condition_encoding = debug_shape(condition_encoding, "cond enc")
 
         batch_size = tf.shape(source)[0]
@@ -147,16 +147,16 @@ class CopyLayer(base.Layer):
         shape = tf.shape(inputs)
         is_eval = len(inputs.get_shape()) == 2
 
-        len_target = tf.constant(1) if is_eval else shape[0]
+        beam_width = tf.constant(1) if is_eval else shape[1]
         # len_target = tf.Print(len_target, [len_target, batch_size, shape[-1]], "input reshape")
         # inputs = tf.reshape(inputs, [-1, shape[-1]])  # [len_target * batch_size, len_source + emb_dim]
         inputs_new = tf.reshape(inputs,
-                                [len_target, batch_size, shape[-1]])  # [len_target, batch_size, len_source + emb_dim]
+                                [batch_size*beam_width, shape[-1]])  # [len_target, batch_size, len_source + emb_dim]
 
         # -- [len_target, batch_size, embedding_dim] attention, []
         # -- [len_target, batch_size, len_source] alignments
         # attention, alignments = tf.split(inputs, [self.embedding_dim, -1], axis=1)
-        attention, alignments = tf.split(inputs_new, num_or_size_splits=[self.embedding_dim, -1], axis=2)
+        attention, alignments = tf.split(inputs_new, num_or_size_splits=[self.embedding_dim, -1], axis=-1)
         # [len_target, batch_size, vocab_size]
         shortlist = tf.contrib.layers.fully_connected(attention, self.vocab_size, activation_fn=None)
 
@@ -167,21 +167,23 @@ class CopyLayer(base.Layer):
 
         # pad the alignments to the longest possible source st output vocab is fixed size
         # TODO: Check for non zero alignments outside the seq length
-        alignments_padded = tf.pad(alignments, [[0, 0],[0, 0],[0, self.units-tf.shape(alignments)[2]]], 'CONSTANT')
+        alignments_padded = tf.pad(alignments, [[0, 0], [0, self.units-tf.shape(alignments)[-1]]], 'CONSTANT')
         # alignments_padded = debug_shape(alignments_padded, "align padded")
         # switch takes st, vt and yt−1 as inputs
         # vt = concat(weighted context encoding at t; condition encoding)
         # st = hidden state at t
         # y_t-1 is previous generated token
 
-        vt = tf.concat([attention, condition_encoding], axis=2)
+        condition_encoding_tiled = tf.contrib.seq2seq.tile_batch(condition_encoding, multiplier=beam_width)
+
+        vt = tf.concat([attention, condition_encoding_tiled], axis=1)
         # NOTE: this is missing the previous input y_t-1 and s_t
         switch_input = tf.concat([vt],axis=1)
         switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
         switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
         switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
         # switch = debug_shape(switch, "switch")
-        result = safe_log(tf.concat([(1-switch)*shortlist,switch*alignments_padded], axis=2))
+        result = safe_log(tf.concat([(1-switch)*shortlist,switch*alignments_padded], axis=1))
 
         target_shape = tf.concat([shape[:-1], [-1]], 0)
         result =tf.reshape(result, target_shape)

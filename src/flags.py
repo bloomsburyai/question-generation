@@ -22,4 +22,4 @@ tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 
 # eval params
-tf.app.flags.DEFINE_integer("beam_width", 1, "Beam width for decoding")
+tf.app.flags.DEFINE_integer("beam_width", 10, "Beam width for decoding")
