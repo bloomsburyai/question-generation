@@ -7,13 +7,14 @@ mem_limit=0.95
 import tensorflow as tf
 import numpy as np
 import helpers.loader as loader
-from helpers.output import output_pretty, output_basic
+from helpers.output import output_pretty, output_basic, tokens_to_string
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
 
 import flags
 
+import helpers.metrics as metrics
 
 
 
@@ -22,7 +23,6 @@ FLAGS = tf.app.flags.FLAGS
 def main(_):
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    train_data = list(reversed(train_data))
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     print('Loaded SQuAD with ',len(train_data),' triples')
@@ -59,7 +59,7 @@ def main(_):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 ops = [model.optimizer, model.train_summary]
                 if i%FLAGS.eval_freq==0:
-                    ops.extend([model.output_summary, model.q_hat_string, model.q_hat_ids]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
+                    ops.extend([model.output_summary, model.q_hat_string, model.q_hat_ids, model.q_gold]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
                 res= sess.run(ops, feed_dict={model.is_training:True})
                 summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
                 if i%FLAGS.eval_freq==0:
@@ -68,6 +68,23 @@ def main(_):
                     # q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist(), res[7].tolist())
                     with open(FLAGS.log_dir+'out.htm', 'w') as fp:
                         fp.write(output_basic(res[3], res[4], e, i))
+
+                    f1s=[]
+                    bleus=[]
+                    for b, pred in enumerate(res[3]):
+                        pred_str = tokens_to_string(pred)
+                        gold_str = tokens_to_string(res[5][b])
+                        f1s.append(metrics.f1(gold_str, pred_str))
+                        bleus.append(metrics.bleu(gold_str, pred_str))
+
+
+                    f1summary = tf.Summary(value=[tf.Summary.Value(tag="f1",
+                                                     simple_value=sum(f1s)/len(f1s))])
+                    bleusummary = tf.Summary(value=[tf.Summary.Value(tag="bleu",
+                                              simple_value=sum(bleus)/len(bleus))])
+
+                    summary_writer.add_summary(f1summary, global_step=(e*num_steps+i))
+                    summary_writer.add_summary(bleusummary, global_step=(e*num_steps+i))
                     # a_raw, a_str, q_str = sess.run([model.answer_raw,model.a_string, model.q_hat_string])
                     # print(a_raw.tolist(), a_str, q_str)
                     # print(sess.run([tf.shape(model.context_condition_encoding), tf.shape(model.full_condition_encoding)]))

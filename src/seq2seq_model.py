@@ -19,30 +19,8 @@ from helpers.misc_utils import debug_shape, debug_tensor
 
 FLAGS = tf.app.flags.FLAGS
 
-max_copy_size = 818 # 815 plus start, end, pad for good measure..
-
-def ids_to_string(rev_vocab):
-    def _ids_to_string(ids, context):
-        row_str=[]
-        for i,row in enumerate(ids):
-            # print(context[i])
-            context_tokens = [w.decode() for w in context[i].tolist()]
-            out_str = []
-            for j in row:
-                if j< len(rev_vocab):
-                    out_str.append(rev_vocab[j])
-                else:
-                    out_str.append(context_tokens[j-len(rev_vocab)])
-            row_str.append(out_str)
-
-            # print(context_tokens)
-            # print(out_str)
-        return [row_str]
-    return _ids_to_string
-
-def id_tensor_to_string(ids, rev_vocab, context):
-
-    return tf.py_func(ids_to_string(rev_vocab), [ids, context], tf.string)
+# It would be really nice not to have to hardcode this (or even better, to not have to define it at all)
+max_copy_size = 817 # 815 plus start, end
 
 
 class Seq2SeqModel(SQuADModel):
@@ -59,13 +37,6 @@ class Seq2SeqModel(SQuADModel):
         self.build_data_pipeline(self.batch_size)
 
         curr_batch_size = tf.shape(self.answer_ids)[0]
-
-        # self.W = tf.get_variable('testvar', [len(self.vocab), len(self.vocab)], initializer=tf.orthogonal_initializer)
-        #
-        # a_oh = tf.one_hot(tf.mod(self.answer_ids, len(self.vocab)), depth=len(self.vocab))
-        # s = tf.shape(a_oh)
-        # x = tf.reshape(a_oh, [-1, len(self.vocab)])
-        # self.answer_hat = tf.reshape(tf.matmul(x, self.W), s)
 
 
         # build teacher output - coerce to vocab and pad with SOS/EOS
@@ -223,8 +194,6 @@ class Seq2SeqModel(SQuADModel):
                     self.question_teach_oh, self.question_length)
                     # decoder_emb_inp, length(decoder_emb_inp)+1)
 
-
-
                 # Decoder - training
                 decoder = tf.contrib.seq2seq.BasicDecoder(
                     decoder_cell, helper,
@@ -240,19 +209,7 @@ class Seq2SeqModel(SQuADModel):
                 # Unroll the decoder
                 outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
 
-                # projection_layer = tf.layers.Dense(
-                #     len(self.vocab), use_bias=False)
-                # logits = projection_layer(outputs.rnn_output)
-                #
-                #
-                #
-                # self.attention = tf.transpose(decoder_states.alignment_history.stack(),[1,0,2]) # batch x seq x attn
-
                 logits=outputs.rnn_output
-                # print(out_lens)
-                # print(outputs)
-                # print(logits)
-                # exit()
             else:
                 start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
                 end_token = self.vocab[EOS]
@@ -293,32 +250,13 @@ class Seq2SeqModel(SQuADModel):
                 pred_ids = outputs.predicted_ids
                 pred_ids = debug_shape(pred_ids, "pred ids")
                 logits = tf.one_hot(pred_ids[:,:,0], depth=len(self.vocab)+max_copy_size)
+                # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+max_copy_size)
 
 
-        # calc switch prob
-        # with tf.variable_scope('switch'):
-        #     # switch takes st, vt and yt−1 as inputs
-        #     # vt = concat(weighted context encoding at t; condition encoding)
-        #     # st = hidden state at t
-        #     # y_t-1 is previous generated token
-        #     context = tf.matmul( self.attention, self.context_embedded)
-        #     ha_tiled = tf.tile(tf.expand_dims(context_encoding,axis=1),[1,tf.reduce_max(self.question_length),1])
-        #     vt = tf.concat([context, ha_tiled], axis=2)
-        #     # NOTE: outputs.rnn_output is y_t-1, should be prev state
-        #     switch_input = tf.concat([vt, outputs.rnn_output, self.question_teach_embedded],axis=2)
-        #     switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-        #     switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-        #     self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
-        #
-        # # build overall prediction prob vector
-        # self.q_hat_shortlist = tf.nn.softmax(logits,dim=2) #NOTE kwarg dim is deprecated in favour of axis, but blaze == 1.4
-        #
-        # self.q_hat = tf.concat([(1-self.switch)*self.q_hat_shortlist,self.switch*self.attention], axis=2)
         self.q_hat = tf.nn.softmax(logits, dim=2)
 
         # self.q_hat = debug_shape(self.q_hat, "q hat")
 
-        # TODO: include answer-suppression loss and variety loss terms
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
                         self.question_length, tf.reduce_max(self.question_length), dtype=tf.float32)
@@ -337,21 +275,37 @@ class Seq2SeqModel(SQuADModel):
             # entropy maximiser
             self.entropy_loss = tf.reduce_sum(self.q_hat * logits)
 
+        rewards = []
+        rl_reward_loss = tf.constant(0.)
+        with tf.variable_scope('rl_rewards'):
+            # TODO: Fluency reward from LM
+            # TODO: Answerability reward from QA model
+            # TODO: Correct REINFORCE loss
+            # TODO: Check teacher forcing method for learning using beam search
+            # TODO: whiten rewards (popart)
 
-            self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
+            for reward in rewards:
+                rl_reward_loss += 0.5* tf.square(reward)
+
+        self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 
 
-        self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
-        self.a_string = id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw)
-        self.q_hat_string = id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw)
-        self.q_gold = id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw)
-        self._output_summaries.extend(
-            [tf.summary.text("q_hat", self.q_hat_string),
-            tf.summary.text("q_gold", self.q_gold),
-            # tf.summary.text("q_gold_ids", tf.as_string(self.question_ids)),
-            # tf.summary.text("q_raw", self.question_raw),
-            # tf.summary.text("context", self.context_raw),
-            tf.summary.text("answer", self.answer_raw)])
+        with tf.variable_scope('output'):
+            self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
+            self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw)
+            self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw)
+
+            # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
+            # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
+
+            self.q_gold = ops.id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw)
+            self._output_summaries.extend(
+                [tf.summary.text("q_hat", self.q_hat_string),
+                tf.summary.text("q_gold", self.q_gold),
+                # tf.summary.text("q_gold_ids", tf.as_string(self.question_ids)),
+                # tf.summary.text("q_raw", self.question_raw),
+                # tf.summary.text("context", self.context_raw),
+                tf.summary.text("answer", self.answer_raw)])
 
         # Calculate and clip gradients
         params = tf.trainable_variables()

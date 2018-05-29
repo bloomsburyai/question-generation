@@ -28,31 +28,12 @@ class SQuADModel(TFModel):
             dataset = dataset.shuffle(buffer_size=1000)
 
             # processing pipeline
-            # split
-            # dataset = dataset.map(lambda context,q,a:
-            #                 (tf.string_split(tf.py_func(helpers.tokenise, [context], tf.string), delimiter='\x00', skip_empty=True).values,
-            #                 tf.string_split(tf.py_func(helpers.tokenise, [q], tf.string), delimiter='\x00', skip_empty=True).values,
-            #                 tf.string_split(tf.py_func(helpers.tokenise, [a], tf.string), delimiter='\x00', skip_empty=True).values) )
-
-            # map each of context, q, a to their raw, ids, len
             dataset = dataset.map(lambda context,q,a,a_pos:
                         (tuple(tf.py_func(preprocessing.process_squad_context(self.vocab), [context], [tf.string, tf.int32, tf.int32])),
                         tuple(tf.py_func(preprocessing.process_squad_question(self.vocab), [q,context], [tf.string, tf.int32, tf.int32])),
                         tuple(tf.py_func(preprocessing.process_squad_answer(self.vocab), [a,a_pos,context], [tf.string, tf.int32, tf.int32, tf.int32]))
                         # q,a
                         ))
-            # dataset = dataset.map(lambda context,q,a: (context,
-            #             (q,
-            #              tf.py_func(helpers.lookup_vocab, [q, context], tf.int32),
-            #              tf.size(q))
-            #              ,a))
-            # dataset = dataset.map(lambda context,q,a: (
-            #             (context,
-            #              tf.py_func(helpers.lookup_vocab, [context], tf.int32),
-            #              tf.size(context))
-            #              ,q,a))
-
-            # dataset = dataset.shuffle()
 
 
 
