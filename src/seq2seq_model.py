@@ -25,7 +25,7 @@ def ids_to_string(rev_vocab):
     def _ids_to_string(ids, context):
         row_str=[]
         for i,row in enumerate(ids):
-
+            # print(context[i])
             context_tokens = [w.decode() for w in context[i].tolist()]
             out_str = []
             for j in row:
@@ -34,7 +34,9 @@ def ids_to_string(rev_vocab):
                 else:
                     out_str.append(context_tokens[j-len(rev_vocab)])
             row_str.append(out_str)
-        # return np.asarray(row_str)
+
+            # print(context_tokens)
+            # print(out_str)
         return [row_str]
     return _ids_to_string
 
@@ -229,7 +231,7 @@ class Seq2SeqModel(SQuADModel):
                     initial_state=init_state,
                     # initial_state=encoder_state
                     # TODO: hardcoded max_copy_size is longest context in SQuAD - this will need changing for a new dataset!!!
-                    output_layer=copy_layer.CopyLayer(FLAGS.embedding_size, max_copy_size,
+                    output_layer=copy_layer.CopyLayer(FLAGS.decoder_units, max_copy_size,
                                                     source_provider=lambda: self.context_ids,
                                                     condition_encoding=lambda: self.context_encoding,
                                                     vocab_size=len(self.vocab))
@@ -288,8 +290,9 @@ class Seq2SeqModel(SQuADModel):
                                                                        maximum_iterations=32 )
 
                 # logits = outputs.rnn_output
-
-                logits = tf.one_hot(outputs.predicted_ids[:,:,0], depth=len(self.vocab)+max_copy_size)
+                pred_ids = outputs.predicted_ids
+                pred_ids = debug_shape(pred_ids, "pred ids")
+                logits = tf.one_hot(pred_ids[:,:,0], depth=len(self.vocab)+max_copy_size)
 
 
         # calc switch prob
@@ -313,7 +316,7 @@ class Seq2SeqModel(SQuADModel):
         # self.q_hat = tf.concat([(1-self.switch)*self.q_hat_shortlist,self.switch*self.attention], axis=2)
         self.q_hat = tf.nn.softmax(logits, dim=2)
 
-
+        # self.q_hat = debug_shape(self.q_hat, "q hat")
 
         # TODO: include answer-suppression loss and variety loss terms
         with tf.variable_scope('train_loss'):
@@ -341,7 +344,7 @@ class Seq2SeqModel(SQuADModel):
         self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
         self.a_string = id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw)
         self.q_hat_string = id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw)
-        self.q_gold = id_tensor_to_string(self.question_coerced, self.rev_vocab, self.context_raw)
+        self.q_gold = id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw)
         self._output_summaries.extend(
             [tf.summary.text("q_hat", self.q_hat_string),
             tf.summary.text("q_gold", self.q_gold),
@@ -361,60 +364,3 @@ class Seq2SeqModel(SQuADModel):
             zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)
-
-    class OutputLayer(base.Layer):
-        def __init__(self, model):
-            super(model.OutputLayer, self).__init__(trainable=True,
-                                        activity_regularizer=None)
-            self.model = model
-
-        def call(self, t,  prev_input, output, state, attention):
-            with tf.variable_scope('decode_output', reuse=tf.AUTO_REUSE):
-                print("t", t)
-                print("y_t-1", prev_input)
-                print("out_t", output)
-                print("s_t", state)
-                print("attn", attention)
-                # switch takes st, vt and yt−1 as inputs
-                # vt = concat(weighted context encoding at t; condition encoding)
-                # st = hidden state at t
-                # y_t-1 is previous generated token
-                context = tf.matmul( attention, self.model.context_embedded[:,t,:])
-                print("cntxt",context)
-                # ha_tiled = tf.tile(tf.expand_dims(self.model.context_encoding,axis=1),[1,tf.reduce_max(self.model.question_length),1])
-                vt = tf.concat([context, self.model.context_encoding], axis=1)
-                # NOTE: outputs.rnn_output is y_t-1, should be prev state
-                switch_input = tf.concat([vt, state, prev_input],axis=1)
-                switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-                switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-                switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
-
-                # exit()
-
-                # build shortlist prediction prob vector
-                projection_layer = tf.layers.Dense(
-                    len(self.model.vocab), use_bias=False)
-                logits = projection_layer(output)
-                q_hat_shortlist = tf.nn.softmax(logits,dim=1) #NOTE kwarg dim is deprecated in favour of axis, but blaze == 1.4
-
-                # combine
-                q_hat = tf.concat([(1-switch)*q_hat_shortlist,switch*attention], axis=1)
-
-                print("qhat",q_hat)
-
-                return ops.safe_log(q_hat)
-
-        def build(self,input_shape):
-            self.built=True
-
-        def compute_output_shape(self, input_shape):
-            # print(input_shape)
-            # exit()
-            input_shape = tensor_shape.TensorShape(input_shape)
-
-            input_shape = input_shape.with_rank_at_least(2)
-            if input_shape[-1].value is None:
-              raise ValueError(
-                  'The innermost dimension of input_shape must be defined, but saw: %s'
-                  % input_shape)
-            return input_shape[:-1].concatenate(1)

@@ -153,6 +153,7 @@ class CopyLayer(base.Layer):
         inputs_new = tf.reshape(inputs,
                                 [batch_size*beam_width, shape[-1]])  # [len_target, batch_size, len_source + emb_dim]
 
+        # inputs_new = debug_shape(inputs_new, "inputs_new")
         # -- [len_target, batch_size, embedding_dim] attention, []
         # -- [len_target, batch_size, len_source] alignments
         # attention, alignments = tf.split(inputs, [self.embedding_dim, -1], axis=1)
@@ -161,7 +162,7 @@ class CopyLayer(base.Layer):
         shortlist = tf.contrib.layers.fully_connected(attention, self.vocab_size, activation_fn=None)
 
         # attention = debug_shape(attention, "attn")
-        # alignments = debug_shape(alignments, "align")
+        # alignments = debug_shape(alignments, "align ("+str(self.units)+" desired)")
         # print(alignments)
         # shortlist = debug_shape(shortlist, "outputs")
 

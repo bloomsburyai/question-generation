@@ -14,9 +14,13 @@ def tokenise(text):
     return tokens
 
 max_context_len=0
-for triple in squad:
+max_pos = None
+debugstr = ""
+for i,triple in enumerate(squad):
     c_toks=  tokenise(triple[0])
     if len(c_toks) > max_context_len:
         max_context_len = len(c_toks)
-
-print(max_context_len)
+        max_pos = i
+        debugstr = triple[0]
+print(max_context_len," @ ",i)
+print(len(tokenise(debugstr)))

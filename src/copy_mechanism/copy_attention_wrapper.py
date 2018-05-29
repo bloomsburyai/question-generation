@@ -1393,6 +1393,9 @@ class CopyAttentionWrapper(rnn_cell_impl.RNNCell):
     #    tf.shape(alignments)
     #], "cell_output/attention/alignments: ")
 
+    # attention = debug_shape(attention, " wrapper attn")
+    # copy_alignments = debug_shape(copy_alignments, " wrapper copy aligns")
+
     attention = tf.concat([attention, copy_alignments], axis=1)
 
     #attention = tf.Print(attention, [tf.shape(attention)], "cons: ")

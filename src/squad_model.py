@@ -25,7 +25,7 @@ class SQuADModel(TFModel):
 
             dataset = tf.data.Dataset.from_tensor_slices( (self.context_ph, self.qs_ph, self.as_ph, self.a_pos_ph) )
 
-            dataset = dataset.shuffle(buffer_size=100000)
+            dataset = dataset.shuffle(buffer_size=1000)
 
             # processing pipeline
             # split

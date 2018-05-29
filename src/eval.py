@@ -53,7 +53,7 @@ def main(_):
     model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=False)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'1524147601'
+    chkpt_path = FLAGS.model_dir+'latest'
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -75,11 +75,11 @@ def main(_):
 
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                ops = [model.q_hat_string]
+                ops = [model.q_hat_string, model.q_gold, model.context_raw]
                 res= sess.run(ops, feed_dict={model.is_training:False})
 
-                print(res[0])
-
+                print(res[0], res[1], res[2])
+                print('***')
 
 
 if __name__ == '__main__':

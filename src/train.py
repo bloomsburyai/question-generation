@@ -21,7 +21,8 @@ FLAGS = tf.app.flags.FLAGS
 
 def main(_):
     # load dataset
-    train_data = loader.load_squad_triples(FLAGS.data_path, False)[16*0:]
+    train_data = loader.load_squad_triples(FLAGS.data_path, False)
+    train_data = list(reversed(train_data))
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     print('Loaded SQuAD with ',len(train_data),' triples')
