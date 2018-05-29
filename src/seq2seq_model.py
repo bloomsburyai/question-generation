@@ -231,7 +231,7 @@ class Seq2SeqModel(SQuADModel):
                     initial_state=init_state,
                     # initial_state=encoder_state
                     # TODO: hardcoded max_copy_size is longest context in SQuAD - this will need changing for a new dataset!!!
-                    output_layer=copy_layer.CopyLayer(FLAGS.decoder_units, max_copy_size,
+                    output_layer=copy_layer.CopyLayer(FLAGS.decoder_units/2, max_copy_size,
                                                     source_provider=lambda: self.context_ids,
                                                     condition_encoding=lambda: self.context_encoding,
                                                     vocab_size=len(self.vocab))
@@ -257,7 +257,7 @@ class Seq2SeqModel(SQuADModel):
                 start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
                 end_token = self.vocab[EOS]
 
-                projection_layer = copy_layer.CopyLayer(FLAGS.embedding_size, max_copy_size,
+                projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units/2, max_copy_size,
                                                 source_provider=lambda: self.context_ids,
                                                 condition_encoding=lambda: self.context_encoding,
                                                 vocab_size=len(self.vocab))
