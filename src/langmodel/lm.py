@@ -49,7 +49,7 @@ class LstmLm(TFModel):
         # loss fn + opt
         self.target_weights = tf.sequence_mask(
                     self.input_lengths-1, tf.reduce_max(self.input_lengths)-1, dtype=tf.float32)
-        self.loss = tf.reduce_mean(tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1),axis=0)
+        self.loss = tf.reduce_mean(tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)/tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32),axis=0)
 
         self.optimise = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
 
