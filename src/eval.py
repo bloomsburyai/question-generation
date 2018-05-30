@@ -1,7 +1,7 @@
 import os,time, json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 mem_limit=0.5
 
 import tensorflow as tf
@@ -15,32 +15,7 @@ from seq2seq_model import Seq2SeqModel
 
 import flags
 
-
-# config
-# tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
-# tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
-# tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")
-# tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
-# tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
-# tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
-# tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
-#
-# tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
-#
-# # hyperparams - these should probably be within the model?
-# tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
-# tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
-# tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
-# tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
-# tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
-# tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
-# tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
-
-
-
 FLAGS = tf.app.flags.FLAGS
-
-# FLAGS.batch_size = 1
 
 def main(_):
     # load dataset
@@ -58,7 +33,7 @@ def main(_):
     model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=False)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'latest'
+    chkpt_path = FLAGS.model_dir+'qgen/latest'
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -85,7 +60,7 @@ def main(_):
                 ops = [model.q_hat_string, model.q_gold, model.context_raw]
                 res= sess.run(ops, feed_dict={model.is_training:False})
 
-                if i < 5:
+                if i < 5 or i in np.random.choice(num_steps, 5):
                     print("Pred: ", tokens_to_string(res[0][0].tolist()))
                     print("Gold: ", tokens_to_string(res[1][0].tolist()))
                     print('***')

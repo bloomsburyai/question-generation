@@ -276,7 +276,7 @@ class Seq2SeqModel(SQuADModel):
             # entropy maximiser
             self.entropy_loss = tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat))
 
-        
+            self._train_summaries.append(tf.summary.scalar('train_loss/xe_loss', self.xe_loss))
 
         self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 

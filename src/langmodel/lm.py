@@ -54,8 +54,7 @@ class LstmLm(TFModel):
         self.probs = tf.nn.softmax(self.logits)
         self.preds = tf.argmax(self.probs, axis=2, output_type=tf.int32)
 
-        # seq evaluation
-        self.seq_log_prob = tf.reduce_sum(tf.log(tf.one_hot(self.tgt_output, depth=len(self.vocab))*self.probs) ,axis=[1,2])
+
 
         # loss fn + opt
         self.target_weights = tf.sequence_mask(
@@ -63,6 +62,10 @@ class LstmLm(TFModel):
         self.loss = tf.reduce_mean(tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)/tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32),axis=0)
 
         self.optimise = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
+
+        # seq evaluation
+        self.log_probs = tf.reduce_sum(tf.one_hot(self.tgt_output, depth=len(self.vocab))*self.probs,axis=2)
+        self.seq_log_prob = tf.reduce_sum(tf.log(self.log_probs)*self.target_weights, axis=1)/tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)
 
         # metrics
         self.perplexity = tf.minimum(1000.0,tf.pow(2.0, 1/tf.cast(self.input_lengths,tf.float32) * tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)))
@@ -81,7 +84,7 @@ class LstmLmInstance():
         saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_seq_prob(self, seqs):
-        probs = self.sess.run(self.model.seq_log_prob, feed_dict={self.model.input_seqs: seqs})
+        probs = self.sess.run([self.model.seq_log_prob], feed_dict={self.model.input_seqs: seqs})
         return probs
 
 
@@ -98,7 +101,8 @@ def main(_):
     lm = LstmLmInstance(vocab)
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
-    seq_batch = ["what what what the the the","this is a test sentence that i made up to try out the model", "Kathmandu Metropolitan City (KMC), in order to promote international relations has established an International Relations Secretariat (IRC). KMC's first international relationship was established in 1975 with the city of Eugene, Oregon, United States. This activity has been further enhanced by establishing formal relationships with 8 other cities"]
+    # random words, basic q, common words, real q, real context
+    seq_batch = [" ".join(np.random.choice(list(vocab.keys()), 20)), "what ?","what is is is the ?", "Where is the Baha'i national office located in Nepal?", "Kathmandu Metropolitan City (KMC), in order to promote international relations has established an International Relations Secretariat (IRC). KMC's first international relationship was established in 1975 with the city of Eugene, Oregon, United States. This activity has been further enhanced by establishing formal relationships with 8 other cities"]
     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
     max_seq_len = max([len(seq) for seq in seq_batch_ids])
     padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
