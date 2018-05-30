@@ -34,13 +34,13 @@ def main(_):
     model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+str(int(time.time()))
+    chkpt_path = FLAGS.model_dir+'qgen/'+str(int(time.time()))
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+str(int(time.time())), sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+str(int(time.time())), sess.graph)
 
         if not FLAGS.train:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')

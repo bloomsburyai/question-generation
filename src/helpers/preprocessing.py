@@ -64,13 +64,13 @@ def find_start(haystack, key):
         print(key)
         return expanded.index(key)
 
-def tokenise(text):
+def tokenise(text, asbytes=True):
 
-    text = text.decode()
+    text = text.decode() if asbytes else text
     for char in string.punctuation+'()-–':
         text = text.replace(char, ' '+char+' ')
     tokens = text.lower().split(' ')
-    tokens = np.asarray([w.encode() for w in tokens if w.strip() != ''])
+    tokens = np.asarray([w.encode() if asbytes else w for w in tokens if w.strip() != ''])
     # tokens = np.asarray(tokens)
     return tokens
 
