@@ -273,7 +273,7 @@ class Seq2SeqModel(SQuADModel):
             self.suppression_loss = tf.reduce_sum(answer_mask * self.q_hat)
 
             # entropy maximiser
-            self.entropy_loss = tf.reduce_sum(self.q_hat * logits)
+            self.entropy_loss = tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat))
 
         rewards = []
         rl_reward_loss = tf.constant(0.)
