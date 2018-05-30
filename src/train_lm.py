@@ -23,10 +23,10 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
+    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.vocab_size)
 
-    unique_contexts = list(set(train_contexts))
-    print(len(unique_contexts)," unique contexts")
+    unique_sents = list(set(train_qs))
+    print(len(unique_sents)," unique sentences")
 
     # Create model
 
@@ -52,7 +52,7 @@ def main(_):
 
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                seq_batch = unique_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                seq_batch = unique_sents[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
 
                 seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
                 max_seq_len = max([len(seq) for seq in seq_batch_ids])

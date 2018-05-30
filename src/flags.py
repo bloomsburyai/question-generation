@@ -6,7 +6,7 @@ tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 16, "Batch size")
-tf.app.flags.DEFINE_string("data_path", '../data/', "Path to dataset")
+tf.app.flags.DEFINE_string("data_path", './data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 

@@ -1,10 +1,18 @@
+import sys
+sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
+
+
 import tensorflow as tf
 
 from base_model import TFModel
 
-from helpers.loader import load_glove
+import helpers.loader as loader
 
+
+import flags
 FLAGS = tf.app.flags.FLAGS
+
+mem_limit=0.25
 
 
 # This should handle the mechanics of the model - basically it's a wrapper around the TF graph
@@ -22,7 +30,7 @@ class LstmLm(TFModel):
 
         # Load glove embeddings
         self.glove_init_ops =[]
-        glove_embeddings = load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
+        glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
         for word,id in self.vocab.items():
             if word in glove_embeddings.keys():
                 self.glove_init_ops.append(tf.assign(self.embeddings[id,:], glove_embeddings[word]))
@@ -46,6 +54,9 @@ class LstmLm(TFModel):
         self.probs = tf.nn.softmax(self.logits)
         self.preds = tf.argmax(self.probs, axis=2, output_type=tf.int32)
 
+        # seq evaluation
+        self.seq_log_prob = tf.reduce_sum(tf.log(tf.one_hot(self.tgt_output, depth=len(self.vocab))*self.probs) ,axis=[1,2])
+
         # loss fn + opt
         self.target_weights = tf.sequence_mask(
                     self.input_lengths-1, tf.reduce_max(self.input_lengths)-1, dtype=tf.float32)
@@ -61,14 +72,37 @@ class LstmLm(TFModel):
 # This should handle a concrete instance of a LM, loading params, spinning up the graph etc, to be used by other models
 class LstmLmInstance():
     def __init__(self, vocab):
-        pass
+        self.model = LstmLm(vocab, num_units=512)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
+        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
     def load_from_chkpt(self, path):
-        pass
+        saver = tf.train.Saver()
+        saver.restore(self.sess, path+ '/model.checkpoint')
 
-    def get_prob(self, contexts, toks):
-        pass
-
-    # Get total log prob of input sequences, given themselves
     def get_seq_prob(self, seqs):
-        pass
+        probs = self.sess.run(self.model.seq_log_prob, feed_dict={self.model.input_seqs: seqs})
+        return probs
+
+
+def main(_):
+    train_data = loader.load_squad_triples("./data/", False)
+
+    import numpy as np
+    from helpers.preprocessing import tokenise
+
+    print('Loaded SQuAD with ',len(train_data),' triples')
+    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.vocab_size)
+
+    lm = LstmLmInstance(vocab)
+    lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
+
+    seq_batch = ["what what what the the the","this is a test sentence that i made up to try out the model", "Kathmandu Metropolitan City (KMC), in order to promote international relations has established an International Relations Secretariat (IRC). KMC's first international relationship was established in 1975 with the city of Eugene, Oregon, United States. This activity has been further enhanced by establishing formal relationships with 8 other cities"]
+    seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
+    max_seq_len = max([len(seq) for seq in seq_batch_ids])
+    padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+
+    print(lm.get_seq_prob(padded_batch))
+if __name__ == "__main__":
+    tf.app.run()
