@@ -48,7 +48,7 @@ def main(_):
             sess.run(tf.global_variables_initializer())
             sess.run(model.glove_init_ops)
 
-        num_steps = len(unique_contexts)//FLAGS.batch_size
+        num_steps = len(unique_sents)//FLAGS.batch_size
 
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
