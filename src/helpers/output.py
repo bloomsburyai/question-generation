@@ -38,4 +38,4 @@ def output_basic(tokens, ids, epoch, step_num):
 
 
 def tokens_to_string(tokens):
-    return " ".join([tok.decode().replace('>','&gt;').replace('<','&lt;') for tok in tokens])
+    return " ".join([tok.decode() for tok in tokens])  #.replace('>','&gt;').replace('<','&lt;')

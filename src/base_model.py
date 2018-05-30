@@ -12,11 +12,11 @@ class TFModel():
         self.build_model()
 
         self._train_summaries.extend(
-            [tf.summary.scalar("loss", self.loss),
-             tf.summary.scalar("accuracy", self.accuracy)])
+            [tf.summary.scalar("train_loss/loss", self.loss),
+             tf.summary.scalar("train_loss/accuracy", self.accuracy)])
         self._eval_summaries.extend(
-            [tf.summary.scalar("loss", self.loss),
-             tf.summary.scalar("accuracy", self.accuracy)])
+            [tf.summary.scalar("eval_loss/loss", self.loss),
+             tf.summary.scalar("eval_loss/accuracy", self.accuracy)])
         self.train_summary = tf.summary.merge(self._train_summaries)
         self.output_summary = tf.summary.merge(self._output_summaries)
         self.eval_summary = tf.summary.merge(self._eval_summaries)

@@ -9,10 +9,12 @@ import helpers.preprocessing as preprocessing
 
 
 class SQuADModel(TFModel):
-    def __init__(self, vocab, batch_size):
+    def __init__(self, vocab, batch_size, training_mode=False):
         self.vocab=vocab
         self.rev_vocab = {v:k for k,v in self.vocab.items()}
         self.batch_size = batch_size
+
+        self.training_mode = training_mode
         super().__init__()
 
 
@@ -25,7 +27,8 @@ class SQuADModel(TFModel):
 
             dataset = tf.data.Dataset.from_tensor_slices( (self.context_ph, self.qs_ph, self.as_ph, self.a_pos_ph) )
 
-            dataset = dataset.shuffle(buffer_size=1000)
+            if self.training_mode:
+                dataset = dataset.shuffle(buffer_size=100000)
 
             # processing pipeline
             dataset = dataset.map(lambda context,q,a,a_pos:

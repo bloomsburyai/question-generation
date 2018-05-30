@@ -78,9 +78,9 @@ def main(_):
                         bleus.append(metrics.bleu(gold_str, pred_str))
 
 
-                    f1summary = tf.Summary(value=[tf.Summary.Value(tag="f1",
+                    f1summary = tf.Summary(value=[tf.Summary.Value(tag="train_perf/f1",
                                                      simple_value=sum(f1s)/len(f1s))])
-                    bleusummary = tf.Summary(value=[tf.Summary.Value(tag="bleu",
+                    bleusummary = tf.Summary(value=[tf.Summary.Value(tag="train_perf/bleu",
                                               simple_value=sum(bleus)/len(bleus))])
 
                     summary_writer.add_summary(f1summary, global_step=(e*num_steps+i))

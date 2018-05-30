@@ -20,7 +20,7 @@ from helpers.misc_utils import debug_shape, debug_tensor
 FLAGS = tf.app.flags.FLAGS
 
 # It would be really nice not to have to hardcode this (or even better, to not have to define it at all)
-max_copy_size = 817 # 815 plus start, end
+max_copy_size = 818 # 815 plus start, end
 
 
 class Seq2SeqModel(SQuADModel):
@@ -29,8 +29,7 @@ class Seq2SeqModel(SQuADModel):
         self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
         self.answer_encoder_units = tf.app.flags.FLAGS.answer_encoder_units
         self.decoder_units = tf.app.flags.FLAGS.decoder_units
-        self.training_mode = training_mode
-        super().__init__(vocab, batch_size)
+        super().__init__(vocab, batch_size, training_mode)
 
     def build_model(self):
 
@@ -248,7 +247,7 @@ class Seq2SeqModel(SQuADModel):
 
                 # logits = outputs.rnn_output
                 pred_ids = outputs.predicted_ids
-                pred_ids = debug_shape(pred_ids, "pred ids")
+                # pred_ids = debug_shape(pred_ids, "pred ids")
                 logits = tf.one_hot(pred_ids[:,:,0], depth=len(self.vocab)+max_copy_size)
                 # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+max_copy_size)
 
