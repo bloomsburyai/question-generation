@@ -24,11 +24,12 @@ max_copy_size = 818 # 815 plus start, end
 
 
 class Seq2SeqModel(SQuADModel):
-    def __init__(self, vocab, batch_size, training_mode=False):
+    def __init__(self, vocab, batch_size, advanced_condition_encoding=False, training_mode=False):
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
         self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
         self.answer_encoder_units = tf.app.flags.FLAGS.answer_encoder_units
         self.decoder_units = tf.app.flags.FLAGS.decoder_units
+        self.advanced_condition_encoding = advanced_condition_encoding
         super().__init__(vocab, batch_size, training_mode)
 
     def build_model(self):
@@ -132,7 +133,8 @@ class Seq2SeqModel(SQuADModel):
             W0 = tf.get_variable('decoder_W0', [self.context_encoder_units*2, self.decoder_units], initializer=tf.orthogonal_initializer(), dtype=tf.float32)
             b0 = tf.get_variable('decoder_b0', [self.decoder_units], initializer=tf.zeros_initializer(), dtype=tf.float32)
 
-            if False:
+            # This is a bit cheeky - this should be injected by the more advanced model. Consider refactoring into separate methods then overloading the one that handles this
+            if self.advanced_condition_encoding:
                 self.context_encoding = self.a_encoder_final_state # this would be the maluuba model
             else:
                 self.context_encoding = tf.reduce_mean(self.context_condition_encoding, axis=1) # this is the baseline model
