@@ -276,17 +276,7 @@ class Seq2SeqModel(SQuADModel):
             # entropy maximiser
             self.entropy_loss = tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat))
 
-        rewards = []
-        rl_reward_loss = tf.constant(0.)
-        with tf.variable_scope('rl_rewards'):
-            # TODO: Fluency reward from LM
-            # TODO: Answerability reward from QA model
-            # TODO: Correct REINFORCE loss
-            # TODO: Check teacher forcing method for learning using beam search
-            # TODO: whiten rewards (popart)
-
-            for reward in rewards:
-                rl_reward_loss += 0.5* tf.square(reward)
+        
 
         self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 

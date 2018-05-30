@@ -1,8 +1,8 @@
 import os,time
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
-mem_limit=0.95
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
+mem_limit=0.5
 
 import tensorflow as tf
 import numpy as np
@@ -58,13 +58,15 @@ def main(_):
                 max_seq_len = max([len(seq) for seq in seq_batch_ids])
                 padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
 
-                summ, _ = sess.run([model.train_summary, model.optimise], feed_dict={model.input_seqs: padded_batch})
+                summ, _, pred, gold, seq = sess.run([model.train_summary, model.optimise, model.preds, model.tgt_output, model.input_seqs], feed_dict={model.input_seqs: padded_batch})
                 summary_writer.add_summary(summ, global_step=(e*num_steps+i))
 
+                # print(pred, gold, seq)
+                # exit()
 
                 if i%FLAGS.eval_freq==0:
                     saver.save(sess, chkpt_path+'/model.checkpoint')
-
+                    # print(pred, gold, seq)
 
 
 if __name__ == '__main__':
