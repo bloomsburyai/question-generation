@@ -164,7 +164,13 @@ class CopyLayer(base.Layer):
         # attention = debug_shape(attention, "attn")
         # alignments = debug_shape(alignments, "align ("+str(self.units)+" desired)")
         # print(alignments)
-        # shortlist = debug_shape(shortlist, "outputs")
+        # shortlist = debug_shape(shortlist, "shortlist")
+
+        # TEMP: kill OOVs
+        # s = tf.shape(shortlist)
+        # mask = tf.concat([tf.ones((s[0],1)),tf.zeros((s[0],1)),tf.ones((s[0],s[1]-2))], axis=1)
+        # shortlist = shortlist * mask
+
 
         # pad the alignments to the longest possible source st output vocab is fixed size
         # TODO: Check for non zero alignments outside the seq length

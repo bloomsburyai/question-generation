@@ -1,3 +1,7 @@
+import tensorflow as tf
+from ops import safe_log
+
+
 
 class MaluubaModel(Seq2SeqModel):
     def __init__(self, vocab, batch_size, training_mode=False):
@@ -14,5 +18,7 @@ class MaluubaModel(Seq2SeqModel):
             # TODO: Check teacher forcing method for learning using beam search
             # TODO: whiten rewards (popart)
 
+            mask = tf.one_hot(self.q_hat_ids, depth=len(self.vocab) +max_copy_size)
             for reward in rewards:
-                rl_reward_loss += 0.5* tf.square(reward)
+                # REINFORCE "loss"
+                rl_reward_loss += reward * tf.reduce_sum(safe_log(self.q_hat * mask), axis=[1,2])

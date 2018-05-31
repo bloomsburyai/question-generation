@@ -57,14 +57,15 @@ def main(_):
         bleus=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                ops = [model.q_hat_string, model.q_gold, model.context_raw]
+                ops = [model.q_hat_string, model.q_gold, model.context_raw, model.question_raw]
                 res= sess.run(ops, feed_dict={model.is_training:False})
+
+
 
                 if i < 5 or i in np.random.choice(num_steps, 5):
                     print("Pred: ", tokens_to_string(res[0][0].tolist()))
                     print("Gold: ", tokens_to_string(res[1][0].tolist()))
                     print('***')
-
 
                 for b, pred in enumerate(res[0]):
                     pred_str = tokens_to_string(pred)
