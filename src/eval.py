@@ -33,7 +33,7 @@ def main(_):
     model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=False)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qgen/latest'
+    chkpt_path = FLAGS.model_dir+'qgen/latest-copypriority'
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -57,7 +57,7 @@ def main(_):
         bleus=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                ops = [model.q_hat_string, model.q_gold, model.context_raw, model.question_raw]
+                ops = [model.q_hat_string, model.q_gold, model.context_raw, model.question_raw, model.answer_raw]
                 res= sess.run(ops, feed_dict={model.is_training:False})
 
 
@@ -65,6 +65,8 @@ def main(_):
                 if i < 5 or i in np.random.choice(num_steps, 5):
                     print("Pred: ", tokens_to_string(res[0][0].tolist()))
                     print("Gold: ", tokens_to_string(res[1][0].tolist()))
+                    # print("Context: ", tokens_to_string(res[2][0].tolist()))
+                    # print("Answer: ", tokens_to_string(res[4][0].tolist()))
                     print('***')
 
                 for b, pred in enumerate(res[0]):
