@@ -60,10 +60,14 @@ class MpcmQa(TFModel):
 
         # Layer 3: Context representation (BiLSTM encoder)
         num_units_encoder=100
-        cell_fw = tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder, name="layer3_fwd_cell")
-        cell_bw = tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder, name="layer3_bwd_cell")
-        self.context_encodings,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.context_filtered, dtype=tf.float32)
-        self.question_encodings,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.question_filtered, dtype=tf.float32)
+        with tf.variable_scope('layer3_fwd_cell'):
+            cell_fw = tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder)
+        with tf.variable_scope('layer3_bwd_cell'):
+            cell_bw = tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder)
+        with tf.variable_scope('context_rnn'):
+            self.context_encodings,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.context_filtered, dtype=tf.float32)
+        with tf.variable_scope('q_rnn'):
+            self.question_encodings,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.question_filtered, dtype=tf.float32)
 
         # print(self.context_encodings)
         # print(self.question_encodings)
@@ -95,9 +99,12 @@ class MpcmQa(TFModel):
         # print(self.matches)
 
         # Layer 5: aggregate with BiLSTM
-        cell_fw2 = tf.contrib.rnn.BasicLSTMCell(num_units=100, name="layer5_fwd_cell")
-        cell_bw2 = tf.contrib.rnn.BasicLSTMCell(num_units=100, name="layer5_bwd_cell")
-        self.aggregated_matches,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw2, cell_bw2, self.matches, dtype=tf.float32)
+        with tf.variable_scope('layer5_fwd_cell'):
+            cell_fw2 = tf.contrib.rnn.BasicLSTMCell(num_units=100)
+        with tf.variable_scope('layer5_bwd_cell'):
+            cell_bw2 = tf.contrib.rnn.BasicLSTMCell(num_units=100)
+        with tf.variable_scope('match_rnn'):
+            self.aggregated_matches,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw2, cell_bw2, self.matches, dtype=tf.float32)
         self.aggregated_matches = tf.layers.dropout(tf.concat(self.aggregated_matches, axis=2), rate=0.2, training=self.is_training)
 
         # Layer 6: Fully connected to get logits
