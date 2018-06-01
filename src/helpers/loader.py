@@ -193,9 +193,16 @@ def load_glove(path, d=200):
     return glove
 
 if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
+    from preprocessing import char_pos_to_word, tokenise
     item = load_squad_dataset('./data/',False)[0]['paragraphs'][0]
-    q = item['qas'][0]['answers'][0]
+    a = item['qas'][0]['answers'][0]
     context = item['context']
+    toks = tokenise(context,asbytes=False)
     print(context)
-    print(q)
-    print(context[q['answer_start']:])
+    print(a)
+    print(context[a['answer_start']:])
+    ans_span=char_pos_to_word(context.encode(), [t.encode() for t in toks], a['answer_start'])
+    ans_span=(ans_span, ans_span+len(tokenise(a['text'],asbytes=False)))
+    print(toks[ans_span[0]:ans_span[1]])
