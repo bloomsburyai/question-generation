@@ -26,6 +26,8 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
+    np.random.shuffle(train_data)
+
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.vocab_size)
@@ -67,7 +69,7 @@ def main(_):
                 # print(batch_answers[:3])
                 # exit()
 
-                _,summ = sess.run([model.optimise, model.train_summary],
+                _,summ, pred = sess.run([model.optimise, model.train_summary, model.pred_span],
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
@@ -76,6 +78,16 @@ def main(_):
                 summary_writer.add_summary(summ, global_step=(e*num_steps+i))
 
                 if i%FLAGS.eval_freq==0:
+                    out_str="<h1>" + str(e) + " - " + str(i) + "</h1>"
+                    for b in range(FLAGS.batch_size):
+                        out_str += batch_contexts[b] + '<br/>'
+                        out_str += batch_questions[b] + '<br/>'
+                        out_str += str(batch_answers[b])+ str(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]) + '<br/>'
+                        out_str += str(pred[b]) + str(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) + '<br/>'
+                        out_str += "<hr/>"
+                    with open(FLAGS.log_dir+'out_qa.htm', 'w') as fp:
+                        fp.write(out_str)
+
                     saver.save(sess, chkpt_path+'/model.checkpoint')
 
 if __name__ == '__main__':

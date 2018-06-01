@@ -114,3 +114,9 @@ class MpcmQa(TFModel):
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.stack([tf.argmax(self.prob_start, axis=-1, output_type=tf.int32),tf.argmax(self.prob_end, axis=-1, output_type=tf.int32)],axis=1), self.answer_spans_in), tf.float32))
 
         # predictions: coerce start<end
+        self.probs_coerced = tf.matrix_band_part(tf.matmul(tf.expand_dims(self.prob_start, 2), tf.expand_dims(self.prob_end,1)), 0, -1)
+
+        self.pred_ix = tf.argmax(tf.reshape(self.probs_coerced, [-1, tf.shape(self.context_in)[1]*tf.shape(self.context_in)[1]]),axis=1)
+        self.pred_start = tf.cast(tf.floor(tf.cast(self.pred_ix,tf.float32)/tf.cast(tf.shape(self.context_in)[1],tf.float32)), tf.int32)
+        self.pred_end = tf.cast(tf.mod(tf.cast(self.pred_ix,tf.int32), tf.shape(self.context_in)[1]), tf.int32)
+        self.pred_span = tf.concat([tf.expand_dims(self.pred_start,1), tf.expand_dims(self.pred_end,1)], axis=1)

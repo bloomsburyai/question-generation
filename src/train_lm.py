@@ -21,6 +21,8 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
+    np.random.shuffle(train_data)
+
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.vocab_size)
