@@ -111,8 +111,8 @@ class MpcmQa(TFModel):
         self.logits_start = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None))
         self.logits_end = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None))
 
-        self.prob_start = tf.nn.softmax(self.logits_start, axis=-1)
-        self.prob_end = tf.nn.softmax(self.logits_end, axis=-1)
+        self.prob_start = tf.nn.softmax(self.logits_start)
+        self.prob_end = tf.nn.softmax(self.logits_end)
 
         # training loss
         self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,0], logits=self.logits_start)+tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,1], logits=self.logits_end))
