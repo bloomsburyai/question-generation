@@ -1,6 +1,9 @@
 import numpy as np
 import string
 
+from nltk import word_tokenize
+use_nltk = True
+
 from helpers.loader import OOV, PAD, EOS, SOS
 
 def get_2d_spans(text, tokenss):
@@ -67,9 +70,12 @@ def find_start(haystack, key):
 def tokenise(text, asbytes=True):
 
     text = text.decode() if asbytes else text
-    for char in string.punctuation+'()-–':
-        text = text.replace(char, ' '+char+' ')
-    tokens = text.lower().split(' ')
+    if use_nltk:
+        tokens = word_tokenize(text)
+    else:
+        for char in string.punctuation+'()-–':
+            text = text.replace(char, ' '+char+' ')
+        tokens = text.lower().split(' ')
     tokens = np.asarray([w.encode() if asbytes else w for w in tokens if w.strip() != ''])
     # tokens = np.asarray(tokens)
     return tokens
