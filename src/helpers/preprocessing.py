@@ -1,7 +1,7 @@
 import numpy as np
 import string
 
-from nltk import word_tokenize
+from nltk.tokenize import TreebankWordTokenizer
 use_nltk = True
 
 from helpers.loader import OOV, PAD, EOS, SOS
@@ -71,7 +71,7 @@ def tokenise(text, asbytes=True):
 
     text = text.decode() if asbytes else text
     if use_nltk:
-        tokens = word_tokenize(text)
+        tokens = TreebankWordTokenizer().tokenize(text.lower())
     else:
         for char in string.punctuation+'()-–':
             text = text.replace(char, ' '+char+' ')
@@ -83,18 +83,24 @@ def tokenise(text, asbytes=True):
 def char_pos_to_word(text, tokens, char_pos):
     ix=0
     text=text.decode().lower()
-    tokens = [t.decode() for t in tokens]
-    if char_pos>len(text):
-        print('Char pos doesnt fall within size of text!')
+    if use_nltk:
+        spans = TreebankWordTokenizer().span_tokenize(text.lower())
+        for ix,s in enumerate(spans):
+            if char_pos >= s[0] and char_pos < s[1]:
+                return ix
+    else:
+        tokens = [t.decode() for t in tokens]
+        if char_pos>len(text):
+            print('Char pos doesnt fall within size of text!')
 
-    for t,token in enumerate(tokens):
-        for char in token:
-            ix = text.find(char, ix)
-            ix += 1
-            if ix >= char_pos:
-                return t
-    print('couldnt find the char pos')
-    print(text, tokens, char_pos, len(text))
+        for t,token in enumerate(tokens):
+            for char in token:
+                ix = text.find(char, ix)
+                ix += 1
+                if ix >= char_pos:
+                    return t
+        print('couldnt find the char pos')
+        print(text, tokens, char_pos, len(text))
 
 
 def process_squad_context(vocab):
