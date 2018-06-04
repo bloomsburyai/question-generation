@@ -1,7 +1,7 @@
 import os,time
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 mem_limit=0.5
 
 import tensorflow as tf
@@ -25,14 +25,14 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.vocab_size)
+    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.lm_vocab_size)
 
     unique_sents = list(set(train_qs))
     print(len(unique_sents)," unique sentences")
 
     # Create model
 
-    model = LstmLm(vocab, num_units=512)
+    model = LstmLm(vocab, num_units=FLAGS.lm_units)
     saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+'lm/'+str(int(time.time()))
