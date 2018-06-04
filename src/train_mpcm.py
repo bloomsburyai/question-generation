@@ -13,6 +13,7 @@ import flags
 from qa.mpcm import MpcmQa
 from helpers.preprocessing import tokenise, char_pos_to_word
 from helpers import loader
+from helpers.metrics import f1
 
 def get_padded_batch(seq_batch, vocab):
     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
@@ -78,7 +79,27 @@ def main(_):
 
                 summary_writer.add_summary(summ, global_step=(e*num_steps+i))
 
+
                 if i%FLAGS.eval_freq==0:
+                    gold_str=[]
+                    pred_str=[]
+                    f1s = []
+                    exactmatches= []
+                    for b in range(FLAGS.batch_size):
+                        gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
+                        pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) )
+
+                    f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
+                    exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.batch_size) ])
+
+                    f1summary = tf.Summary(value=[tf.Summary.Value(tag="train_perf/f1",
+                                                     simple_value=sum(f1s)/len(f1s))])
+                    emsummary = tf.Summary(value=[tf.Summary.Value(tag="train_perf/em",
+                                              simple_value=sum(exactmatches)/len(exactmatches))])
+
+                    summary_writer.add_summary(f1summary, global_step=(e*num_steps+i))
+                    summary_writer.add_summary(emsummary, global_step=(e*num_steps+i))
+
                     out_str="<h1>" + str(e) + " - " + str(i) + "</h1>"
                     for b in range(FLAGS.batch_size):
                         out_str += batch_contexts[b] + '<br/>'
