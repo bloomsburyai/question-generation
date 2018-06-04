@@ -86,7 +86,7 @@ def char_pos_to_word(text, tokens, char_pos):
     if use_nltk:
         spans = TreebankWordTokenizer().span_tokenize(text.lower())
         for ix,s in enumerate(spans):
-            if char_pos >= s[0] and char_pos < s[1]:
+            if s[0] >= char_pos:
                 return ix
         print('couldnt find the char pos via nltk')
         print(text, char_pos, len(text))

@@ -100,7 +100,7 @@ def main(_):
                     summary_writer.add_summary(f1summary, global_step=(e*num_steps+i))
                     summary_writer.add_summary(emsummary, global_step=(e*num_steps+i))
 
-                    out_str="<h1>" + str(e) + " - " + str(i) + "</h1>"
+                    out_str="<h1>" + str(e) + " - " + str(i)+' ('+ str(datetime.datetime.now()) +')' + "</h1>"
                     for b in range(FLAGS.batch_size):
                         out_str += batch_contexts[b] + '<br/>'
                         out_str += batch_questions[b] + '<br/>'
