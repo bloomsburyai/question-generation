@@ -21,5 +21,10 @@ tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 
+# QA - MPCM hparams
+tf.app.flags.DEFINE_integer("qa_vocab_size", 10000, "QA system vocab size")
+tf.app.flags.DEFINE_integer("qa_encoder_units", 100, "QA system - num units in encoder LSTM")
+tf.app.flags.DEFINE_integer("qa_match_units", 100, "QA system - num units in match LSTM")
+
 # eval params
 tf.app.flags.DEFINE_integer("beam_width", 32, "Beam width for decoding")

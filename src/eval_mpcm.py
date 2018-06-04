@@ -14,6 +14,8 @@ from qa.mpcm import MpcmQa
 from helpers.preprocessing import tokenise, char_pos_to_word
 from helpers import loader
 
+from helpers.metrics import f1
+
 def get_padded_batch(seq_batch, vocab):
     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
     max_seq_len = max([len(seq) for seq in seq_batch_ids])
@@ -30,12 +32,15 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    dev_contexts, dev_qs, dev_as, dev_a_pos = zip(*dev_data)
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.qa_vocab_size)
 
     model = MpcmQa(vocab)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qa/'+str(int(time.time()))
+    chkpt_path = FLAGS.model_dir+'qa/latest'
+
+
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -43,23 +48,20 @@ def main(_):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+str(int(time.time())), sess.graph)
 
-        if not FLAGS.train:
-            # saver.restore(sess, chkpt_path+ '/model.checkpoint')
-            print('Loading not implemented yet')
-        else:
-            print("Building graph, loading glove")
-            sess.run(tf.global_variables_initializer())
-            sess.run(model.glove_init_ops)
+        saver.restore(sess, chkpt_path+ '/model.checkpoint')
 
-        num_steps = len(train_data)//FLAGS.batch_size
 
-        for e in range(FLAGS.num_epochs):
+        num_steps = len(dev_data)//FLAGS.batch_size
+
+        f1s = []
+        exactmatches= []
+        for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 # TODO: this keeps coming up - refactor it
-                batch_contexts = train_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_questions = train_qs[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_ans_text = train_as[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_answer_charpos = train_a_pos[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                batch_contexts = dev_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                batch_questions = dev_qs[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                batch_ans_text = dev_as[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                batch_answer_charpos = dev_a_pos[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
 
                 batch_answers=[]
                 for j, ctxt in enumerate(batch_contexts):
@@ -70,7 +72,7 @@ def main(_):
                 # print(batch_answers[:3])
                 # exit()
 
-                _,summ, pred = sess.run([model.optimise, model.train_summary, model.pred_span],
+                summ, pred = sess.run([model.eval_summary, model.pred_span],
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
@@ -78,18 +80,31 @@ def main(_):
 
                 summary_writer.add_summary(summ, global_step=(e*num_steps+i))
 
+                gold_str=[]
+                pred_str=[]
+                for b in range(FLAGS.batch_size):
+                    gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
+                    pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) )
+
+                f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
+                exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.batch_size) ])
+
                 if i%FLAGS.eval_freq==0:
-                    out_str="<h1>" + str(e) + " - " + str(i) + "</h1>"
+                    out_str="<h1>" + "Eval - Dev set" + "</h1>"
                     for b in range(FLAGS.batch_size):
                         out_str += batch_contexts[b] + '<br/>'
                         out_str += batch_questions[b] + '<br/>'
                         out_str += str(batch_answers[b])+ str(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]) + '<br/>'
                         out_str += str(pred[b]) + str(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) + '<br/>'
+                        out_str += batch_ans_text[b] + '<br/>'
+                        out_str += pred_str[b] + '<br/>'
+                        out_str += "F1: " + str(f1(gold_str[b], pred_str[b])) + '<br/>'
+                        out_str += "EM: " + str(np.product(pred[b] == batch_answers[b])*1.0)
                         out_str += "<hr/>"
-                    with open(FLAGS.log_dir+'out_qa.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out_qa_eval.htm', 'w') as fp:
                         fp.write(out_str)
-
-                    saver.save(sess, chkpt_path+'/model.checkpoint')
+        print("F1: ", np.mean(f1s))
+        print("EM: ", np.mean(exactmatches))
 
 if __name__ == '__main__':
     tf.app.run()
