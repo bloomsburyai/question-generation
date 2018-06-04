@@ -6,33 +6,33 @@ use_nltk = True
 
 from helpers.loader import OOV, PAD, EOS, SOS
 
-def get_2d_spans(text, tokenss):
-    spanss = []
-    cur_idx = 0
-    for tokens in tokenss:
-        spans = []
-        for token in tokens:
-            if text.find(token, cur_idx) < 0:
-                print("Tokens: {}".format(tokens))
-                print("Token: {}\n Cur_idx: {}\n {}".format(token, cur_idx, repr(text)))
-                raise Exception()
-            cur_idx = text.find(token, cur_idx)
-            spans.append((cur_idx, cur_idx + len(token)))
-            cur_idx += len(token)
-        spanss.append(spans)
-    return spanss
-
-
-def get_word_span(context, wordss, start, stop):
-    spanss = get_2d_spans(context, wordss)
-    idxs = []
-    for sent_idx, spans in enumerate(spanss):
-        for word_idx, span in enumerate(spans):
-            if not (stop <= span[0] or start >= span[1]):
-                idxs.append((sent_idx, word_idx))
-
-    assert len(idxs) > 0, "{} {} {} {}".format(context, spanss, start, stop)
-    return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
+# def get_2d_spans(text, tokenss):
+#     spanss = []
+#     cur_idx = 0
+#     for tokens in tokenss:
+#         spans = []
+#         for token in tokens:
+#             if text.find(token, cur_idx) < 0:
+#                 print("Tokens: {}".format(tokens))
+#                 print("Token: {}\n Cur_idx: {}\n {}".format(token, cur_idx, repr(text)))
+#                 raise Exception()
+#             cur_idx = text.find(token, cur_idx)
+#             spans.append((cur_idx, cur_idx + len(token)))
+#             cur_idx += len(token)
+#         spanss.append(spans)
+#     return spanss
+#
+#
+# def get_word_span(context, wordss, start, stop):
+#     spanss = get_2d_spans(context, wordss)
+#     idxs = []
+#     for sent_idx, spans in enumerate(spanss):
+#         for word_idx, span in enumerate(spans):
+#             if not (stop <= span[0] or start >= span[1]):
+#                 idxs.append((sent_idx, word_idx))
+#
+#     assert len(idxs) > 0, "{} {} {} {}".format(context, spanss, start, stop)
+#     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
 def lookup_vocab(words, vocab, context=None):
@@ -54,18 +54,18 @@ def lookup_vocab(words, vocab, context=None):
 
     return embedded
 
-def find_start(haystack, key):
-    haystack = [w.decode() for w in haystack]
-    key = [w.decode() for w in key]
-    expanded = [haystack[i:i+len(key)] for i in range(0,len(haystack)-len(key)+1)]
-
-    if key in expanded:
-        return expanded.index(key)
-    else:
-        # TODO: handle this error - it shouldn't arise if the dataset is well formed and correctly tokenised
-        print(haystack)
-        print(key)
-        return expanded.index(key)
+# def find_start(haystack, key):
+#     haystack = [w.decode() for w in haystack]
+#     key = [w.decode() for w in key]
+#     expanded = [haystack[i:i+len(key)] for i in range(0,len(haystack)-len(key)+1)]
+#
+#     if key in expanded:
+#         return expanded.index(key)
+#     else:
+#         # TODO: handle this error - it shouldn't arise if the dataset is well formed and correctly tokenised
+#         print(haystack)
+#         print(key)
+#         return expanded.index(key)
 
 def tokenise(text, asbytes=True):
 
@@ -88,6 +88,8 @@ def char_pos_to_word(text, tokens, char_pos):
         for ix,s in enumerate(spans):
             if char_pos >= s[0] and char_pos < s[1]:
                 return ix
+        print('couldnt find the char pos via nltk')
+        print(text, char_pos, len(text))
     else:
         tokens = [t.decode() for t in tokens]
         if char_pos>len(text):
