@@ -84,7 +84,7 @@ class LstmLmInstance():
         saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_seq_prob(self, seqs):
-        probs = self.sess.run([self.model.seq_log_prob], feed_dict={self.model.input_seqs: seqs})
+        probs = self.sess.run(self.model.seq_log_prob, feed_dict={self.model.input_seqs: seqs})
         return probs
 
 

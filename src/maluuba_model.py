@@ -2,13 +2,16 @@ import tensorflow as tf
 from helpers.ops import safe_log
 from seq2seq_model import Seq2SeqModel
 
+from langmodel.lm import LstmLmInstance
+from qa.mpcm import MpcmQaInstance
+
 
 FLAGS = tf.app.flags.FLAGS
 
 
 
 class MaluubaModel(Seq2SeqModel):
-    def __init__(self, vocab, batch_size, training_mode=False):
+    def __init__(self, vocab, lm_vocab, qa_vocab, batch_size, training_mode=False):
         super().__init__(vocab, batch_size, advanced_condition_encoding=True, training_mode=training_mode)
         self.modify_seq2seq_model()
 
@@ -23,6 +26,9 @@ class MaluubaModel(Seq2SeqModel):
             # TODO: Correct REINFORCE loss
             # TODO: Check teacher forcing method for learning using beam search
             # TODO: whiten rewards (popart)
+
+            lm = LstmLmInstance(lm_vocab)
+            qa = MpcmQaInstance(qa_vocab)
 
             mask = tf.one_hot(self.q_hat_ids, depth=len(self.vocab) +FLAGS.max_copy_size)
             for reward in rewards:

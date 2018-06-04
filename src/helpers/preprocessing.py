@@ -71,10 +71,9 @@ def tokenise(text, asbytes=True):
 
     text = text.decode() if asbytes else text
     if use_nltk:
-        sents = [s for s in sent_tokenize(text.lower())]
+        sents = [s for s in sent_tokenize(text)]
 
-        tokens = [tok for sent in sents for tok in TreebankWordTokenizer().tokenize(sent)]
-
+        tokens = [tok.lower() for sent in sents for tok in TreebankWordTokenizer().tokenize(sent)]
     else:
         for char in string.punctuation+'()-–':
             text = text.replace(char, ' '+char+' ')
@@ -87,7 +86,7 @@ def char_pos_to_word(text, tokens, char_pos):
     ix=0
     text=text.decode().lower()
     if use_nltk:
-        sents = [s for s in sent_tokenize(text.lower())]
+        sents = [s for s in sent_tokenize(text)]
         spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
         lens = [len(sent)+1 for sent in sents]
         spans = [(span[0]+sum(lens[:i]), span[1]+sum(lens[:i])) for i,sent in enumerate(spans) for span in sent]

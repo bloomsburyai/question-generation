@@ -127,3 +127,51 @@ class MpcmQa(TFModel):
         self.pred_start = tf.cast(tf.floor(tf.cast(self.pred_ix,tf.float32)/tf.cast(tf.shape(self.context_in)[1],tf.float32)), tf.int32)
         self.pred_end = tf.cast(tf.mod(tf.cast(self.pred_ix,tf.int32), tf.shape(self.context_in)[1]), tf.int32)
         self.pred_span = tf.concat([tf.expand_dims(self.pred_start,1), tf.expand_dims(self.pred_end,1)], axis=1)
+
+class MpcmQaInstance():
+    def __init__(self, vocab):
+        self.model = MpcmQa(vocab)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
+        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
+    def load_from_chkpt(self, path):
+        saver = tf.train.Saver()
+        saver.restore(self.sess, path+ '/model.checkpoint')
+
+    def get_ans(self, contexts, questions):
+        spans = self.sess.run(self.model.pred_span, feed_dict={self.model.context_in: contexts, self.model.question_in: questions})
+        return spans
+
+
+def main(_):
+    def get_padded_batch(seq_batch, vocab):
+        seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
+        max_seq_len = max([len(seq) for seq in seq_batch_ids])
+        padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+        return padded_batch
+    train_data = loader.load_squad_triples("./data/", False)
+
+    import numpy as np
+    from helpers.preprocessing import tokenise
+
+    print('Loaded SQuAD with ',len(train_data),' triples')
+    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    FLAGS.qa_vocab_size=2000 # temp
+    vocab = loader.get_vocab(train_qs, FLAGS.qa_vocab_size)
+
+    qa = MpcmQaInstance(vocab)
+    qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+
+    questions = ["What colour is the car?","When was the car made?","Where was the date?", "What was the dog called?","Who was the oldest cat?"]
+    contexts=["The car is green, and was built in 1985. This sentence should make it less likely to return the date, when asked about a cat. The oldest cat was called creme puff and lived for many years!" for i in range(len(questions))]
+
+    padded_batch_cs = get_padded_batch(contexts, vocab)
+    padded_batch_qs = get_padded_batch(questions, vocab)
+
+    spans = qa.get_ans(padded_batch_cs, padded_batch_qs)
+    print(contexts[0])
+    for i, q in enumerate(questions):
+        toks = tokenise(contexts[i], asbytes=False)
+        print(q, "->", toks[spans[i,0]:spans[i,1]])
+if __name__ == "__main__":
+    tf.app.run()

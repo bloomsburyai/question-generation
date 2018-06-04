@@ -30,11 +30,14 @@ def main(_):
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
 
+    ext_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
+
+
     # Create model
     if model_type == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
-        model = MaluubaModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+        model = MaluubaModel(vocab, ext_vocab, ext_vocab, batch_size=FLAGS.batch_size, training_mode=True)
     else:
         exit("Unrecognised model type: "+model_type)
     saver = tf.train.Saver()
