@@ -11,12 +11,13 @@ from helpers.output import output_pretty, output_basic, tokens_to_string
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
+from maluuba_model import MaluubaModel
 
 import flags
 
 import helpers.metrics as metrics
 
-
+model_type = "MALUUBA"
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -30,8 +31,12 @@ def main(_):
     vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
 
     # Create model
-
-    model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+    if model_type == "SEQ2SEQ":
+        model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+    elif model_type == "MALUUBA":
+        model = MaluubaModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+    else:
+        exit("Unrecognised model type: "+model_type)
     saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+'qgen/'+str(int(time.time()))

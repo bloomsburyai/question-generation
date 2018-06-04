@@ -1,7 +1,7 @@
 import numpy as np
 import string
 
-from nltk.tokenize import TreebankWordTokenizer
+from nltk.tokenize import TreebankWordTokenizer, sent_tokenize
 use_nltk = True
 
 from helpers.loader import OOV, PAD, EOS, SOS
@@ -71,7 +71,10 @@ def tokenise(text, asbytes=True):
 
     text = text.decode() if asbytes else text
     if use_nltk:
-        tokens = TreebankWordTokenizer().tokenize(text.lower())
+        sents = [s for s in sent_tokenize(text.lower())]
+        
+        tokens = [tok for sent in sents for tok in TreebankWordTokenizer().tokenize(sent)]
+
     else:
         for char in string.punctuation+'()-–':
             text = text.replace(char, ' '+char+' ')
@@ -84,7 +87,10 @@ def char_pos_to_word(text, tokens, char_pos):
     ix=0
     text=text.decode().lower()
     if use_nltk:
-        spans = TreebankWordTokenizer().span_tokenize(text.lower())
+        sents = [s for s in sent_tokenize(text.lower())]
+        spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
+        lens = [len(sent) for sent in sents]
+        spans = [(span[0]+sum(lens[:i]), span[1]+sum(lens[:i])) for i,sent in enumerate(spans) for span in sent]
         for ix,s in enumerate(spans):
             if s[0] >= char_pos:
                 return ix

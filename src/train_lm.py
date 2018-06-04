@@ -47,6 +47,7 @@ def main(_):
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')
             print('Loading not implemented yet')
         else:
+            print("Building graph, loading glove")
             sess.run(tf.global_variables_initializer())
             sess.run(model.glove_init_ops)
 

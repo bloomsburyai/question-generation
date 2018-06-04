@@ -13,6 +13,8 @@ tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
 
 # hyperparams - these should probably be within the model?
+tf.app.flags.DEFINE_integer("max_copy_size", 818, "Max context length to limit output distribution")
+
 tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
@@ -27,8 +29,8 @@ tf.app.flags.DEFINE_integer("qa_encoder_units", 100, "QA system - num units in e
 tf.app.flags.DEFINE_integer("qa_match_units", 100, "QA system - num units in match LSTM")
 
 # LM hparams
-tf.app.flags.DEFINE_integer("lm_vocab_size", 10000, "QA system vocab size")
-tf.app.flags.DEFINE_integer("lm_units", 512, "QA system vocab size")
+tf.app.flags.DEFINE_integer("lm_vocab_size", 10000, "LM vocab size")
+tf.app.flags.DEFINE_integer("lm_units", 512, "LM num units")
 
 
 # eval params
