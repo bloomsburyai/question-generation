@@ -9,7 +9,8 @@ from tensorflow.python.framework import tensor_shape
 import helpers.preprocessing as preprocessing
 
 
-from squad_model import SQuADModel
+from base_model import TFModel
+
 from helpers.loader import OOV, PAD, EOS, SOS
 import helpers.loader as loader
 
@@ -22,14 +23,20 @@ FLAGS = tf.app.flags.FLAGS
 
 
 
-class Seq2SeqModel(SQuADModel):
+class Seq2SeqModel(TFModel):
     def __init__(self, vocab, batch_size, advanced_condition_encoding=False, training_mode=False):
+        self.vocab=vocab
+        self.rev_vocab = {v:k for k,v in self.vocab.items()}
+        self.batch_size = batch_size
+
+        self.training_mode = training_mode
+
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
         self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
         self.answer_encoder_units = tf.app.flags.FLAGS.answer_encoder_units
         self.decoder_units = tf.app.flags.FLAGS.decoder_units
         self.advanced_condition_encoding = advanced_condition_encoding
-        super().__init__(vocab, batch_size, training_mode)
+        super().__init__()
 
     def build_model(self):
 
