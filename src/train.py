@@ -13,16 +13,26 @@ from tqdm import tqdm
 from seq2seq_model import Seq2SeqModel
 from maluuba_model import MaluubaModel
 
+from datasources.squad_streamer import SquadStreamer
+
 import flags
 
 import helpers.metrics as metrics
 
-# model_type = "SEQ2SEQ"
-model_type = "MALUUBA"
+model_type = "SEQ2SEQ"
+# model_type = "MALUUBA"
 
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
+    if FLAGS.testing:
+        print('TEST MODE - reducing model size')
+        FLAGS.context_encoder_units =100
+        FLAGS.answer_encoder_units=100
+        FLAGS.decoder_units=100
+        FLAGS.batch_size =2
+        FLAGS.embedding_size=50
+
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
@@ -41,6 +51,10 @@ def main(_):
         model = MaluubaModel(vocab, ext_vocab, ext_vocab, batch_size=FLAGS.batch_size, training_mode=True)
     else:
         exit("Unrecognised model type: "+model_type)
+
+    # create data streamer
+    data_source = SquadStreamer(vocab, FLAGS.batch_size, shuffle=True)
+
     saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+'qgen/'+str(int(time.time()))
@@ -50,6 +64,8 @@ def main(_):
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+str(int(time.time())), sess.graph)
+
+        data_source.initialise(sess, train_data)
 
         if not FLAGS.train:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')
@@ -61,15 +77,19 @@ def main(_):
         num_steps = len(train_data)//FLAGS.batch_size
 
         # Initialise the dataset
-        sess.run(model.iterator.initializer, feed_dict={model.context_ph: train_contexts,
-                                          model.qs_ph: train_qs, model.as_ph: train_as, model.a_pos_ph: train_a_pos})
+        # sess.run(model.iterator.initializer, feed_dict={model.context_ph: train_contexts,
+        #                                   model.qs_ph: train_qs, model.as_ph: train_as, model.a_pos_ph: train_a_pos})
+
 
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
+                # Get a batch
+                train_batch = data_source.get_batch(sess)
+
                 ops = [model.optimizer, model.train_summary]
                 if i%FLAGS.eval_freq==0:
                     ops.extend([model.q_hat_string, model.q_hat_ids, model.q_gold]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
-                res= sess.run(ops, feed_dict={model.is_training:True})
+                res= sess.run(ops, feed_dict={model.input_batch: train_batch ,model.is_training:True})
                 summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
                 if i%FLAGS.eval_freq==0:
                     # summary_writer.add_summary(res[2], global_step=(e*num_steps+i))

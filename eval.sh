@@ -1,1 +1,1 @@
-python ./src/eval.py --data_path ./data/
+python ./src/eval.py --data_path ./data/ $@

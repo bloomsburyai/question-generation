@@ -32,7 +32,23 @@ class Seq2SeqModel(SQuADModel):
 
     def build_model(self):
 
-        self.build_data_pipeline(self.batch_size)
+        # self.build_data_pipeline(self.batch_size)
+        self.context_raw = tf.placeholder(tf.string, [None, None])  # source vectors of unknown size
+        self.context_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
+        self.context_length  = tf.placeholder(tf.int32, [None])     # size(source)
+        self.question_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
+        self.question_ids = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
+        self.question_length  = tf.placeholder(tf.int32, [None])     # size(source)
+        self.answer_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
+        self.answer_ids  = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
+        self.answer_length  = tf.placeholder(tf.int32, [None])
+        self.answer_locs  = tf.placeholder(tf.int32, [None,None])
+
+
+        self.this_context = (self.context_raw, self.context_ids, self.context_length)
+        self.this_question = (self.question_raw, self.question_ids, self.question_length)
+        self.this_answer = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
+        self.input_batch = (self.this_context, self.this_question, self.this_answer)
 
         curr_batch_size = tf.shape(self.answer_ids)[0]
 

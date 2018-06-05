@@ -2,6 +2,8 @@ import tensorflow as tf
 
 
 # config
+tf.app.flags.DEFINE_boolean("testing", False, "Reduce model size for local testing")
+
 tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")

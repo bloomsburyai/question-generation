@@ -126,7 +126,7 @@ class CopyLayer(base.Layer):
 
     def build(self, input_shape):
         input_shape = tensor_shape.TensorShape(input_shape)
-        print("building copy layer")
+        # print("building copy layer")
         # print(input_shape)
         self.built = True
 

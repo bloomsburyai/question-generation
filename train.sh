@@ -1,1 +1,1 @@
-python ./src/train.py --data_path ./data/
+python ./src/train.py --data_path ./data/ $@
