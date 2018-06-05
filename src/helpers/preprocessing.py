@@ -43,10 +43,10 @@ def lookup_vocab(words, vocab, context=None):
     words = [w.decode() for w in tokenise(words)]
 
     for w in words:
-        if context is not None and w in decoded_context:
-            ids.append(len(vocab) + decoded_context.index(w))
-        elif w in vocab.keys():
+        if w in vocab.keys():
             ids.append(vocab[w])
+        elif context is not None and w in decoded_context:
+            ids.append(len(vocab) + decoded_context.index(w))
         else:
             ids.append(vocab[OOV])
     ids.append(vocab[EOS]) # HIDING THIS IS BAD
