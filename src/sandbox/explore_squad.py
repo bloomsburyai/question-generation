@@ -1,3 +1,7 @@
+import sys
+sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
+
+
 from helpers import loader, preprocessing
 
 import string
@@ -17,10 +21,17 @@ max_context_len=0
 max_pos = None
 debugstr = ""
 for i,triple in enumerate(squad):
-    c_toks=  tokenise(triple[0])
+    c_toks=  preprocessing.tokenise(triple[0], asbytes=False)
     if len(c_toks) > max_context_len:
         max_context_len = len(c_toks)
         max_pos = i
         debugstr = triple[0]
 print(max_context_len," @ ",i)
-print(len(tokenise(debugstr)))
+print(len(preprocessing.tokenise(debugstr, asbytes=False)))
+
+
+min_pos = 99999999
+for i,triple in enumerate(squad):
+    if triple[3] < min_pos:
+        min_pos = triple[3]
+print(min_pos)

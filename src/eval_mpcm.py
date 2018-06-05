@@ -38,7 +38,7 @@ def main(_):
     model = MpcmQa(vocab)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qa/latest'
+    chkpt_path = FLAGS.model_dir+'saved/qatest'
 
 
 

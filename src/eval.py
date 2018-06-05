@@ -33,12 +33,12 @@ def main(_):
     model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=False)
     saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qgen/latest-copypriority'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-copy'
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
-            os.makedirs(chkpt_path)
+            exit('Checkpoint path doesnt exist! '+chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+str(int(time.time())), sess.graph)
 
         saver.restore(sess, chkpt_path+ '/model.checkpoint')

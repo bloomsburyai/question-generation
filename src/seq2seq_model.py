@@ -187,6 +187,11 @@ class Seq2SeqModel(SQuADModel):
 
             init_state = decoder_cell.zero_state(curr_batch_size*(FLAGS.beam_width if not self.training_mode else 1), tf.float32).clone(cell_state=init_state)
 
+            projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+                                            source_provider=lambda: self.context_ids,
+                                            condition_encoding=lambda: self.context_encoding,
+                                            vocab_size=len(self.vocab))
+
             if self.training_mode:
                 # Helper - training
                 helper = tf.contrib.seq2seq.TrainingHelper(
@@ -199,10 +204,7 @@ class Seq2SeqModel(SQuADModel):
                     initial_state=init_state,
                     # initial_state=encoder_state
                     # TODO: hardcoded FLAGS.max_copy_size is longest context in SQuAD - this will need changing for a new dataset!!!
-                    output_layer=copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
-                                                    source_provider=lambda: self.context_ids,
-                                                    condition_encoding=lambda: self.context_encoding,
-                                                    vocab_size=len(self.vocab))
+                    output_layer=projection_layer
                     )
 
                 # Unroll the decoder
@@ -212,11 +214,6 @@ class Seq2SeqModel(SQuADModel):
             else:
                 start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
                 end_token = self.vocab[EOS]
-
-                projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
-                                                source_provider=lambda: self.context_ids,
-                                                condition_encoding=lambda: self.context_encoding,
-                                                vocab_size=len(self.vocab))
 
                 # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width )
                 # init_state = decoder_cell.zero_state(curr_batch_size * FLAGS.beam_width, tf.float32).clone(cell_state=init_state)

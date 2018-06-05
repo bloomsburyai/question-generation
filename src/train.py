@@ -17,7 +17,8 @@ import flags
 
 import helpers.metrics as metrics
 
-model_type = "SEQ2SEQ"
+# model_type = "SEQ2SEQ"
+model_type = "MALUUBA"
 
 FLAGS = tf.app.flags.FLAGS
 

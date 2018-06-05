@@ -13,7 +13,7 @@ tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
 
 # hyperparams - these should probably be within the model?
-tf.app.flags.DEFINE_integer("max_copy_size", 818, "Max context length to limit output distribution")
+tf.app.flags.DEFINE_integer("max_copy_size", 768, "Max context length to limit output distribution")
 
 tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
