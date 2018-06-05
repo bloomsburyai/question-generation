@@ -50,7 +50,6 @@ def main(_):
         else:
             print("Building graph, loading glove")
             sess.run(tf.global_variables_initializer())
-            sess.run(model.glove_init_ops)
 
         num_steps = len(train_data)//FLAGS.batch_size
 

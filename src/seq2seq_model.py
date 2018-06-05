@@ -10,7 +10,8 @@ import helpers.preprocessing as preprocessing
 
 
 from squad_model import SQuADModel
-from helpers.loader import OOV, PAD, EOS, SOS, load_glove
+from helpers.loader import OOV, PAD, EOS, SOS
+import helpers.loader as loader
 
 from copy_mechanism import copy_attention_wrapper, copy_layer
 
@@ -60,14 +61,14 @@ class Seq2SeqModel(SQuADModel):
         self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
         self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+FLAGS.max_copy_size)
         # Embed c,q,a
-        self.embeddings = tf.get_variable('word_embeddings', [len(self.vocab), self.embedding_size], initializer=tf.orthogonal_initializer)
 
-        # use glove if possible
-        self.glove_init_ops =[]
-        glove_embeddings = load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
-        for word,id in self.vocab.items():
-            if word in glove_embeddings.keys():
-                self.glove_init_ops.append(tf.assign(self.embeddings[id,:], glove_embeddings[word]))
+
+        # init embeddings
+        glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
+        embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
+        self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+        assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+
 
         # First, coerce them to the shortlist vocab. Then embed
         self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)

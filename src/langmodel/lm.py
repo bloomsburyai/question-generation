@@ -25,15 +25,12 @@ class LstmLm(TFModel):
 
 
     def build_model(self):
-
-        self.embeddings = tf.get_variable('word_embeddings', [len(self.vocab), self.embedding_size], initializer=tf.orthogonal_initializer)
-
+        
         # Load glove embeddings
-        self.glove_init_ops =[]
         glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
-        for word,id in self.vocab.items():
-            if word in glove_embeddings.keys():
-                self.glove_init_ops.append(tf.assign(self.embeddings[id,:], glove_embeddings[word]))
+        embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
+        self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+        assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
         # input placeholder
         self.input_seqs = tf.placeholder(tf.int32, [None, None])

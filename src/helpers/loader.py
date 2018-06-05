@@ -192,6 +192,20 @@ def load_glove(path, d=200):
         glove[cols[0]] = np.asarray(cols[1:], dtype=float)
     return glove
 
+def get_embeddings(vocab, glove, D):
+    rev_vocab = {v:k for k,v in vocab.items()}
+    embeddings=[]
+    # clunky, but guarantees the order will be correct
+    for id in range(len(rev_vocab)):
+        word = rev_vocab[id]
+        if word in glove.keys():
+            embeddings.append(glove[word])
+        else:
+            rand = np.random.uniform(-1,1,D)
+            rand = rand/np.linalg.norm(rand)
+            embeddings.append(rand)
+    return np.asarray(embeddings, dtype=np.float32)
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
