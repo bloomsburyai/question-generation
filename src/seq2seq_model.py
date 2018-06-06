@@ -284,16 +284,17 @@ class Seq2SeqModel(TFModel):
 
             self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=self.question_ids, logits=logits)
-            self.xe_loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1),axis=0)
+            qlen_float = tf.cast(self.question_length, tf.float32)
+            self.xe_loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1)/qlen_float,axis=0)
 
             # TODO: Check these should be included in baseline?
             # get sum of all probabilities for words that are also in answer
             answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +FLAGS.max_copy_size)
             answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keep_dims=True), [1,tf.reduce_max(self.question_length),1])
-            self.suppression_loss = tf.reduce_mean(tf.reduce_sum(answer_mask * self.q_hat,axis=[1,2]),axis=0)
+            self.suppression_loss = tf.reduce_mean(tf.reduce_sum(answer_mask * self.q_hat,axis=[1,2])/qlen_float,axis=0)
 
             # entropy maximiser
-            self.entropy_loss = tf.reduce_mean(tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat),axis=[1,2]),axis=0)
+            self.entropy_loss = tf.reduce_mean(tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat),axis=[1,2])/qlen_float,axis=0)
 
             self._train_summaries.append(tf.summary.scalar('train_loss/xe_loss', self.xe_loss))
 

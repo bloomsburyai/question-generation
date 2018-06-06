@@ -53,7 +53,7 @@ def main(_):
 
         num_steps = len(train_data)//FLAGS.batch_size
 
-        for e in range(FLAGS.num_epochs):
+        for e in range(FLAGS.qa_num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 # TODO: this keeps coming up - refactor it
                 batch_contexts = train_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]

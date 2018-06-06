@@ -52,7 +52,7 @@ def main(_):
 
         num_steps = len(unique_sents)//FLAGS.batch_size
 
-        for e in range(FLAGS.num_epochs):
+        for e in range(FLAGS.lm_num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 seq_batch = unique_sents[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
 
