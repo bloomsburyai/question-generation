@@ -188,8 +188,8 @@ class CopyLayer(base.Layer):
         vt = tf.concat([attention, condition_encoding_tiled], axis=1)
         # NOTE: this is missing the previous input y_t-1 and s_t
         switch_input = tf.concat([vt],axis=1)
-        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal()), rate=0.2, training=self.training_mode)
-        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal()), rate=0.2, training=self.training_mode)
+        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal()), rate=0.3, training=self.training_mode)
+        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal()), rate=0.3, training=self.training_mode)
         switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
         # switch = debug_shape(switch, "switch")
         result = safe_log(tf.concat([(1-switch)*shortlist,switch*alignments_padded], axis=1))

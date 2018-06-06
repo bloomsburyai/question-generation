@@ -195,15 +195,17 @@ def load_glove(path, d=200):
 def get_embeddings(vocab, glove, D):
     rev_vocab = {v:k for k,v in vocab.items()}
     embeddings=[]
+
+    rand = np.random.normal(size=(len(vocab),D))
+    q,r = np.linalg.qr(rand)
+
     # clunky, but guarantees the order will be correct
     for id in range(len(rev_vocab)):
         word = rev_vocab[id]
         if word in glove.keys():
             embeddings.append(glove[word])
         else:
-            rand = np.random.uniform(-1,1,D)
-            rand = rand/np.linalg.norm(rand)
-            embeddings.append(rand)
+            embeddings.append(q[id,:])
     return np.asarray(embeddings, dtype=np.float32)
 
 if __name__ == "__main__":
