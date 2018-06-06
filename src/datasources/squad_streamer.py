@@ -1,6 +1,4 @@
 # An abstract class that provides a loader and preprocessor for the SQuAD dataset (or other context/q/a triples)
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]=""
 import numpy as np
 import tensorflow as tf
 

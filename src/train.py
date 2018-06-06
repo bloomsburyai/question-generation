@@ -12,7 +12,7 @@ from helpers.output import output_pretty, output_basic, tokens_to_string
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
-from maluuba_model import MaluubaModel
+# from maluuba_model import MaluubaModel
 
 from datasources.squad_streamer import SquadStreamer
 
@@ -104,7 +104,7 @@ def main(_):
                     model.rl_qa_enabled: False}
                 else:
                     rl_dict={}
-                    
+
                 ops = [model.optimizer, model.train_summary,model.q_hat_string]
                 if i%FLAGS.eval_freq==0:
                     ops.extend([ model.q_hat_ids, model.q_gold]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
