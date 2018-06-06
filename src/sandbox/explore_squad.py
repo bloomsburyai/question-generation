@@ -8,30 +8,27 @@ import string
 
 squad =  loader.load_squad_triples('./data/',False)
 
-def tokenise(text):
 
-    for char in string.punctuation+'()-–':
-        text = text.replace(char, ' '+char+' ')
-    tokens = text.lower().split(' ')
-    tokens = [w for w in tokens if w.strip() != '']
-    # tokens = np.asarray(tokens)
-    return tokens
-
-max_context_len=0
-max_pos = None
-debugstr = ""
-for i,triple in enumerate(squad):
-    c_toks=  preprocessing.tokenise(triple[0], asbytes=False)
-    if len(c_toks) > max_context_len:
-        max_context_len = len(c_toks)
-        max_pos = i
-        debugstr = triple[0]
-print(max_context_len," @ ",i)
-print(len(preprocessing.tokenise(debugstr, asbytes=False)))
+# max_context_len=0
+# max_pos = None
+# debugstr = ""
+# for i,triple in enumerate(squad):
+#     c_toks=  preprocessing.tokenise(triple[0], asbytes=False)
+#     if len(c_toks) > max_context_len:
+#         max_context_len = len(c_toks)
+#         max_pos = i
+#         debugstr = triple[0]
+# print(max_context_len," @ ",i)
+# print(len(preprocessing.tokenise(debugstr, asbytes=False)))
 
 
 min_pos = 99999999
 for i,triple in enumerate(squad):
-    if triple[3] < min_pos:
-        min_pos = triple[3]
-print(min_pos)
+    if "Which of the Confederate states" in triple[1]:
+        tokens = preprocessing.tokenise(triple[0], asbytes=False)
+        tok_pos = preprocessing.char_pos_to_word(triple[0].encode(), tokens, triple[3])
+        print(tokens[tok_pos])
+        print(tok_pos)
+        print(tokens)
+        print(i,triple[0].encode()[triple[3]:])
+        exit()
