@@ -35,12 +35,12 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None):
+def lookup_vocab(words, vocab, context=None, do_tokenise=True):
     ids = []
 
 
     decoded_context = [w.decode() for w in tokenise(context)] if context is not None else []
-    words = [w.decode() for w in tokenise(words)]
+    words = [w.decode() for w in tokenise(words)] if do_tokenise else [w.decode() for w in words]
 
     for w in words:
         if w in vocab.keys():

@@ -214,7 +214,8 @@ class Seq2SeqModel(TFModel):
             projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
-                                            vocab_size=len(self.vocab))
+                                            vocab_size=len(self.vocab),
+                                            training_mode=self.is_training)
 
             if self.training_mode:
                 # Helper - training
@@ -296,7 +297,7 @@ class Seq2SeqModel(TFModel):
             # entropy maximiser
             self.entropy_loss = tf.reduce_mean(tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat),axis=[1,2])/qlen_float,axis=0)
 
-            self._train_summaries.append(tf.summary.scalar('train_loss/xe_loss', self.xe_loss))
+        self._train_summaries.append(tf.summary.scalar('train_loss/xe_loss', self.xe_loss))
 
         self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 
@@ -322,7 +323,7 @@ class Seq2SeqModel(TFModel):
         params = tf.trainable_variables()
         gradients = tf.gradients(self.loss, params)
         clipped_gradients, _ = tf.clip_by_global_norm(
-            gradients, 5)
+            gradients, 2)
 
         # Optimization
         self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(

@@ -103,6 +103,7 @@ class CopyLayer(base.Layer):
                  name=None,
                  source_provider: Callable[[], tf.Tensor] = None,
                  condition_encoding: Callable[[], tf.Tensor] = None,
+                 training_mode=False,
                  vocab_size=None,
                  **kwargs):
         super(CopyLayer, self).__init__(trainable=trainable, name=name,
@@ -121,6 +122,7 @@ class CopyLayer(base.Layer):
         self.kernel_constraint = kernel_constraint
         self.bias_constraint = bias_constraint
         self.input_spec = base.InputSpec(min_ndim=2)
+        self.training_mode=training_mode
 
         self.condition_encoding = condition_encoding
 
@@ -186,8 +188,8 @@ class CopyLayer(base.Layer):
         vt = tf.concat([attention, condition_encoding_tiled], axis=1)
         # NOTE: this is missing the previous input y_t-1 and s_t
         switch_input = tf.concat([vt],axis=1)
-        switch_h1 = tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
-        switch_h2 = tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal())
+        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal()), rate=0.2, training=self.training_mode)
+        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal()), rate=0.2, training=self.training_mode)
         switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal())
         # switch = debug_shape(switch, "switch")
         result = safe_log(tf.concat([(1-switch)*shortlist,switch*alignments_padded], axis=1))

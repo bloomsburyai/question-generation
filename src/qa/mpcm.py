@@ -129,11 +129,12 @@ class MpcmQaInstance():
     def __init__(self, vocab):
         self.model = MpcmQa(vocab)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options))
 
     def load_from_chkpt(self, path):
-        saver = tf.train.Saver()
-        saver.restore(self.sess, path+ '/model.checkpoint')
+        with self.model.graph.as_default():
+            saver = tf.train.Saver()
+            saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_ans(self, contexts, questions):
         spans = self.sess.run(self.model.pred_span, feed_dict={self.model.context_in: contexts, self.model.question_in: questions})

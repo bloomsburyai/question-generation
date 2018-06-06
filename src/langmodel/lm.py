@@ -7,6 +7,7 @@ import tensorflow as tf
 from base_model import TFModel
 
 import helpers.loader as loader
+import helpers.ops as ops
 
 
 import flags
@@ -25,7 +26,7 @@ class LstmLm(TFModel):
 
 
     def build_model(self):
-        
+
         # Load glove embeddings
         glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
         embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
@@ -55,14 +56,14 @@ class LstmLm(TFModel):
 
         # loss fn + opt
         self.target_weights = tf.sequence_mask(
-                    self.input_lengths-1, tf.reduce_max(self.input_lengths)-1, dtype=tf.float32)
+                    self.input_lengths-1, tf.shape(self.input_seqs)[1]-1, dtype=tf.float32)
         self.loss = tf.reduce_mean(tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)/tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32),axis=0)
 
         self.optimise = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
 
         # seq evaluation
         self.log_probs = tf.reduce_sum(tf.one_hot(self.tgt_output, depth=len(self.vocab))*self.probs,axis=2)
-        self.seq_log_prob = tf.reduce_sum(tf.log(self.log_probs)*self.target_weights, axis=1)/tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)
+        self.seq_log_prob = tf.reduce_sum(ops.safe_log(self.log_probs)*self.target_weights, axis=1)/(tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)+1e-6)
 
         # metrics
         self.perplexity = tf.minimum(1000.0,tf.pow(2.0, 1/tf.cast(self.input_lengths,tf.float32) * tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)))
@@ -74,11 +75,15 @@ class LstmLmInstance():
     def __init__(self, vocab):
         self.model = LstmLm(vocab, num_units=512)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options))
+
+    def __del__(self):
+        self.sess.close()
 
     def load_from_chkpt(self, path):
-        saver = tf.train.Saver()
-        saver.restore(self.sess, path+ '/model.checkpoint')
+        with self.model.graph.as_default():
+            saver = tf.train.Saver()
+            saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_seq_prob(self, seqs):
         probs = self.sess.run(self.model.seq_log_prob, feed_dict={self.model.input_seqs: seqs})
@@ -93,7 +98,7 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.vocab_size)
+    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.lm_vocab_size)
 
     lm = LstmLmInstance(vocab)
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')

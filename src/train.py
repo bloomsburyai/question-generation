@@ -7,6 +7,7 @@ mem_limit=0.95
 import tensorflow as tf
 import numpy as np
 import helpers.loader as loader
+import helpers.preprocessing as preprocessing
 from helpers.output import output_pretty, output_basic, tokens_to_string
 from tqdm import tqdm
 
@@ -30,8 +31,8 @@ def main(_):
         FLAGS.context_encoder_units =100
         FLAGS.answer_encoder_units=100
         FLAGS.decoder_units=100
-        FLAGS.batch_size =2
-        FLAGS.embedding_size=50
+        # FLAGS.batch_size =2
+        # FLAGS.embedding_size=50
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
@@ -55,17 +56,18 @@ def main(_):
     # create data streamer
     data_source = SquadStreamer(vocab, FLAGS.batch_size, shuffle=True)
 
-    saver = tf.train.Saver()
+    with model.graph.as_default():
+        saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+'qgen/'+str(int(time.time()))
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options), graph=model.graph) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+str(int(time.time())), sess.graph)
 
-        data_source.initialise(sess, train_data)
+        data_source.initialise(train_data)
 
         if not FLAGS.train:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')
@@ -84,13 +86,36 @@ def main(_):
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 # Get a batch
-                train_batch = data_source.get_batch(sess)
+                train_batch, curr_batch_size = data_source.get_batch()
 
-                ops = [model.optimizer, model.train_summary]
+                if model_type == "MALUUBA":
+                    # do a fwd pass first, get the score, then do another pass and optimize
+                    res= sess.run(model.q_hat_string, feed_dict={model.input_batch: train_batch ,model.is_training:True})
+                    qhat_for_lm = [preprocessing.lookup_vocab(q, ext_vocab, do_tokenise=False) for q in res.tolist()]
+                    lm_score = model.lm.get_seq_prob(qhat_for_lm).tolist()
+                    lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
+                                                     simple_value=sum(lm_score)/len(lm_score))])
+                    summary_writer.add_summary(lm_summary, global_step=(e*num_steps+i))
+                    # print(res)
+                    # print(lm_score)
+                    rl_dict={model.lm_score: lm_score,
+                    model.qa_score: [0. for i in range(curr_batch_size)],
+                    model.rl_lm_enabled: True,
+                    model.rl_qa_enabled: False}
+                else:
+                    rl_dict={}
+                    
+                ops = [model.optimizer, model.train_summary,model.q_hat_string]
                 if i%FLAGS.eval_freq==0:
-                    ops.extend([model.q_hat_string, model.q_hat_ids, model.q_gold]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
-                res= sess.run(ops, feed_dict={model.input_batch: train_batch ,model.is_training:True})
+                    ops.extend([ model.q_hat_ids, model.q_gold]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
+                res= sess.run(ops, feed_dict={model.input_batch: train_batch,
+                    model.is_training:True,
+                    **rl_dict})
                 summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
+
+
+
+
                 if i%FLAGS.eval_freq==0:
                     # summary_writer.add_summary(res[2], global_step=(e*num_steps+i))
 
