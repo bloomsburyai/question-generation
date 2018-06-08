@@ -161,10 +161,12 @@ class CopyLayer(base.Layer):
         # attention, alignments = tf.split(inputs, [self.embedding_dim, -1], axis=1)
         attention, alignments = tf.split(inputs_new, num_or_size_splits=[self.embedding_dim, -1], axis=-1)
         # [len_target, batch_size, vocab_size]
-        shortlist = tf.contrib.layers.fully_connected(attention, self.vocab_size, activation_fn=None)
+        shortlist = tf.layers.dense(attention, self.vocab_size, activation=tf.nn.softmax, use_bias=False)
+
 
         # attention = debug_shape(attention, "attn")
         # alignments = debug_shape(alignments, "align ("+str(self.units)+" desired)")
+        # alignments = debug_tensor(alignments, "alignments")
         # print(alignments)
         # shortlist = debug_shape(shortlist, "shortlist")
 
@@ -176,7 +178,6 @@ class CopyLayer(base.Layer):
 
         # pad the alignments to the longest possible source st output vocab is fixed size
         # TODO: Check for non zero alignments outside the seq length
-        alignments_padded = tf.pad(alignments, [[0, 0], [0, self.units-tf.shape(alignments)[-1]]], 'CONSTANT')
         # alignments_padded = debug_shape(alignments_padded, "align padded")
         # switch takes st, vt and yt−1 as inputs
         # vt = concat(weighted context encoding at t; condition encoding)
@@ -188,11 +189,14 @@ class CopyLayer(base.Layer):
         vt = tf.concat([attention, condition_encoding_tiled], axis=1)
         # NOTE: this is missing the previous input y_t-1 and s_t
         switch_input = tf.concat([vt],axis=1)
-        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal(), bias_initializer=None), rate=0.3, training=self.training_mode)
-        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.initializers.orthogonal(), bias_initializer=None), rate=0.3, training=self.training_mode)
-        switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.initializers.orthogonal(), bias_initializer=None)
+        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
+        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
+        self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.glorot_uniform_initializer())
         # switch = debug_shape(switch, "switch")
-        result = safe_log(tf.concat([(1-switch)*shortlist,switch*alignments_padded], axis=1))
+
+        copy_dist_padded = tf.pad(self.switch*alignments, [[0, 0], [0, self.units-tf.shape(alignments)[-1]]], 'CONSTANT', constant_values=0)
+
+        result = tf.concat([(1-self.switch)*shortlist,copy_dist_padded], axis=1) # this used to be safe_log'd
 
         target_shape = tf.concat([shape[:-1], [-1]], 0)
         result =tf.reshape(result, target_shape)

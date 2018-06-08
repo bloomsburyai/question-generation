@@ -196,8 +196,9 @@ def get_embeddings(vocab, glove, D):
     rev_vocab = {v:k for k,v in vocab.items()}
     embeddings=[]
 
-    rand = np.random.normal(size=(len(vocab),D))
-    q,r = np.linalg.qr(rand)
+    # rand = np.random.normal(size=(len(vocab),D))
+    # q,r = np.linalg.qr(rand)
+    glorot_limit = np.sqrt(6 / (D + len(vocab)))
 
     # clunky, but guarantees the order will be correct
     for id in range(len(rev_vocab)):
@@ -205,7 +206,8 @@ def get_embeddings(vocab, glove, D):
         if word in glove.keys():
             embeddings.append(glove[word])
         else:
-            embeddings.append(q[id,:])
+            # embeddings.append(q[id,:])
+            embeddings.append(np.random.uniform(-glorot_limit, glorot_limit, size=(D)).tolist())
     return np.asarray(embeddings, dtype=np.float32)
 
 if __name__ == "__main__":

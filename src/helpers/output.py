@@ -1,6 +1,6 @@
 import datetime
 
-def output_pretty(tokens, switch, source, gold_ids, loss):
+def output_pretty(tokens, pred_ids, gold_ids, copy,e,i):
     out_html = '''<style type="text/css">small {
     position: absolute;
     top: 18px;
@@ -14,25 +14,26 @@ def output_pretty(tokens, switch, source, gold_ids, loss):
     position: relative;
     min-width:30px;
     }
-    small span { padding:2px;}
+    small span { padding:0px;}
     </style>'''
+    out_html+='<h1>'+str(e)+', '+str(i)+' ('+ str(datetime.datetime.now()) +')</h1>'
     for i,row in enumerate(tokens):
         out_html += '<p>'
         for j, tok in enumerate(row):
-            out_html += '<span class="word">' + tok.decode().replace('>','&gt;').replace('<','&lt;') +'<small>'
-            out_html += "{:0.2f}".format(loss[i][j]) +'<br/>'
-            out_html += '<span style="background:rgb('+str(round(switch[i][j]*160)) + ','+str(round((1-switch[i][j])*160)) + ',0); color:white;">{:d}</span>'.format(source[i][j])+ '</br>('
-            out_html += '<span style="background:' + ('red' if gold_ids[i][j] > 2004 else 'green') + '; color:white;">{:d}</span>'.format(gold_ids[i][j]) + ')</small></span>&nbsp;'
+            out_html += '<span class="word">' + tok.decode().replace('>','&gt;').replace('<','&lt;')  +'<small>'
+            out_html += '<span style="background:red; display:inline-block; width:' +str(copy[i][j]*30)+'px; height:8px;">&nbsp;</span><span style="background:green; display:inline-block; width:' +str((1-copy[i][j])*30) +'px; height:8px;">&nbsp;</span><br/>'
+            out_html += '<span style="color:' + ('red' if gold_ids[i][j] > 2004 else 'green') + '; width:30px;">{:d} ({:d})</span>'.format(pred_ids[i][j],gold_ids[i][j]) + '</small></span>&nbsp;'
         out_html += '</p>'
     return out_html
 
 
-def output_basic(tokens, ids, epoch, step_num):
+def output_basic(tokens, ids, copy, shortlist, epoch, step_num):
     out_html='<h1>'+str(epoch)+', '+str(step_num)+' ('+ str(datetime.datetime.now()) +')</h1>'
     for i,row in enumerate(tokens):
         out_html += '<p>'
         for j, tok in enumerate(row):
-            out_html += tok.decode().replace('>','&gt;').replace('<','&lt;') + '('+ str(ids[i][j]) +') '
+            out_html += tok.decode().replace('>','&gt;').replace('<','&lt;') + '('+ str(ids[i][j])  +') '
+            out_html += '<span style="background:red; display:inline-block; width:' +str(copy[i][j]*30)+'px;">&nbsp;</span><span style="background:green; display:inline-block; width:' +str(shortlist[i][j]*30) +'px;">&nbsp;</span>'
         out_html += '</p>'
     return out_html
 

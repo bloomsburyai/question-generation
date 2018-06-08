@@ -17,7 +17,7 @@ import helpers.loader as loader
 from copy_mechanism import copy_attention_wrapper, copy_layer
 
 import helpers.ops as ops
-from helpers.misc_utils import debug_shape, debug_tensor
+from helpers.misc_utils import debug_shape, debug_tensor, debug_op
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -60,42 +60,42 @@ class Seq2SeqModel(TFModel):
 
         curr_batch_size = tf.shape(self.answer_ids)[0]
 
-
-        # build teacher output - coerce to vocab and pad with SOS/EOS
-        # also build output for loss - one hot over vocab+context
-        self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)+FLAGS.max_copy_size], [curr_batch_size])+self.context_length)
-        self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
-        self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
-        self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+FLAGS.max_copy_size)
-        # Embed c,q,a
-
-
-        # init embeddings
-        glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
-        embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
-        self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
-        assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+        with tf.variable_scope('input_pipeline'):
+            # build teacher output - coerce to vocab and pad with SOS/EOS
+            # also build output for loss - one hot over vocab+context
+            self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)+FLAGS.max_copy_size], [curr_batch_size])+self.context_length)
+            self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
+            self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
+            self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+FLAGS.max_copy_size)
+            # Embed c,q,a
 
 
-        # First, coerce them to the shortlist vocab. Then embed
-        self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
-        self.context_embedded = tf.nn.embedding_lookup(self.embeddings, self.context_coerced)
+            # init embeddings
+            glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
+            embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
+            self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+            assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
-        self.question_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_teach)
-        self.question_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_coerced)
 
-        self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
-        self.answer_embedded = tf.nn.embedding_lookup(self.embeddings, self.answer_coerced) # batch x seq x embed
+            # First, coerce them to the shortlist vocab. Then embed
+            self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
+            self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
-        # Is context token in answer?
-        max_context_len = tf.reduce_max(self.context_length)
-        context_ix = tf.tile(tf.expand_dims(tf.range(max_context_len),axis=0), [curr_batch_size,1])
-        gt_start = tf.greater_equal(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0],axis=1), [1, max_context_len]))
-        lt_end = tf.less(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0]+self.answer_length,axis=1), [1, max_context_len]))
-        in_answer_feature = tf.expand_dims(tf.cast(tf.logical_and(gt_start, lt_end), tf.float32),axis=2)
+            self.question_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_teach)
+            self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
-        # augment embedding
-        self.context_embedded = tf.concat([self.context_embedded, in_answer_feature], axis=2)
+            self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
+            self.answer_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.answer_coerced), rate=FLAGS.dropout_rate, training=self.is_training) # batch x seq x embed
+
+            # Is context token in answer?
+            max_context_len = tf.reduce_max(self.context_length)
+            context_ix = tf.tile(tf.expand_dims(tf.range(max_context_len),axis=0), [curr_batch_size,1])
+            gt_start = tf.greater_equal(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0],axis=1), [1, max_context_len]))
+            lt_end = tf.less(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0]+self.answer_length,axis=1), [1, max_context_len]))
+            in_answer_feature = tf.expand_dims(tf.cast(tf.logical_and(gt_start, lt_end), tf.float32),axis=2)
+
+            # augment embedding
+            self.context_embedded = tf.concat([self.context_embedded, in_answer_feature], axis=2)
 
         # Build encoder for context
         # Build RNN cell for encoder
@@ -145,14 +145,14 @@ class Seq2SeqModel(TFModel):
                 a_encoder_cell_fwd, a_encoder_cell_bwd, self.full_condition_encoding,
                 sequence_length=self.answer_length, dtype=tf.float32)
 
-            self.a_encoder_final_state = tf.concat([a_encoder_state_parts[0][0].c, a_encoder_state_parts[1][0].c], axis=1) # batch x 2*a_encoder_units
-
+            # self.a_encoder_final_state = tf.concat([a_encoder_state_parts[0][0].c, a_encoder_state_parts[1][0].c], axis=1) # batch x 2*a_encoder_units
+            self.a_encoder_final_state = tf.concat([ops.get_last_from_seq(a_encoder_output_parts[0], self.answer_length-1), ops.get_last_from_seq(a_encoder_output_parts[1], self.answer_length-1)], axis=1)
         # concat direction outputs again
 
         # build init state
         with tf.variable_scope('decoder_initial_state'):
-            L = tf.get_variable('decoder_L', [self.context_encoder_units*2, self.context_encoder_units*2], initializer=tf.orthogonal_initializer(), dtype=tf.float32)
-            W0 = tf.get_variable('decoder_W0', [self.context_encoder_units*2, self.decoder_units], initializer=tf.orthogonal_initializer(), dtype=tf.float32)
+            L = tf.get_variable('decoder_L', [self.context_encoder_units*2, self.context_encoder_units*2], initializer=tf.glorot_uniform_initializer(), dtype=tf.float32)
+            W0 = tf.get_variable('decoder_W0', [self.context_encoder_units*2, self.decoder_units], initializer=tf.glorot_uniform_initializer(), dtype=tf.float32)
             b0 = tf.get_variable('decoder_b0', [self.decoder_units], initializer=tf.zeros_initializer(), dtype=tf.float32)
 
             # This is a bit cheeky - this should be injected by the more advanced model. Consider refactoring into separate methods then overloading the one that handles this
@@ -179,7 +179,6 @@ class Seq2SeqModel(TFModel):
                 memory = self.context_encoder_output
                 memory_sequence_length = self.context_length
                 init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
-
 
 
             attention_mechanism = copy_attention_wrapper.BahdanauAttention(
@@ -217,6 +216,8 @@ class Seq2SeqModel(TFModel):
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training)
 
+
+
             if self.training_mode:
                 # Helper - training
                 helper = tf.contrib.seq2seq.TrainingHelper(
@@ -235,7 +236,7 @@ class Seq2SeqModel(TFModel):
                 # Unroll the decoder
                 outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
 
-                logits=outputs.rnn_output
+                probs=outputs.rnn_output
             else:
                 start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
                 end_token = self.vocab[EOS]
@@ -270,17 +271,22 @@ class Seq2SeqModel(TFModel):
                 # logits = outputs.rnn_output
                 pred_ids = outputs.predicted_ids
                 # pred_ids = debug_shape(pred_ids, "pred ids")
-                logits = tf.one_hot(pred_ids[:,:,0], depth=len(self.vocab)+FLAGS.max_copy_size)
+                probs = tf.one_hot(pred_ids[:,:,0], depth=len(self.vocab)+FLAGS.max_copy_size)
                 # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+FLAGS.max_copy_size)
 
 
-        self.q_hat = tf.nn.softmax(logits, dim=2)
+        self.q_hat = probs#tf.nn.softmax(logits, dim=2)
+        # self.q_hat = debug_op(self.q_hat, tf.argmax(self.q_hat, axis=2), "q hat")
+        # self.context_length = debug_tensor(self.context_length, "ctxt len", summarize=None)
 
-        # self.q_hat = debug_shape(self.q_hat, "q hat")
+        # because we've done a few logs of softmaxes, there can be some precision problems that lead to non zero probability outside of the valid vocab, fix it here:
+        max_vocab_size = tf.tile(tf.expand_dims(self.context_length+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
+        output_mask = tf.sequence_mask(max_vocab_size, FLAGS.max_copy_size+len(self.vocab), dtype=tf.float32)
+        self.q_hat = self.q_hat*output_mask
 
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
-                        self.question_length, tf.reduce_max(self.question_length), dtype=tf.float32)
+                        self.question_length, tf.shape(self.question_ids)[1], dtype=tf.float32)
             logits = ops.safe_log(self.q_hat)
 
             self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -292,12 +298,20 @@ class Seq2SeqModel(TFModel):
             # get sum of all probabilities for words that are also in answer
             answer_oh = tf.one_hot(self.answer_ids, depth=len(self.vocab) +FLAGS.max_copy_size)
             answer_mask = tf.tile(tf.reduce_sum(answer_oh, axis=1,keep_dims=True), [1,tf.reduce_max(self.question_length),1])
-            self.suppression_loss = tf.reduce_mean(tf.reduce_sum(answer_mask * self.q_hat,axis=[1,2])/qlen_float,axis=0)
+            self.suppression_loss = tf.reduce_mean(tf.reduce_sum(tf.reduce_sum(answer_mask * self.q_hat,axis=2)*self.target_weights,axis=1)/qlen_float,axis=0)
 
             # entropy maximiser
-            self.entropy_loss = tf.reduce_mean(tf.reduce_sum(self.q_hat * ops.safe_log(self.q_hat),axis=[1,2])/qlen_float,axis=0)
+            self.entropy_loss = tf.reduce_mean(tf.reduce_sum(tf.reduce_sum(self.q_hat *ops.safe_log(self.q_hat),axis=2)*self.target_weights,axis=1)/qlen_float,axis=0)
+
+        self.shortlist_prob = tf.reduce_sum(self.q_hat[:,:,:len(self.vocab)],axis=2)*self.target_weights
+        self.copy_prob = tf.reduce_sum(self.q_hat[:,:,len(self.vocab):],axis=2)*self.target_weights
+
+        self._train_summaries.append(tf.summary.scalar("debug/shortlist_prob", tf.reduce_mean(tf.reduce_sum(self.shortlist_prob,axis=1)/qlen_float)))
+        self._train_summaries.append(tf.summary.scalar("debug/copy_prob", tf.reduce_mean(tf.reduce_sum(self.copy_prob,axis=1)/qlen_float)))
 
         self._train_summaries.append(tf.summary.scalar('train_loss/xe_loss', self.xe_loss))
+        self._train_summaries.append(tf.summary.scalar('train_loss/entropy_loss', self.entropy_loss))
+        self._train_summaries.append(tf.summary.scalar('train_loss/suppr_loss', self.suppression_loss))
 
         self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 

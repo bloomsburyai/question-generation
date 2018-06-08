@@ -31,7 +31,7 @@ def main(_):
         FLAGS.context_encoder_units =100
         FLAGS.answer_encoder_units=100
         FLAGS.decoder_units=100
-        # FLAGS.batch_size =2
+        FLAGS.batch_size =2
         # FLAGS.embedding_size=50
 
     # load dataset
@@ -107,7 +107,7 @@ def main(_):
 
                 ops = [model.optimizer, model.train_summary,model.q_hat_string]
                 if i%FLAGS.eval_freq==0:
-                    ops.extend([ model.q_hat_ids, model.q_gold]) #, tf.squeeze(model.switch), model.q_hat_ids, model.question_ids,model.crossent * model.target_weights])
+                    ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
                 res= sess.run(ops, feed_dict={model.input_batch: train_batch,
                     model.is_training:True,
                     **rl_dict})
@@ -121,13 +121,13 @@ def main(_):
 
                     # q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist(), res[7].tolist())
                     with open(FLAGS.log_dir+'out.htm', 'w') as fp:
-                        fp.write(output_basic(res[2], res[3], e, i))
+                        fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
 
                     f1s=[]
                     bleus=[]
                     for b, pred in enumerate(res[2]):
                         pred_str = tokens_to_string(pred)
-                        gold_str = tokens_to_string(res[4][b])
+                        gold_str = tokens_to_string(res[6][b])
                         f1s.append(metrics.f1(gold_str, pred_str))
                         bleus.append(metrics.bleu(gold_str, pred_str))
 

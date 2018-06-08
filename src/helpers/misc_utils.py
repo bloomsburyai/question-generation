@@ -131,6 +131,12 @@ def debug_tensor(s, msg=None, summarize=10):
     msg = s.name
   return tf.Print(s, [tf.shape(s), s], msg + " ", summarize=summarize)
 
+def debug_op(s, op, msg=None, summarize=10):
+  """Print the shape and value of a tensor at test time. Return a new tensor."""
+  if not msg:
+    msg = s.name
+  return tf.Print(s, [tf.shape(s), op], msg + " ", summarize=summarize)
+
 
 def add_summary(summary_writer, global_step, tag, value):
   """Add a new summary to the current summary_writer.

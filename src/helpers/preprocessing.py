@@ -35,7 +35,7 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None, do_tokenise=True):
+def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False):
     ids = []
 
 
@@ -49,7 +49,8 @@ def lookup_vocab(words, vocab, context=None, do_tokenise=True):
             ids.append(len(vocab) + decoded_context.index(w))
         else:
             ids.append(vocab[OOV])
-    ids.append(vocab[EOS]) # HIDING THIS IS BAD
+    if append_eos:
+        ids.append(vocab[EOS])
     embedded = np.asarray(ids, dtype=np.int32)
 
     return embedded
@@ -67,7 +68,7 @@ def lookup_vocab(words, vocab, context=None, do_tokenise=True):
 #         print(key)
 #         return expanded.index(key)
 
-def tokenise(text, asbytes=True):
+def tokenise(text, asbytes=True, append_eos=False):
 
     text = text.decode() if asbytes else text
     if use_nltk:
@@ -78,9 +79,11 @@ def tokenise(text, asbytes=True):
         for char in string.punctuation+'()-–':
             text = text.replace(char, ' '+char+' ')
         tokens = text.lower().split(' ')
-    tokens = np.asarray([w.encode() if asbytes else w for w in tokens if w.strip() != ''])
+    tokens = [w.encode() if asbytes else w for w in tokens if w.strip() != '']
+    if append_eos:
+        tokens.append(EOS.encode() if asbytes else EOS)
     # tokens = np.asarray(tokens)
-    return tokens
+    return np.asarray(tokens)
 
 def char_pos_to_word(text, tokens, char_pos):
     ix=0
@@ -115,23 +118,23 @@ def process_squad_context(vocab):
     def _process_squad_context(context):
         # print(context)
         # print(tokenise(context))
-        context_ids = lookup_vocab(context, vocab)
+        context_ids = lookup_vocab(context, vocab, append_eos=True)
         context_len = np.asarray(len(context_ids), dtype=np.int32)
-        res = [tokenise(context), context_ids, context_len]
+        res = [tokenise(context,append_eos=True), context_ids, context_len]
         return res
 
     return _process_squad_context
 
 def process_squad_question(vocab):
     def _process_squad_question(question, context):
-        question_ids = lookup_vocab(question, vocab, context=context)
+        question_ids = lookup_vocab(question, vocab, context=context, append_eos=True)
         question_len = np.asarray(len(question_ids), dtype=np.int32)
-        return [tokenise(question), question_ids, question_len]
+        return [tokenise(question,append_eos=True), question_ids, question_len]
     return _process_squad_question
 
 def process_squad_answer(vocab):
     def _process_squad_answer(answer, answer_pos, context):
-        answer_ids = lookup_vocab(answer, vocab, context=context)
+        answer_ids = lookup_vocab(answer, vocab, context=context, append_eos=True)
         answer_len = np.asarray(len(answer_ids), dtype=np.int32)
         max_len = np.amax(answer_len)
 
@@ -139,5 +142,5 @@ def process_squad_answer(vocab):
 
         answer_locs = np.arange(answer_token_pos, answer_token_pos+max_len, dtype=np.int32)
 
-        return [tokenise(answer), answer_ids, answer_len, answer_locs]
+        return [tokenise(answer,append_eos=True), answer_ids, answer_len, answer_locs]
     return _process_squad_answer
