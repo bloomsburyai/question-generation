@@ -8,11 +8,12 @@ import helpers.preprocessing as preprocessing
 
 
 class SquadStreamer():
-    def __init__(self, vocab, batch_size, shuffle=True):
+    def __init__(self, vocab, batch_size, num_epochs=1, shuffle=True):
         self.vocab=vocab
         self.rev_vocab = {v:k for k,v in self.vocab.items()}
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.num_epochs=num_epochs
 
         self.graph = tf.Graph()
         with self.graph.as_default():
@@ -79,7 +80,7 @@ class SquadStreamer():
                                  0, # answer len
                                  0))) # answer locs
 
-            dataset = dataset.repeat(tf.app.flags.FLAGS.num_epochs)
+            dataset = dataset.repeat(self.num_epochs)
 
             dataset = dataset.prefetch(buffer_size=batch_size*4)
 

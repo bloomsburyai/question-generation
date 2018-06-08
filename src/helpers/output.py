@@ -22,7 +22,7 @@ def output_pretty(tokens, pred_ids, gold_ids, copy,e,i):
         for j, tok in enumerate(row):
             out_html += '<span class="word">' + tok.decode().replace('>','&gt;').replace('<','&lt;')  +'<small>'
             out_html += '<span style="background:red; display:inline-block; width:' +str(copy[i][j]*30)+'px; height:8px;">&nbsp;</span><span style="background:green; display:inline-block; width:' +str((1-copy[i][j])*30) +'px; height:8px;">&nbsp;</span><br/>'
-            out_html += '<span style="color:' + ('red' if gold_ids[i][j] > 2004 else 'green') + '; width:30px;">{:d} ({:d})</span>'.format(pred_ids[i][j],gold_ids[i][j]) + '</small></span>&nbsp;'
+            out_html += '<span style="color:' + ('red' if gold_ids[i][j] >= 2004 else 'green') + '; width:30px;">{:d} ({:d})</span>'.format(pred_ids[i][j],gold_ids[i][j]) + '</small></span>&nbsp;'
         out_html += '</p>'
     return out_html
 

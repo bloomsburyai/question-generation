@@ -20,8 +20,8 @@ import flags
 
 import helpers.metrics as metrics
 
-# model_type = "SEQ2SEQ"
-model_type = "MALUUBA"
+model_type = "SEQ2SEQ"
+# model_type = "MALUUBA"
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -31,12 +31,12 @@ def main(_):
         FLAGS.context_encoder_units =100
         FLAGS.answer_encoder_units=100
         FLAGS.decoder_units=100
-        FLAGS.batch_size =2
+        FLAGS.batch_size =8
         # FLAGS.embedding_size=50
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+    dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:200]
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
@@ -44,6 +44,11 @@ def main(_):
 
     ext_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
 
+    if FLAGS.testing:
+        train_data=train_data[:1000]
+        num_dev_samples=100
+    else:
+        num_dev_samples=1000
 
     # Create model
     if model_type == "SEQ2SEQ":
@@ -54,7 +59,8 @@ def main(_):
         exit("Unrecognised model type: "+model_type)
 
     # create data streamer
-    data_source = SquadStreamer(vocab, FLAGS.batch_size, shuffle=True)
+    train_data_source = SquadStreamer(vocab, FLAGS.batch_size, FLAGS.num_epochs, shuffle=True)
+    dev_data_source = SquadStreamer(vocab, FLAGS.batch_size, 1, shuffle=True)
 
     with model.graph.as_default():
         saver = tf.train.Saver()
@@ -67,7 +73,8 @@ def main(_):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+str(int(time.time())), sess.graph)
 
-        data_source.initialise(train_data)
+        train_data_source.initialise(train_data)
+
 
         if not FLAGS.train:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')
@@ -76,28 +83,37 @@ def main(_):
             sess.run(tf.global_variables_initializer())
             # sess.run(model.glove_init_ops)
 
-        num_steps = len(train_data)//FLAGS.batch_size
+        num_steps_train = len(train_data)//FLAGS.batch_size
+        num_steps_dev = num_dev_samples//FLAGS.batch_size
 
         # Initialise the dataset
         # sess.run(model.iterator.initializer, feed_dict={model.context_ph: train_contexts,
         #                                   model.qs_ph: train_qs, model.as_ph: train_as, model.a_pos_ph: train_a_pos})
 
+        f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
+                                         simple_value=0.0)])
+        bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
+                                  simple_value=0.0)])
 
+        summary_writer.add_summary(f1summary, global_step=0)
+        summary_writer.add_summary(bleusummary, global_step=0)
+
+        max_oos_f1=0
         for e in range(FLAGS.num_epochs):
-            for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
+            for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # Get a batch
-                train_batch, curr_batch_size = data_source.get_batch()
+                train_batch, curr_batch_size = train_data_source.get_batch()
 
                 if model_type == "MALUUBA":
                     # do a fwd pass first, get the score, then do another pass and optimize
-                    res= sess.run(model.q_hat_string, feed_dict={model.input_batch: train_batch ,model.is_training:True})
+                    res= sess.run(model.q_hat_beam_string, feed_dict={model.input_batch: train_batch ,model.is_training:True})
                     qhat_for_lm = [preprocessing.lookup_vocab(q, ext_vocab, do_tokenise=False) for q in res.tolist()]
                     ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, ext_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
                     lm_score = model.lm.get_seq_prob(qhat_for_lm).tolist()
                     lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
                                                      simple_value=sum(lm_score)/len(lm_score))])
-                    summary_writer.add_summary(lm_summary, global_step=(e*num_steps+i))
+                    summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
 
                     qa_pred = model.qa.get_ans(ctxt_for_lm, qhat_for_lm).tolist()
 
@@ -116,7 +132,7 @@ def main(_):
 
                     qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
                                                      simple_value=sum(qa_f1s)/len(qa_f1s))])
-                    summary_writer.add_summary(qa_summary, global_step=(e*num_steps+i))
+                    summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
 
                     rl_dict={model.lm_score: lm_score,
                     model.qa_score: qa_f1s,
@@ -131,7 +147,7 @@ def main(_):
                 res= sess.run(ops, feed_dict={model.input_batch: train_batch,
                     model.is_training:True,
                     **rl_dict})
-                summary_writer.add_summary(res[1], global_step=(e*num_steps+i))
+                summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
 
 
 
@@ -157,22 +173,44 @@ def main(_):
                     bleusummary = tf.Summary(value=[tf.Summary.Value(tag="train_perf/bleu",
                                               simple_value=sum(bleus)/len(bleus))])
 
-                    summary_writer.add_summary(f1summary, global_step=(e*num_steps+i))
-                    summary_writer.add_summary(bleusummary, global_step=(e*num_steps+i))
-                    # a_raw, a_str, q_str = sess.run([model.answer_raw,model.a_string, model.q_hat_string])
-                    # print(a_raw.tolist(), a_str, q_str)
-                    # print(sess.run([tf.shape(model.context_condition_encoding), tf.shape(model.full_condition_encoding)]))
+                    summary_writer.add_summary(f1summary, global_step=(e*num_steps_train+i))
+                    summary_writer.add_summary(bleusummary, global_step=(e*num_steps_train+i))
 
-                    # print(sess.run([model.answer_length, model.question_length]))
-                    # print(sess.run([tf.shape(model.s0)]))
-                # ToDo: implement dev pipeline
-                # if i % FLAGS.eval_freq == 0:
-                #     dev_summary = sess.run([model.eval_summary], feed_dict={x: batch_xs, y: batch_ys, is_training:False})
-                #     summary_writer.add_summary(dev_summary, global_step=(e*num_steps+i))
-                if i%FLAGS.eval_freq==0:
-                    saver.save(sess, chkpt_path+'/model.checkpoint')
+            f1s=[]
+            bleus=[]
 
+            np.random.shuffle(dev_data)
+            dev_subset = dev_data[:num_dev_samples]
+            dev_data_source.initialise(dev_subset)
+            for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
+                dev_batch, curr_batch_size = dev_data_source.get_batch()
+                pred_batch,gold_batch= sess.run([model.q_hat_beam_string,model.q_gold], feed_dict={model.input_batch: train_batch ,model.is_training:False})
 
+                out_str=""
+                for b, pred in enumerate(pred_batch):
+                    pred_str = tokens_to_string(pred)
+                    gold_str = tokens_to_string(gold_batch[b])
+                    f1s.append(metrics.f1(gold_str, pred_str))
+                    bleus.append(metrics.bleu(gold_str, pred_str))
+                    out_str+=pred_str+"<br/>"+gold_str+"<hr/>"
+                if i==0:
+                    with open(FLAGS.log_dir+'out_eval.htm', 'w') as fp:
+                        fp.write(out_str)
 
+            f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
+                                             simple_value=sum(f1s)/len(f1s))])
+            bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
+                                      simple_value=sum(bleus)/len(bleus))])
+
+            summary_writer.add_summary(f1summary, global_step=((e+1)*num_steps_train))
+            summary_writer.add_summary(bleusummary, global_step=((e+1)*num_steps_train))
+
+            mean_f1=sum(f1s)/len(f1s)
+            if mean_f1 > max_oos_f1:
+                print("New best F1! ", mean_f1, " Saving...")
+                max_oos_f1 = mean_f1
+                saver.save(sess, chkpt_path+'/model.checkpoint')
+            else:
+                print("F1 not improved ", mean_f1)
 if __name__ == '__main__':
     tf.app.run()

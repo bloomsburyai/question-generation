@@ -166,116 +166,135 @@ class Seq2SeqModel(TFModel):
 
         # decode
         # TODO: for Maluuba model, decoder inputs are concat of context and answer encoding
-        with tf.variable_scope('decoder'):
+        with tf.variable_scope('decoder_init'):
 
-            if not self.training_mode:
-                memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
-                memory_sequence_length = tf.contrib.seq2seq.tile_batch( self.context_length, multiplier=FLAGS.beam_width)
-                s0_tiled = tf.contrib.seq2seq.tile_batch( self.s0, multiplier=FLAGS.beam_width)
-                init_state = tf.contrib.rnn.LSTMStateTuple(s0_tiled, tf.contrib.seq2seq.tile_batch(tf.zeros([curr_batch_size, self.decoder_units]), multiplier=FLAGS.beam_width))
-                # init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
-                # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width)
-            else:
-                memory = self.context_encoder_output
-                memory_sequence_length = self.context_length
-                init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
+            # if not self.training_mode:
+            beam_memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
+            beam_memory_sequence_length = tf.contrib.seq2seq.tile_batch( self.context_length, multiplier=FLAGS.beam_width)
+            s0_tiled = tf.contrib.seq2seq.tile_batch( self.s0, multiplier=FLAGS.beam_width)
+            beam_init_state = tf.contrib.rnn.LSTMStateTuple(s0_tiled, tf.contrib.seq2seq.tile_batch(tf.zeros([curr_batch_size, self.decoder_units]), multiplier=FLAGS.beam_width))
+            # init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
+            # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width)
+            # else:
+            train_memory = self.context_encoder_output
+            train_memory_sequence_length = self.context_length
+            train_init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
 
+        with tf.variable_scope('attn_mech') as scope:
+            train_attention_mechanism = copy_attention_wrapper.BahdanauAttention(
+                            num_units=self.decoder_units, memory=train_memory,
+                            memory_sequence_length=train_memory_sequence_length)
 
-            attention_mechanism = copy_attention_wrapper.BahdanauAttention(
-                            num_units=self.decoder_units, memory=memory,
-                            memory_sequence_length=memory_sequence_length)
-
-            # copy_mechanism = copy_attention_wrapper.BahdanauAttention(
-            #                 num_units=self.decoder_units, memory=memory,
-            #                 memory_sequence_length=memory_sequence_length)
-
-            decoder_cell = tf.contrib.rnn.DropoutWrapper(
+            train_decoder_cell = tf.contrib.rnn.DropoutWrapper(
                     cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
 
-
-
-            # decoder_cell = tf.contrib.seq2seq.AttentionWrapper(decoder_cell,
-            #                                                     attention_mechanism,
-            #                                                     attention_layer_size=self.decoder_units / 2,
-            #                                                     alignment_history=True)
-
-            decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(decoder_cell,
-                                                                attention_mechanism,
+            train_decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(train_decoder_cell,
+                                                                train_attention_mechanism,
                                                                 attention_layer_size=self.decoder_units / 2,
                                                                 alignment_history=False,
-                                                                copy_mechanism=attention_mechanism,
+                                                                copy_mechanism=train_attention_mechanism,
                                                                 output_attention=True,
-                                                                initial_cell_state=init_state)
+                                                                initial_cell_state=train_init_state)
 
-            init_state = decoder_cell.zero_state(curr_batch_size*(FLAGS.beam_width if not self.training_mode else 1), tf.float32).clone(cell_state=init_state)
+            train_init_state = train_decoder_cell.zero_state(curr_batch_size*(1), tf.float32).clone(cell_state=train_init_state)
 
-            projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+        # copy_mechanism = copy_attention_wrapper.BahdanauAttention(
+        #                 num_units=self.decoder_units, memory=memory,
+        #                 memory_sequence_length=memory_sequence_length)
+
+        with tf.variable_scope(scope, reuse=True):
+            beam_attention_mechanism = copy_attention_wrapper.BahdanauAttention(
+                            num_units=self.decoder_units, memory=beam_memory,
+                            memory_sequence_length=beam_memory_sequence_length)
+            beam_decoder_cell = tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
+                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
+
+            beam_decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(beam_decoder_cell,
+                                                                beam_attention_mechanism,
+                                                                attention_layer_size=self.decoder_units / 2,
+                                                                alignment_history=False,
+                                                                copy_mechanism=beam_attention_mechanism,
+                                                                output_attention=True,
+                                                                initial_cell_state=beam_init_state)
+
+            beam_init_state = beam_decoder_cell.zero_state(curr_batch_size*(FLAGS.beam_width), tf.float32).clone(cell_state=beam_init_state)
+
+
+        # We have to make two copies of the layer as beam search uses different shapes - but force them to share variables
+        with tf.variable_scope('copy_layer') as scope:
+            train_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
-                                            training_mode=self.is_training)
+                                            training_mode=self.is_training,
+                                            name="copy_layer")
+
+            scope.reuse_variables()
+
+            beam_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+                                            source_provider=lambda: self.context_ids,
+                                            condition_encoding=lambda: self.context_encoding,
+                                            vocab_size=len(self.vocab),
+                                            training_mode=self.is_training,
+                                            name="copy_layer")
+
+        with tf.variable_scope('training_decoder'):
+            # Helper - training
+            training_helper = tf.contrib.seq2seq.TrainingHelper(
+                self.question_teach_oh, self.question_length)
+                # decoder_emb_inp, length(decoder_emb_inp)+1)
+
+            # Decoder - training
+            training_decoder = tf.contrib.seq2seq.BasicDecoder(
+                train_decoder_cell, training_helper,
+                initial_state=train_init_state,
+                # initial_state=encoder_state
+                # TODO: hardcoded FLAGS.max_copy_size is longest context in SQuAD - this will need changing for a new dataset!!!
+                output_layer=train_projection_layer
+                )
+
+            # Unroll the decoder
+            training_outputs, training_decoder_states,training_out_lens = tf.contrib.seq2seq.dynamic_decode(training_decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
+
+            training_probs=training_outputs.rnn_output
+
+        with tf.variable_scope('beam_decoder'):
+            start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
+            end_token = self.vocab[EOS]
+
+            beam_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = beam_decoder_cell,
+                                                               embedding = tf.eye(len(self.vocab) + FLAGS.max_copy_size),
+                                                               start_tokens = start_tokens,
+                                                               end_token = end_token,
+                                                               initial_state = beam_init_state,
+                                                               beam_width = FLAGS.beam_width,
+                                                               output_layer = beam_projection_layer )
+
+            # helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+            #       embedding=tf.eye(len(self.vocab) + FLAGS.max_copy_size),
+            #       start_tokens=tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size ] ),
+            #       end_token=end_token)
+            # my_decoder = tf.contrib.seq2seq.BasicDecoder( cell = decoder_cell,
+            #                                                 helper=helper,
+            #                                                   initial_state = init_state,
+            #                                                   output_layer = projection_layer )
+
+            beam_outputs, beam_decoder_states,beam_out_lens = tf.contrib.seq2seq.dynamic_decode(  beam_decoder,
+                                                                    impute_finished=False,
+                                                                   maximum_iterations=32 )
+
+            # logits = outputs.rnn_output
+            beam_pred_ids = beam_outputs.predicted_ids[:,:,0]
+            beam_pred_scores = beam_outputs.beam_search_decoder_output.scores
+            
+            # pred_ids = debug_shape(pred_ids, "pred ids")
+            beam_probs = tf.one_hot(beam_pred_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
+            # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+FLAGS.max_copy_size)
 
 
-
-            if self.training_mode:
-                # Helper - training
-                helper = tf.contrib.seq2seq.TrainingHelper(
-                    self.question_teach_oh, self.question_length)
-                    # decoder_emb_inp, length(decoder_emb_inp)+1)
-
-                # Decoder - training
-                decoder = tf.contrib.seq2seq.BasicDecoder(
-                    decoder_cell, helper,
-                    initial_state=init_state,
-                    # initial_state=encoder_state
-                    # TODO: hardcoded FLAGS.max_copy_size is longest context in SQuAD - this will need changing for a new dataset!!!
-                    output_layer=projection_layer
-                    )
-
-                # Unroll the decoder
-                outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(decoder,impute_finished=True, maximum_iterations=tf.reduce_max(self.question_length))
-
-                probs=outputs.rnn_output
-            else:
-                start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
-                end_token = self.vocab[EOS]
-
-                # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width )
-                # init_state = decoder_cell.zero_state(curr_batch_size * FLAGS.beam_width, tf.float32).clone(cell_state=init_state)
-                # init_state = decoder_cell.zero_state(curr_batch_size, tf.float32).clone(cell_state=init_state)
-
-
-
-                my_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = decoder_cell,
-                                                                   embedding = tf.eye(len(self.vocab) + FLAGS.max_copy_size),
-                                                                   start_tokens = start_tokens,
-                                                                   end_token = end_token,
-                                                                   initial_state = init_state,
-                                                                   beam_width = FLAGS.beam_width,
-                                                                   output_layer = projection_layer )
-
-                # helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                #       embedding=tf.eye(len(self.vocab) + FLAGS.max_copy_size),
-                #       start_tokens=tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size ] ),
-                #       end_token=end_token)
-                # my_decoder = tf.contrib.seq2seq.BasicDecoder( cell = decoder_cell,
-                #                                                 helper=helper,
-                #                                                   initial_state = init_state,
-                #                                                   output_layer = projection_layer )
-
-                outputs, decoder_states,out_lens = tf.contrib.seq2seq.dynamic_decode(  my_decoder,
-                                                                        impute_finished=False,
-                                                                       maximum_iterations=32 )
-
-                # logits = outputs.rnn_output
-                pred_ids = outputs.predicted_ids
-                # pred_ids = debug_shape(pred_ids, "pred ids")
-                probs = tf.one_hot(pred_ids[:,:,0], depth=len(self.vocab)+FLAGS.max_copy_size)
-                # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+FLAGS.max_copy_size)
-
-
-        self.q_hat = probs#tf.nn.softmax(logits, dim=2)
+        self.q_hat = training_probs#tf.nn.softmax(logits, dim=2)
         # self.q_hat = debug_op(self.q_hat, tf.argmax(self.q_hat, axis=2), "q hat")
         # self.context_length = debug_tensor(self.context_length, "ctxt len", summarize=None)
 
@@ -320,6 +339,9 @@ class Seq2SeqModel(TFModel):
             self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
             self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw)
             self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw)
+
+            self.q_hat_beam_ids = beam_pred_ids
+            self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw)
 
             # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
             # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
