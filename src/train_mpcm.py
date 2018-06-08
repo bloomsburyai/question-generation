@@ -2,7 +2,7 @@ import os,time,datetime
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
-mem_limit=0.5
+mem_limit=0.95
 
 import tensorflow as tf
 import numpy as np
@@ -34,12 +34,13 @@ def main(_):
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.qa_vocab_size)
 
     model = MpcmQa(vocab)
-    saver = tf.train.Saver()
+    with model.graph.as_default():
+        saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+'qa/'+str(int(time.time()))
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+str(int(time.time())), sess.graph)

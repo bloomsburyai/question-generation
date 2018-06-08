@@ -12,7 +12,7 @@ def output_pretty(tokens, pred_ids, gold_ids, copy,e,i):
     margin: 0 0 35px 0;
     display: inline-block;
     position: relative;
-    min-width:30px;
+    min-width:40px;
     }
     small span { padding:0px;}
     </style>'''

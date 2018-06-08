@@ -36,14 +36,15 @@ def main(_):
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.qa_vocab_size)
 
     model = MpcmQa(vocab)
-    saver = tf.train.Saver()
+    with model.graph.as_default():
+        saver = tf.train.Saver()
 
     chkpt_path = FLAGS.model_dir+'saved/qatest'
 
 
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+str(int(time.time())), sess.graph)

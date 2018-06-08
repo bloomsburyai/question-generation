@@ -29,6 +29,8 @@ class MpcmQa(TFModel):
 
         self.context_in = tf.placeholder(tf.int32, [None, None])
         self.question_in = tf.placeholder(tf.int32, [None, None])
+        self.context_len = tf.reduce_sum(tf.cast(tf.not_equal(self.context_in, self.vocab[loader.PAD]), tf.int32), axis=1)
+        self.question_len = tf.reduce_sum(tf.cast(tf.not_equal(self.question_in, self.vocab[loader.PAD]), tf.int32), axis=1)
 
         self.answer_spans_in = tf.placeholder(tf.int32, [None, 2])
 
@@ -70,6 +72,7 @@ class MpcmQa(TFModel):
         # print(self.question_encodings)
 
         # Layer 4: context matching layer
+        eps = 1e-6
         def similarity(v1, v2, W): #v1,v2 are batch x seq x d, W is lxd
             W_tiled = tf.tile(tf.expand_dims(W,axis=-1), [1,1,tf.shape(W)[1]])
             # print(W_tiled)
@@ -78,18 +81,35 @@ class MpcmQa(TFModel):
             v2_weighted =tf.tensordot(v2, W_tiled, [[-1],[-1]])
             # print(v2_weighted)
             similarity = tf.einsum("bild,bjld->bijl", v1_weighted, v2_weighted)
+            v1_norm = tf.tile(tf.expand_dims(tf.norm(v1_weighted, ord=1,axis=-1),axis=-2), [1,1,tf.shape(v2)[1],1])
+            v2_norm = tf.tile(tf.expand_dims(tf.norm(v2_weighted, ord=1,axis=-1),axis=-3), [1,tf.shape(v1)[1],1,1])
             # print(similarity)
-            return similarity
+            return similarity/v1_norm/v2_norm
 
-        m_fwd = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W1", (50, num_units_encoder), tf.float32, tf.random_uniform_initializer(-1,1))), rate=0.2, training=self.is_training)
-        m_bwd = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W2", (50, num_units_encoder), tf.float32, tf.random_uniform_initializer(-1,1))), rate=0.2, training=self.is_training)
+        m_fwd = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W1", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
+        m_bwd = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W2", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
+        m_fwd2 = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W3", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
+        m_bwd2 = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W4", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
+        m_fwd3 = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W5", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
+        m_bwd3 = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W6", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
 
-        m_full_fwd = m_fwd[:,:,-1,:]
+        def get_last_seq(seq, lengths): # seq is batch x dim1 x time  x dim2
+            seq = tf.transpose(seq, [0,2,1,3]) # batch x time x dim1 x dim2
+            lengths = tf.maximum(lengths, tf.zeros_like(lengths, dtype=tf.int32))
+
+            batch_size = tf.shape(lengths)[0]
+            batch_nums = tf.range(0, limit=batch_size) # shape (batch_size)
+            indices = tf.stack((batch_nums, lengths), axis=1) # shape (batch_size, 2)
+            result = tf.gather_nd(seq, indices)
+            return result # [batch_size, dim1, dim 2]
+
+        # -1 should actually be the question length
+        m_full_fwd = get_last_seq(m_fwd, self.question_len-1)
         m_full_bwd = m_bwd[:,:,0,:]
-        m_max_fwd  = tf.reduce_max(m_fwd, axis=2)
-        m_max_bwd  = tf.reduce_max(m_bwd, axis=2)
-        m_mean_fwd  = tf.reduce_mean(m_fwd, axis=2)
-        m_mean_bwd  = tf.reduce_mean(m_bwd, axis=2)
+        m_max_fwd  = tf.reduce_max(m_fwd2, axis=2)
+        m_max_bwd  = tf.reduce_max(m_bwd2, axis=2)
+        m_mean_fwd  = tf.reduce_mean(m_fwd3, axis=2)
+        m_mean_bwd  = tf.reduce_mean(m_bwd3, axis=2)
         self.matches = tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2)
 
         # print(m_full_bwd)
