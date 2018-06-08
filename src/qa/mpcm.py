@@ -12,7 +12,7 @@ import helpers.loader as loader
 import flags
 FLAGS = tf.app.flags.FLAGS
 
-mem_limit=0.25
+mem_limit=0.5
 
 
 # This should handle the mechanics of the model - basically it's a wrapper around the TF graph
@@ -52,7 +52,7 @@ class MpcmQa(TFModel):
         r_question = tf.reduce_max(r, axis=1, keep_dims=True)
 
         self.context_filtered = tf.layers.dropout(tf.tile(r_context, [1,1,self.embedding_size]) * self.context_embedded, rate=0.2, training=self.is_training)
-        self.question_filtered = tf.layers.dropout(tf.tile(tf.transpose(r_question,[0,2,1]), [1,1,self.embedding_size]) * self.question_embedded, rate=0.2, training=self.is_training)
+        self.question_filtered = self.question_embedded#tf.layers.dropout(tf.tile(tf.transpose(r_question,[0,2,1]), [1,1,self.embedding_size]) * self.question_embedded, rate=0.2, training=self.is_training)
 
         # print(self.context_filtered)
         # print(self.question_filtered)

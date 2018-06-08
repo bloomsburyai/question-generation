@@ -337,7 +337,7 @@ class Seq2SeqModel(TFModel):
         params = tf.trainable_variables()
         gradients = tf.gradients(self.loss, params)
         clipped_gradients, _ = tf.clip_by_global_norm(
-            gradients, 2)
+            gradients, 5)
 
         # Optimization
         self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(

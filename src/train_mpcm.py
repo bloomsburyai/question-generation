@@ -24,6 +24,13 @@ def get_padded_batch(seq_batch, vocab):
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
+    if FLAGS.testing:
+        print('TEST MODE - reducing model size')
+        FLAGS.qa_encoder_units =32
+        FLAGS.qa_match_units=32
+        FLAGS.batch_size =16
+        FLAGS.embedding_size=50
+
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
