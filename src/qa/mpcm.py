@@ -47,8 +47,6 @@ class MpcmQa(TFModel):
         self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_in), rate=0.2, training=self.is_training)
 
         # Layer 2: Filter. r is batch x con_len x q_len
-        # tf.einsum("bid,bjd->bij",self.context_embedded, self.question_embedded)
-        #tf.einsum("bi,bj->bij", tf.norm(self.context_embedded, ord=1, axis=2),tf.norm(self.question_embedded, ord=1, axis=2))
         r = tf.matmul(self.context_embedded, tf.transpose(self.question_embedded,[0,2,1]))/tf.matmul(tf.expand_dims(tf.sqrt(tf.norm(self.context_embedded, ord=2, axis=2)),-1),tf.expand_dims(tf.sqrt(tf.norm(self.question_embedded, ord=2, axis=2)),-2))
         r_context = tf.reduce_max(r, axis=2, keep_dims=True)
         r_question = tf.reduce_max(r, axis=1, keep_dims=True)
@@ -185,7 +183,7 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    FLAGS.qa_vocab_size=2000 # temp
+
     vocab = loader.get_vocab(train_qs, FLAGS.qa_vocab_size)
 
     qa = MpcmQaInstance(vocab)

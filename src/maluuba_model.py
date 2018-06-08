@@ -23,8 +23,8 @@ class MaluubaModel(Seq2SeqModel):
         self.lm = LstmLmInstance(lm_vocab)
         self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
-        # self.qa = MpcmQaInstance(qa_vocab)
-        # self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+        self.qa = MpcmQaInstance(qa_vocab)
+        self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
 
         with self.graph.as_default():
 
@@ -55,8 +55,8 @@ class MaluubaModel(Seq2SeqModel):
             self._train_summaries.append(tf.summary.scalar("train_loss/qa", qa_loss))
 
             self.loss = self.loss + \
-                tf.cond(self.rl_lm_enabled, lambda: lm_loss*0.1, lambda: tf.constant(0.0)) + \
-                tf.cond(self.rl_qa_enabled, lambda: qa_loss*1.0, lambda: tf.constant(0.0))
+                tf.cond(self.rl_lm_enabled, lambda: lm_loss*0.25, lambda: tf.constant(0.0)) + \
+                tf.cond(self.rl_qa_enabled, lambda: qa_loss*0.5, lambda: tf.constant(0.0))
 
             self._train_summaries.append(tf.summary.scalar("train_loss/loss_incrl", self.loss))
 

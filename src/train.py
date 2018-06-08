@@ -12,7 +12,7 @@ from helpers.output import output_pretty, output_basic, tokens_to_string
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
-# from maluuba_model import MaluubaModel
+from maluuba_model import MaluubaModel
 
 from datasources.squad_streamer import SquadStreamer
 
@@ -20,8 +20,8 @@ import flags
 
 import helpers.metrics as metrics
 
-model_type = "SEQ2SEQ"
-# model_type = "MALUUBA"
+# model_type = "SEQ2SEQ"
+model_type = "MALUUBA"
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -92,16 +92,36 @@ def main(_):
                     # do a fwd pass first, get the score, then do another pass and optimize
                     res= sess.run(model.q_hat_string, feed_dict={model.input_batch: train_batch ,model.is_training:True})
                     qhat_for_lm = [preprocessing.lookup_vocab(q, ext_vocab, do_tokenise=False) for q in res.tolist()]
+                    ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, ext_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
+
                     lm_score = model.lm.get_seq_prob(qhat_for_lm).tolist()
                     lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
                                                      simple_value=sum(lm_score)/len(lm_score))])
                     summary_writer.add_summary(lm_summary, global_step=(e*num_steps+i))
-                    # print(res)
-                    # print(lm_score)
+
+                    qa_pred = model.qa.get_ans(ctxt_for_lm, qhat_for_lm).tolist()
+
+                    gold_str=[]
+                    pred_str=[]
+                    qa_f1s = []
+
+                    for b in range(FLAGS.batch_size):
+                        gold_str.append(" ".join([w.decode() for w in train_batch[2][0][b][:train_batch[2][2][b]-1].tolist()]))
+                        pred_str.append(" ".join([w.decode() for w in train_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
+                    if i == 0:
+                        print(gold_str[0])
+                        print(pred_str[0])
+                        print(qa_pred[0])
+                    qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
+
+                    qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
+                                                     simple_value=sum(qa_f1s)/len(qa_f1s))])
+                    summary_writer.add_summary(qa_summary, global_step=(e*num_steps+i))
+
                     rl_dict={model.lm_score: lm_score,
-                    model.qa_score: [0. for i in range(curr_batch_size)],
+                    model.qa_score: qa_f1s,
                     model.rl_lm_enabled: True,
-                    model.rl_qa_enabled: False}
+                    model.rl_qa_enabled: True}
                 else:
                     rl_dict={}
 
