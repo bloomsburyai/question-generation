@@ -78,7 +78,7 @@ def main(_):
                 # print(batch_answers[:3])
                 # exit()
 
-                _,summ, pred = sess.run([model.optimise, model.train_summary, model.pred_span],
+                _,summ, pred = sess.run([model.optimizer, model.train_summary, model.pred_span],
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,

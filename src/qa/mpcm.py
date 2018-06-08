@@ -132,8 +132,17 @@ class MpcmQa(TFModel):
         self.prob_end = tf.nn.softmax(self.logits_end)
 
         # training loss
-        self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,0], logits=self.logits_start)+tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,1], logits=self.logits_end))
-        self.optimise = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
+        self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,0], logits=self.logits_start)*0.5+tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,1], logits=self.logits_end)*0.5)
+
+        # Calculate and clip gradients
+        params = tf.trainable_variables()
+        gradients = tf.gradients(self.loss, params)
+        clipped_gradients, _ = tf.clip_by_global_norm(
+            gradients, 5)
+
+        # Optimization
+        self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+            zip(clipped_gradients, params))
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.stack([tf.argmax(self.prob_start, axis=-1, output_type=tf.int32),tf.argmax(self.prob_end, axis=-1, output_type=tf.int32)],axis=1), self.answer_spans_in), tf.float32))
 
