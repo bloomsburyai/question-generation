@@ -6,7 +6,7 @@ tf.app.flags.DEFINE_boolean("testing", False, "Reduce model size for local testi
 
 tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
-tf.app.flags.DEFINE_integer("num_epochs", 20, "Train the model for this many epochs")
+tf.app.flags.DEFINE_integer("num_epochs", 30, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 32, "Batch size")
 tf.app.flags.DEFINE_string("data_path", './data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
@@ -20,7 +20,7 @@ tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden unit
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
-tf.app.flags.DEFINE_float("learning_rate", 2e-3, "Optimizer learning rate")
+tf.app.flags.DEFINE_float("learning_rate", 5e-4, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 
 tf.app.flags.DEFINE_float("lm_weight", 0.25, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
