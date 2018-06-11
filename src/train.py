@@ -67,14 +67,14 @@ def main(_):
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qgen/'+str(int(time.time()))
+    chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+str(int(time.time()))
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True), graph=model.graph) as sess, \
         tf.device('/gpu:0'):
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+str(int(time.time())), sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+str(int(time.time())), sess.graph)
 
         train_data_source.initialise(train_data)
 
