@@ -12,8 +12,6 @@ tf.app.flags.DEFINE_string("data_path", './data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 
-tf.app.flags.DEFINE_boolean("use_gpu", False, "Is a GPU available on this system?")
-
 # hyperparams - these should probably be within the model?
 tf.app.flags.DEFINE_integer("max_copy_size", 768, "Max context length to limit output distribution")
 

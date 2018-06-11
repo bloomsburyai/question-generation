@@ -44,7 +44,8 @@ def main(_):
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
 
-    ext_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
+    lm_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
+    qa_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
 
     if FLAGS.testing:
         train_data=train_data[:1000]
@@ -56,7 +57,7 @@ def main(_):
     if model_type == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
-        model = MaluubaModel(vocab, ext_vocab, ext_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
 
@@ -71,7 +72,7 @@ def main(_):
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True), graph=model.graph) as sess, \
-        tf.device('/gpu:0'):
+        tf.device('/gpu:1'):
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+str(int(time.time())), sess.graph)
