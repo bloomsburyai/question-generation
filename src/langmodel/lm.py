@@ -13,7 +13,7 @@ import helpers.ops as ops
 import flags
 FLAGS = tf.app.flags.FLAGS
 
-mem_limit=0.25
+# mem_limit=0.25
 
 
 # This should handle the mechanics of the model - basically it's a wrapper around the TF graph
