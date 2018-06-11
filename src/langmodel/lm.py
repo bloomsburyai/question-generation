@@ -28,11 +28,12 @@ class LstmLm(TFModel):
 
     def build_model(self):
 
-        # Load glove embeddings
-        glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
-        embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
-        self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
-        assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+        with tf.device('/cpu:*'):
+            # Load glove embeddings
+            glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
+            embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
+            self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+            assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
         # input placeholder
         self.input_seqs = tf.placeholder(tf.int32, [None, None])
