@@ -137,7 +137,7 @@ def main(_):
                     with open(FLAGS.log_dir+'out_qa.htm', 'w') as fp:
                         fp.write(out_str)
 
-                    saver.save(sess, chkpt_path+'/model.checkpoint')
+                    # saver.save(sess, chkpt_path+'/model.checkpoint')
 
 
             f1s=[]
