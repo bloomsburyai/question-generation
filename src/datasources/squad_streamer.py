@@ -19,7 +19,7 @@ class SquadStreamer():
         with self.graph.as_default():
             self.build_data_pipeline(batch_size)
 
-        gpu_options = tf.GPUOptions(visible_device_list="")
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0,visible_device_list="")
 
         self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True), graph=self.graph)
 
