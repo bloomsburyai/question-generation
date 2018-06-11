@@ -16,19 +16,18 @@ class MaluubaModel(Seq2SeqModel):
     def __init__(self, vocab, lm_vocab, qa_vocab, batch_size, training_mode=False, lm_weight=None, qa_weight=None):
         self.lm_weight = lm_weight
         self.qa_weight = qa_weight
+
         super().__init__(vocab, batch_size, advanced_condition_encoding=True, training_mode=training_mode)
         self.modify_seq2seq_model(lm_vocab, qa_vocab)
 
     def modify_seq2seq_model(self, lm_vocab, qa_vocab):
         print('Modifying Seq2Seq model to incorporate RL rewards')
         if self.lm_weight is not None:
-            with tf.device('/gpu:0'):
-                self.lm = LstmLmInstance(lm_vocab)
+            self.lm = LstmLmInstance(lm_vocab)
             self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
         if self.qa_weight is not None:
-            with tf.device('/gpu:0'):
-                self.qa = MpcmQaInstance(qa_vocab)
+            self.qa = MpcmQaInstance(qa_vocab)
             self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
 
         with self.graph.as_default():

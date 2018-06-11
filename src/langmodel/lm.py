@@ -77,7 +77,7 @@ class LstmLm(TFModel):
 class LstmLmInstance():
     def __init__(self, vocab):
         self.model = LstmLm(vocab, num_units=512, training_mode=False)
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
     def __del__(self):
