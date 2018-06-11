@@ -87,12 +87,12 @@ class MpcmQa(TFModel):
             # print(similarity)
             return similarity/v1_norm/v2_norm
 
-        m_fwd = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W1", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
-        m_bwd = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W2", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
-        m_fwd2 = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W3", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
-        m_bwd2 = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W4", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
-        m_fwd3 = tf.layers.dropout(similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W5", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
-        m_bwd3 = tf.layers.dropout(similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W6", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer())), rate=0.2, training=self.is_training)
+        m_fwd = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W1", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
+        m_bwd = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W2", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
+        m_fwd2 = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W3", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
+        m_bwd2 = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W4", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
+        m_fwd3 = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W5", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
+        m_bwd3 = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W6", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
 
         def get_last_seq(seq, lengths): # seq is batch x dim1 x time  x dim2
             seq = tf.transpose(seq, [0,2,1,3]) # batch x time x dim1 x dim2
@@ -111,7 +111,7 @@ class MpcmQa(TFModel):
         m_max_bwd  = tf.reduce_max(m_bwd2, axis=2)
         m_mean_fwd  = tf.reduce_mean(m_fwd3, axis=2)
         m_mean_bwd  = tf.reduce_mean(m_bwd3, axis=2)
-        self.matches = tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2)
+        self.matches = tf.layers.dropout(tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2), rate=0.2, training=self.is_training)
 
         # print(m_full_bwd)
         # print(self.matches)
