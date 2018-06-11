@@ -23,10 +23,12 @@ class MaluubaModel(Seq2SeqModel):
     def modify_seq2seq_model(self, lm_vocab, qa_vocab):
         print('Modifying Seq2Seq model to incorporate RL rewards')
         if self.lm_weight > 0:
+            print('Building and loading LM')
             self.lm = LstmLmInstance(lm_vocab)
             self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
         if self.qa_weight > 0:
+            print('Building and loading QA model')
             self.qa = MpcmQaInstance(qa_vocab)
             self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
 
