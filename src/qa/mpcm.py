@@ -14,7 +14,7 @@ from helpers.misc_utils import debug_shape
 import flags
 FLAGS = tf.app.flags.FLAGS
 
-# mem_limit=0.5
+mem_limit=0.95
 
 
 # This should handle the mechanics of the model - basically it's a wrapper around the TF graph
@@ -160,7 +160,7 @@ class MpcmQa(TFModel):
 class MpcmQaInstance():
     def __init__(self, vocab):
         self.model = MpcmQa(vocab, training_mode=False)
-        # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True)9
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
     def load_from_chkpt(self, path):
