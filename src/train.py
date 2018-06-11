@@ -1,7 +1,7 @@
 import os,time, json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2"
 mem_limit=0.95
 
 import tensorflow as tf
@@ -36,7 +36,7 @@ def main(_):
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:200]
+    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
@@ -54,7 +54,7 @@ def main(_):
     if model_type == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
-        model = MaluubaModel(vocab, ext_vocab, ext_vocab, batch_size=FLAGS.batch_size, training_mode=True)
+        model = MaluubaModel(vocab, ext_vocab, ext_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
 
@@ -68,7 +68,8 @@ def main(_):
     chkpt_path = FLAGS.model_dir+'qgen/'+str(int(time.time()))
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options), graph=model.graph) as sess:
+    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True), graph=model.graph) as sess, \
+        tf.device('/gpu:0'):
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+str(int(time.time())), sess.graph)
