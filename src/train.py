@@ -111,15 +111,17 @@ def main(_):
                 if model_type == "MALUUBA":
                     # do a fwd pass first, get the score, then do another pass and optimize
                     res= sess.run(model.q_hat_beam_string, feed_dict={model.input_batch: train_batch ,model.is_training:True})
-                    qhat_for_lm = [preprocessing.lookup_vocab(q, ext_vocab, do_tokenise=False) for q in res.tolist()]
-                    ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, ext_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
+                    qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in res.tolist()]
+                    ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
+                    qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in res.tolist()]
+                    ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
                     lm_score = model.lm.get_seq_prob(qhat_for_lm).tolist()
                     lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
                                                      simple_value=sum(lm_score)/len(lm_score))])
                     summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
 
-                    qa_pred = model.qa.get_ans(ctxt_for_lm, qhat_for_lm).tolist()
+                    qa_pred = model.qa.get_ans(ctxt_for_qa, qhat_for_qa).tolist()
 
                     gold_str=[]
                     pred_str=[]
