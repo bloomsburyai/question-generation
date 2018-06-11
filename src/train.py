@@ -1,7 +1,10 @@
 import os,time, json
 
+# model_type = "SEQ2SEQ"
+model_type = "MALUUBA"
+
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" if model_type == "MALUUBA" else "3"
 mem_limit=0.95
 
 import tensorflow as tf
@@ -20,8 +23,7 @@ import flags
 
 import helpers.metrics as metrics
 
-model_type = "SEQ2SEQ"
-# model_type = "MALUUBA"
+
 
 FLAGS = tf.app.flags.FLAGS
 

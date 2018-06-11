@@ -25,6 +25,9 @@ tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-3, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 
+tf.app.flags.DEFINE_float("lm_weight", 0.25, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
+tf.app.flags.DEFINE_float("qa_weight", 0.5, "Loss multiplier for QA in Maluuba model. Paper gives 1.0 alone or 0.5 joint")
+
 # QA - MPCM hparams
 tf.app.flags.DEFINE_integer("qa_vocab_size", 20000, "QA system vocab size")
 tf.app.flags.DEFINE_integer("qa_encoder_units", 100, "QA system - num units in encoder LSTM")

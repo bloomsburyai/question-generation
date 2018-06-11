@@ -18,10 +18,11 @@ mem_limit=0.25
 
 # This should handle the mechanics of the model - basically it's a wrapper around the TF graph
 class LstmLm(TFModel):
-    def __init__(self, vocab, num_units=128):
+    def __init__(self, vocab, num_units=128, training_mode=True):
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
         self.num_units = num_units
         self.vocab = vocab
+        self.training_mode = training_mode
         super().__init__()
 
 
@@ -59,7 +60,8 @@ class LstmLm(TFModel):
                     self.input_lengths-1, tf.shape(self.input_seqs)[1]-1, dtype=tf.float32)
         self.loss = tf.reduce_mean(tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)/tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32),axis=0)
 
-        self.optimise = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
+        if self.training_mode:
+            self.optimise = tf.train.AdamOptimizer(1e-4).minimize(self.loss)
 
         # seq evaluation
         self.log_probs = tf.reduce_sum(tf.one_hot(self.tgt_output, depth=len(self.vocab))*self.probs,axis=2)
@@ -73,9 +75,9 @@ class LstmLm(TFModel):
 # This should handle a concrete instance of a LM, loading params, spinning up the graph etc, to be used by other models
 class LstmLmInstance():
     def __init__(self, vocab):
-        self.model = LstmLm(vocab, num_units=512)
+        self.model = LstmLm(vocab, num_units=512, training_mode=False)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options))
+        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
     def __del__(self):
         self.sess.close()

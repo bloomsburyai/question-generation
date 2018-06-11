@@ -19,9 +19,10 @@ mem_limit=0.5
 
 # This should handle the mechanics of the model - basically it's a wrapper around the TF graph
 class MpcmQa(TFModel):
-    def __init__(self, vocab):
+    def __init__(self, vocab, training_mode=True):
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
         self.vocab = vocab
+        self.training_mode = training_mode
         super().__init__()
 
 
@@ -75,12 +76,12 @@ class MpcmQa(TFModel):
         # Layer 4: context matching layer
         eps = 1e-6
         def similarity(v1, v2, W): #v1,v2 are batch x seq x d, W is lxd
+            #"btd,ld->btld"
             W_tiled = tf.tile(tf.expand_dims(W,axis=-1), [1,1,tf.shape(W)[1]])
-            # print(W_tiled)
             v1_weighted =tf.tensordot(v1, W_tiled, [[-1],[-1]])
-            # print(v1_weighted)
             v2_weighted =tf.tensordot(v2, W_tiled, [[-1],[-1]])
-            # print(v2_weighted)
+
+
             similarity = tf.einsum("bild,bjld->bijl", v1_weighted, v2_weighted)
             v1_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v1_weighted, ord=2,axis=-1)),axis=-2), [1,1,tf.shape(v2)[1],1])
             v2_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v2_weighted, ord=2,axis=-1)),axis=-3), [1,tf.shape(v1)[1],1,1])
@@ -135,15 +136,16 @@ class MpcmQa(TFModel):
         # training loss
         self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,0], logits=self.logits_start)*0.5+tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.answer_spans_in[:,1], logits=self.logits_end)*0.5)
 
-        # Calculate and clip gradients
-        params = tf.trainable_variables()
-        gradients = tf.gradients(self.loss, params)
-        clipped_gradients, _ = tf.clip_by_global_norm(
-            gradients, 5)
+        if self.training_mode:
+            # Calculate and clip gradients
+            params = tf.trainable_variables()
+            gradients = tf.gradients(self.loss, params)
+            clipped_gradients, _ = tf.clip_by_global_norm(
+                gradients, 5)
 
-        # Optimization
-        self.optimizer = tf.train.AdamOptimizer(FLAGS.qa_learning_rate).apply_gradients(
-            zip(clipped_gradients, params))
+            # Optimization
+            self.optimizer = tf.train.AdamOptimizer(FLAGS.qa_learning_rate).apply_gradients(
+                zip(clipped_gradients, params))
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.stack([tf.argmax(self.prob_start, axis=-1, output_type=tf.int32),tf.argmax(self.prob_end, axis=-1, output_type=tf.int32)],axis=1), self.answer_spans_in), tf.float32))
 
@@ -157,9 +159,9 @@ class MpcmQa(TFModel):
 
 class MpcmQaInstance():
     def __init__(self, vocab):
-        self.model = MpcmQa(vocab)
+        self.model = MpcmQa(vocab, training_mode=False)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options))
+        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
     def load_from_chkpt(self, path):
         with self.model.graph.as_default():
