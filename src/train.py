@@ -73,7 +73,7 @@ def main(_):
 
     chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+str(int(time.time()))
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='1')
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='1',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
@@ -148,6 +148,11 @@ def main(_):
                     model.qa_score: qa_f1s,
                     model.rl_lm_enabled: True,
                     model.rl_qa_enabled: True}
+                elif model_type == "MALUUBA" and not perform_policy_gradient:
+                    rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
+                    model.qa_score: [0 for b in range(curr_batch_size)],
+                    model.rl_lm_enabled: False,
+                    model.rl_qa_enabled: False}
                 else:
                     rl_dict={}
 
