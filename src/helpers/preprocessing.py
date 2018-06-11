@@ -91,11 +91,13 @@ def char_pos_to_word(text, tokens, char_pos):
     if use_nltk:
         sents = [s for s in sent_tokenize(text)]
         spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
-        lens = [len(sent)+1  for sent in sents]
-        spans = [(span[0]+sum(lens[:i]), span[1]+sum(lens[:i])) for i,sent in enumerate(spans) for span in sent]
+        # lens = [len(sent)+1  for sent in sents]
+        offsets = [text.find(sent) for sent in sents] # can we do this faster?
+        spans = [(span[0]+offsets[i], span[1]+offsets[i]) for i,sent in enumerate(spans) for span in sent]
 
         for ix,s in enumerate(spans):
-            if s[0] >= char_pos:
+            # print(s, tokens[ix])
+            if s[1] >= char_pos:
                 return ix
         print('couldnt find the char pos via nltk')
         print(text, char_pos, len(text))

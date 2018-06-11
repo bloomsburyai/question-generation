@@ -50,7 +50,7 @@ class MpcmQa(TFModel):
         # Layer 2: Filter. r is batch x con_len x q_len
         r = tf.matmul(self.context_embedded, tf.transpose(self.question_embedded,[0,2,1]))/tf.matmul(tf.expand_dims(tf.sqrt(tf.norm(self.context_embedded, ord=2, axis=2)),-1),tf.expand_dims(tf.sqrt(tf.norm(self.question_embedded, ord=2, axis=2)),-2))
         r_context = tf.reduce_max(r, axis=2, keep_dims=True)
-        r_question = tf.reduce_max(r, axis=1, keep_dims=True)
+        # r_question = tf.reduce_max(r, axis=1, keep_dims=True)
 
         self.context_filtered = tf.tile(r_context, [1,1,self.embedding_size]) * self.context_embedded
         self.question_filtered = self.question_embedded#tf.layers.dropout(tf.tile(tf.transpose(r_question,[0,2,1]), [1,1,self.embedding_size]) * self.question_embedded, rate=0.2, training=self.is_training)
