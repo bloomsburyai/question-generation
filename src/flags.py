@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden unit
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
-tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
+tf.app.flags.DEFINE_float("learning_rate", 2e-3, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 
 # QA - MPCM hparams
