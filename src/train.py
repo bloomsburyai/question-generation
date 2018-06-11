@@ -58,8 +58,8 @@ def main(_):
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
         # TEMP
-        FLAGS.qa_weight = None
-        FLAGS.lm_weight = None
+        FLAGS.qa_weight = 0
+        FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
