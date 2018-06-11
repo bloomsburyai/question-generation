@@ -57,6 +57,9 @@ def main(_):
     if model_type == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
+        # TEMP
+        FLAGS.qa_weight = None
+        FLAGS.lm_weight = None
         model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
@@ -103,7 +106,7 @@ def main(_):
 
         max_oos_f1=0
         perform_policy_gradient = False # update this during training
-        
+
         for e in range(FLAGS.num_epochs):
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # Get a batch
