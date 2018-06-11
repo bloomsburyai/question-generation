@@ -13,7 +13,9 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class MaluubaModel(Seq2SeqModel):
-    def __init__(self, vocab, lm_vocab, qa_vocab, batch_size, training_mode=False):
+    def __init__(self, vocab, lm_vocab, qa_vocab, batch_size, training_mode=False, qa_weight=None, lm_weight=None):
+        self.lm_weight = lm_weight
+        self.qa_weight = qa_weight
         super().__init__(vocab, batch_size, advanced_condition_encoding=True, training_mode=training_mode)
         self.modify_seq2seq_model(lm_vocab, qa_vocab)
 
@@ -55,22 +57,23 @@ class MaluubaModel(Seq2SeqModel):
             self._train_summaries.append(tf.summary.scalar("train_loss/qa", qa_loss))
 
             self.loss = self.loss + \
-                tf.cond(self.rl_lm_enabled, lambda: lm_loss*0.25, lambda: tf.constant(0.0)) + \
-                tf.cond(self.rl_qa_enabled, lambda: qa_loss*0.5, lambda: tf.constant(0.0))
+                tf.cond(self.rl_lm_enabled, lambda: lm_loss*self.lm_weight, lambda: tf.constant(0.0)) if self.lm_weight is not None else tf.constant(0) + \
+                tf.cond(self.rl_qa_enabled, lambda: qa_loss*self.qa_weight, lambda: tf.constant(0.0)) if self.qa_weight is not None else tf.constant(0)
 
             self._train_summaries.append(tf.summary.scalar("train_loss/loss_incrl", self.loss))
 
             # this needs rebuilding again
             self.train_summary = tf.summary.merge(self._train_summaries)
 
+            #dont bother calculating gradients if not training
+            if self.training_mode:
+                # these need to be redefined with the correct inputs
+                # Calculate and clip gradients
+                params = tf.trainable_variables()
+                gradients = tf.gradients(self.loss, params)
+                clipped_gradients, _ = tf.clip_by_global_norm(
+                    gradients, 2)
 
-            # these need to be redefined with the correct inputs
-            # Calculate and clip gradients
-            params = tf.trainable_variables()
-            gradients = tf.gradients(self.loss, params)
-            clipped_gradients, _ = tf.clip_by_global_norm(
-                gradients, 2)
-
-            # Optimization
-            self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
-                zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
+                # Optimization
+                self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+                    zip(clipped_gradients, params)) if self.training_mode else tf.no_op()

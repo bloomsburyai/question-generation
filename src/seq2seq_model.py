@@ -41,13 +41,14 @@ class Seq2SeqModel(TFModel):
     def build_model(self):
 
         # self.build_data_pipeline(self.batch_size)
-        self.context_raw = tf.placeholder(tf.string, [None, None])  # source vectors of unknown size
+        with tf.device('/cpu:*'):
+            self.context_raw = tf.placeholder(tf.string, [None, None])  # source vectors of unknown size
+            self.question_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
+            self.answer_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
         self.context_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
         self.context_length  = tf.placeholder(tf.int32, [None])     # size(source)
-        self.question_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
         self.question_ids = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
         self.question_length  = tf.placeholder(tf.int32, [None])     # size(source)
-        self.answer_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
         self.answer_ids  = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
         self.answer_length  = tf.placeholder(tf.int32, [None])
         self.answer_locs  = tf.placeholder(tf.int32, [None,None])
@@ -71,10 +72,11 @@ class Seq2SeqModel(TFModel):
 
 
             # init embeddings
-            glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
-            embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
-            self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
-            assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+            with tf.device('/cpu:*'):
+                glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
+                embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
+                self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+                assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
 
             # First, coerce them to the shortlist vocab. Then embed
@@ -288,7 +290,7 @@ class Seq2SeqModel(TFModel):
             # logits = outputs.rnn_output
             beam_pred_ids = beam_outputs.predicted_ids[:,:,0]
             beam_pred_scores = beam_outputs.beam_search_decoder_output.scores
-            
+
             # pred_ids = debug_shape(pred_ids, "pred ids")
             beam_probs = tf.one_hot(beam_pred_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
             # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+FLAGS.max_copy_size)
@@ -355,14 +357,16 @@ class Seq2SeqModel(TFModel):
                 # tf.summary.text("context", self.context_raw),
                 tf.summary.text("answer", self.answer_raw)])
 
-        # Calculate and clip gradients
-        params = tf.trainable_variables()
-        gradients = tf.gradients(self.loss, params)
-        clipped_gradients, _ = tf.clip_by_global_norm(
-            gradients, 5)
+        #dont bother calculating gradients if not training
+        if self.training_mode:
+            # Calculate and clip gradients
+            params = tf.trainable_variables()
+            gradients = tf.gradients(self.loss, params)
+            clipped_gradients, _ = tf.clip_by_global_norm(
+                gradients, 5)
 
-        # Optimization
-        self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
-            zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
+            # Optimization
+            self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+                zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)

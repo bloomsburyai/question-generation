@@ -36,11 +36,12 @@ class MpcmQa(TFModel):
 
         self.answer_spans_in = tf.placeholder(tf.int32, [None, 2])
 
-        # Load glove embeddings
-        glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
-        embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
-        self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
-        assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+        with tf.device('/cpu:*'):
+            # Load glove embeddings
+            glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
+            embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
+            self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+            assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
         # Layer 1: representation layer
         self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_in), rate=0.2, training=self.is_training)
@@ -141,7 +142,7 @@ class MpcmQa(TFModel):
             gradients, 5)
 
         # Optimization
-        self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+        self.optimizer = tf.train.AdamOptimizer(FLAGS.qa_learning_rate).apply_gradients(
             zip(clipped_gradients, params))
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.stack([tf.argmax(self.prob_start, axis=-1, output_type=tf.int32),tf.argmax(self.prob_end, axis=-1, output_type=tf.int32)],axis=1), self.answer_spans_in), tf.float32))
