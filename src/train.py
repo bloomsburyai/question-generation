@@ -1,4 +1,4 @@
-import os,time, json
+import os,time, json,datetime
 
 # model_type = "SEQ2SEQ"
 model_type = "MALUUBA"
@@ -202,7 +202,7 @@ def main(_):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
                 pred_batch,gold_batch= sess.run([model.q_hat_beam_string,model.q_gold], feed_dict={model.input_batch: train_batch ,model.is_training:False})
 
-                out_str=""
+                out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
                     pred_str = tokens_to_string(pred)
                     gold_str = tokens_to_string(gold_batch[b])

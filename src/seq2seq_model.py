@@ -185,10 +185,10 @@ class Seq2SeqModel(TFModel):
         with tf.variable_scope('attn_mech') as scope:
             train_attention_mechanism = copy_attention_wrapper.BahdanauAttention(
                             num_units=self.decoder_units, memory=train_memory,
-                            memory_sequence_length=train_memory_sequence_length)
+                            memory_sequence_length=train_memory_sequence_length, name='bahdanau_attn')
 
             train_decoder_cell = tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units, name='decoder_cell'),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
 
             train_decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(train_decoder_cell,
@@ -197,7 +197,7 @@ class Seq2SeqModel(TFModel):
                                                                 alignment_history=False,
                                                                 copy_mechanism=train_attention_mechanism,
                                                                 output_attention=True,
-                                                                initial_cell_state=train_init_state)
+                                                                initial_cell_state=train_init_state, name='copy_attention_wrapper')
 
             train_init_state = train_decoder_cell.zero_state(curr_batch_size*(1), tf.float32).clone(cell_state=train_init_state)
 
@@ -205,12 +205,13 @@ class Seq2SeqModel(TFModel):
         #                 num_units=self.decoder_units, memory=memory,
         #                 memory_sequence_length=memory_sequence_length)
 
-        with tf.variable_scope(scope, reuse=True):
+        with tf.variable_scope('attn_mech', reuse=True) as scope:
+            scope.reuse_variables()
             beam_attention_mechanism = copy_attention_wrapper.BahdanauAttention(
                             num_units=self.decoder_units, memory=beam_memory,
-                            memory_sequence_length=beam_memory_sequence_length)
+                            memory_sequence_length=beam_memory_sequence_length, name='bahdanau_attn')
             beam_decoder_cell = tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
+                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units, name='decoder_cell'),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
 
             beam_decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(beam_decoder_cell,
@@ -219,7 +220,7 @@ class Seq2SeqModel(TFModel):
                                                                 alignment_history=False,
                                                                 copy_mechanism=beam_attention_mechanism,
                                                                 output_attention=True,
-                                                                initial_cell_state=beam_init_state)
+                                                                initial_cell_state=beam_init_state, name='copy_attention_wrapper')
 
             beam_init_state = beam_decoder_cell.zero_state(curr_batch_size*(FLAGS.beam_width), tf.float32).clone(cell_state=beam_init_state)
 
@@ -242,7 +243,7 @@ class Seq2SeqModel(TFModel):
                                             training_mode=self.is_training,
                                             name="copy_layer")
 
-        with tf.variable_scope('training_decoder'):
+        with tf.variable_scope('decoder_unroll') as scope:
             # Helper - training
             training_helper = tf.contrib.seq2seq.TrainingHelper(
                 self.question_teach_oh, self.question_length)
@@ -262,7 +263,7 @@ class Seq2SeqModel(TFModel):
 
             training_probs=training_outputs.rnn_output
 
-        with tf.variable_scope('beam_decoder'):
+        with tf.variable_scope(scope, reuse=True):
             start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
             end_token = self.vocab[EOS]
 
