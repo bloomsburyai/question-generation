@@ -207,7 +207,7 @@ def main(_):
                     gold_str = tokens_to_string(gold_batch[b])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
-                    out_str+=pred_str+"<br/>"+gold_str+"<hr/>"
+                    out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
                 if i==0:
                     with open(FLAGS.log_dir+'out_eval.htm', 'w') as fp:
                         fp.write(out_str)

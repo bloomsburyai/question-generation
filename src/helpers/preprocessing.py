@@ -94,10 +94,10 @@ def char_pos_to_word(text, tokens, char_pos):
         # lens = [len(sent)+1  for sent in sents]
         offsets = [text.find(sent) for sent in sents] # can we do this faster?
         spans = [(span[0]+offsets[i], span[1]+offsets[i]) for i,sent in enumerate(spans) for span in sent]
-
+        print(char_pos)
         for ix,s in enumerate(spans):
-            # print(s, tokens[ix])
-            if s[1] >= char_pos:
+            print(s, tokens[ix])
+            if s[1] > char_pos:
                 return ix
         print('couldnt find the char pos via nltk')
         print(text, char_pos, len(text))

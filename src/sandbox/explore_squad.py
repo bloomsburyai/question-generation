@@ -24,7 +24,7 @@ squad =  loader.load_squad_triples('./data/',False)
 
 min_pos = 99999999
 for i,triple in enumerate(squad):
-    if "Who does the Quran say was also from a pious family?" in triple[1]:
+    if "What is the name of the song that Jessica" in triple[1]:
         tokens = preprocessing.tokenise(triple[0], asbytes=False)
         tok_pos = preprocessing.char_pos_to_word(triple[0].encode(), tokens, triple[3])
         print(tokens[tok_pos])
