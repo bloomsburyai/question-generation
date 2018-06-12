@@ -187,9 +187,10 @@ class Seq2SeqModel(TFModel):
                             num_units=self.decoder_units, memory=train_memory,
                             memory_sequence_length=train_memory_sequence_length, name='bahdanau_attn')
 
-            train_decoder_cell = tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units, name='decoder_cell'),
-                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
+            with tf.variable_scope('decoder_cell'):
+                train_decoder_cell = tf.contrib.rnn.DropoutWrapper(
+                        cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
+                        input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
 
             train_decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(train_decoder_cell,
                                                                 train_attention_mechanism,
@@ -210,9 +211,11 @@ class Seq2SeqModel(TFModel):
             beam_attention_mechanism = copy_attention_wrapper.BahdanauAttention(
                             num_units=self.decoder_units, memory=beam_memory,
                             memory_sequence_length=beam_memory_sequence_length, name='bahdanau_attn')
-            beam_decoder_cell = tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units, name='decoder_cell'),
-                    input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
+
+            with tf.variable_scope('decoder_cell', reuse=True):
+                beam_decoder_cell = tf.contrib.rnn.DropoutWrapper(
+                        cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
+                        input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)))
 
             beam_decoder_cell = copy_attention_wrapper.CopyAttentionWrapper(beam_decoder_cell,
                                                                 beam_attention_mechanism,
