@@ -292,7 +292,13 @@ class Seq2SeqModel(TFModel):
                                                                    maximum_iterations=32 )
 
             # logits = outputs.rnn_output
+            # print(beam_out_lens)
             beam_pred_ids = beam_outputs.predicted_ids[:,:,0]
+            # beam_out_lens = debug_tensor(beam_out_lens, "beam lens")
+            beam_mask = tf.sequence_mask(beam_out_lens[:,0], tf.shape(beam_pred_ids)[1], dtype=tf.int32)
+            beam_pred_ids = beam_pred_ids*beam_mask
+            # beam_pred_ids = debug_tensor(beam_pred_ids, "beam pred ids masked")
+
             beam_pred_scores = beam_outputs.beam_search_decoder_output.scores
 
             # pred_ids = debug_shape(pred_ids, "pred ids")

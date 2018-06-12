@@ -15,7 +15,11 @@ def ids_to_string(rev_vocab):
             context_tokens = [w.decode() for w in context[i].tolist()]
             out_str = []
             for j in row:
-                if j< len(rev_vocab):
+                if j <0:
+                    print("Negative token id!")
+                    print(row)
+                    exit()
+                elif j< len(rev_vocab):
                     out_str.append(rev_vocab[j])
                 elif j < len(rev_vocab)+len(context_tokens):
                     out_str.append(context_tokens[j-len(rev_vocab)])
