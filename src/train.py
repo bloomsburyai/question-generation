@@ -200,7 +200,7 @@ def main(_):
             dev_data_source.initialise(dev_subset)
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,gold_batch= sess.run([model.q_hat_beam_string,model.q_gold], feed_dict={model.input_batch: train_batch ,model.is_training:False})
+                pred_batch,gold_batch= sess.run([model.q_hat_beam_string,model.q_gold], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
@@ -210,7 +210,7 @@ def main(_):
                     bleus.append(metrics.bleu(gold_str, pred_str))
                     out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
                 if i==0:
-                    with open(FLAGS.log_dir+'out_eval.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
                         fp.write(out_str)
 
             f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
