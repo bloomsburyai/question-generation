@@ -4,7 +4,7 @@ import os,time, json
 model_type = "MALUUBA"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" if model_type == "MALUUBA" else "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1" if model_type == "MALUUBA" else "3"
 mem_limit=0.95
 
 import tensorflow as tf
@@ -73,7 +73,8 @@ def main(_):
 
     chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+str(int(time.time()))
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='1',allow_growth = True)
+    # change visible devices if using RL models
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
