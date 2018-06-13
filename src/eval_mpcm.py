@@ -39,7 +39,7 @@ def main(_):
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
 
-    model = MpcmQa(vocab)
+    model = MpcmQa(vocab, training_mode=False)
     with model.graph.as_default():
         saver = tf.train.Saver()
 

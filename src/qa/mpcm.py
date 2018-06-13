@@ -53,7 +53,7 @@ class MpcmQa(TFModel):
         r_context = tf.reduce_max(r, axis=2, keep_dims=True)
         # r_question = tf.reduce_max(r, axis=1, keep_dims=True)
 
-        self.context_filtered = tf.tile(r_context, [1,1,self.embedding_size]) * self.context_embedded
+        self.context_filtered = r_context * self.context_embedded
         self.question_filtered = self.question_embedded#tf.layers.dropout(tf.tile(tf.transpose(r_question,[0,2,1]), [1,1,self.embedding_size]) * self.question_embedded, rate=0.2, training=self.is_training)
 
         # print(self.context_filtered)
@@ -77,14 +77,25 @@ class MpcmQa(TFModel):
         eps = 1e-6
         def similarity(v1, v2, W): #v1,v2 are batch x seq x d, W is lxd
             #"btd,ld->btld"
-            W_tiled = tf.tile(tf.expand_dims(W,axis=-1), [1,1,tf.shape(W)[1]])
-            v1_weighted =tf.tensordot(v1, W_tiled, [[-1],[-1]])
-            v2_weighted =tf.tensordot(v2, W_tiled, [[-1],[-1]])
+
+            # W_tiled = tf.tile(tf.expand_dims(W,axis=-1), [1,1,tf.shape(W)[1]])
+            # v1_weighted =tf.tensordot(v1, W_tiled, [[-1],[-1]])
+            # v2_weighted =tf.tensordot(v2, W_tiled, [[-1],[-1]])
+
+            v1_weighted = tf.expand_dims(v1,2) * tf.expand_dims(tf.expand_dims(W, axis=0),axis=0)
+            v2_weighted = tf.expand_dims(v2,2) * tf.expand_dims(tf.expand_dims(W, axis=0),axis=0)
+
+            # v1_weighted = tf.einsum("btd,ld->btld", v1, W)
+            # v2_weighted = tf.einsum("btd,ld->btld", v2, W)
 
 
-            similarity = tf.einsum("bild,bjld->bijl", v1_weighted, v2_weighted)
-            v1_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v1_weighted, ord=2,axis=-1)),axis=-2), [1,1,tf.shape(v2)[1],1])
-            v2_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v2_weighted, ord=2,axis=-1)),axis=-3), [1,tf.shape(v1)[1],1,1])
+            # similarity = tf.einsum("bild,bjld->bijl", v1_weighted, v2_weighted)
+            similarity = tf.matmul(tf.transpose(v1_weighted,[0,2,1,3]), tf.transpose(v2_weighted, [0,2,3,1]))
+            similarity = tf.transpose(similarity, [0,2,3,1])
+            # v1_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v1_weighted, ord=2,axis=-1)),axis=-2), [1,1,tf.shape(v2)[1],1])
+            v1_norm = tf.expand_dims(tf.sqrt(tf.norm(v1_weighted, ord=2,axis=-1)),axis=-2)
+            v2_norm = tf.expand_dims(tf.sqrt(tf.norm(v2_weighted, ord=2,axis=-1)),axis=-3)
+            # v2_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v2_weighted, ord=2,axis=-1)),axis=-3), [1,tf.shape(v1)[1],1,1])
             # print(similarity)
             return similarity/v1_norm/v2_norm
 
