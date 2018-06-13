@@ -1,7 +1,7 @@
 import os,time, json,datetime
 
-# model_type = "SEQ2SEQ"
-model_type = "MALUUBA"
+model_type = "SEQ2SEQ"
+# model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "1" if model_type == "MALUUBA" else "3"
@@ -34,24 +34,48 @@ def main(_):
         FLAGS.answer_encoder_units=100
         FLAGS.decoder_units=100
         FLAGS.batch_size =8
+        FLAGS.eval_batch_size=8
         # FLAGS.embedding_size=50
+
+    chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+str(int(time.time()))
+    restore_path=FLAGS.model_dir+'qgen/'+model_type+'/'+'1528886861'
+
+    if not os.path.exists(chkpt_path):
+        os.makedirs(chkpt_path)
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
-
-    print('Loaded SQuAD with ',len(train_data),' triples')
-    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
-
-    lm_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
-    qa_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
 
     if FLAGS.testing:
         train_data=train_data[:1000]
         num_dev_samples=100
     else:
         num_dev_samples=1000
+
+    print('Loaded SQuAD with ',len(train_data),' triples')
+    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+
+    if FLAGS.restore:
+        with open(restore_path+'/vocab.json') as f:
+            vocab = json.load(f)
+        with open(restore_path+'/lm_vocab.json') as f:
+            lm_vocab = json.load(f)
+        with open(restore_path+'/qa_vocab.json') as f:
+            qa_vocab = json.load(f)
+    else:
+        vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
+        with open(chkpt_path+'/vocab.json', 'w') as outfile:
+            json.dump(vocab, outfile)
+
+        lm_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
+        qa_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
+        with open(chkpt_path+'/lm_vocab.json', 'w') as outfile:
+            json.dump(lm_vocab, outfile)
+        with open(chkpt_path+'/qa_vocab.json', 'w') as outfile:
+            json.dump(qa_vocab, outfile)
+
+
 
     # Create model
     if model_type == "SEQ2SEQ":
@@ -71,20 +95,18 @@ def main(_):
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+str(int(time.time()))
 
     # change visible devices if using RL models
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
-        if not os.path.exists(chkpt_path):
-            os.makedirs(chkpt_path)
+
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+str(int(time.time())), sess.graph)
 
         train_data_source.initialise(train_data)
 
 
         if FLAGS.restore:
-            saver.restore(sess, FLAGS.model_dir+'qa/1234567'+ '/model.checkpoint')
+            saver.restore(sess, restore_path+ '/model.checkpoint')
             start_e=20
             print('Loaded model')
         else:

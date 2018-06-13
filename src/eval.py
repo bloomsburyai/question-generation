@@ -18,6 +18,9 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
+    # chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-shortlist'
+    chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
+
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:1500]
@@ -26,7 +29,14 @@ def main(_):
     print('Loaded SQuAD dev set with ',len(dev_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     dev_contexts, dev_qs, dev_as, dev_a_pos = zip(*dev_data)
-    vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
+
+    # vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
+    with open(chkpt_path+'/vocab.json') as f:
+        vocab = json.load(f)
+    with open(chkpt_path+'/lm_vocab.json') as f:
+        lm_vocab = json.load(f)
+    with open(chkpt_path+'/qa_vocab.json') as f:
+        qa_vocab = json.load(f)
 
     # Create model
 
@@ -34,7 +44,7 @@ def main(_):
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-shortlist'
+
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
