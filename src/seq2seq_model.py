@@ -53,6 +53,8 @@ class Seq2SeqModel(TFModel):
         self.answer_length  = tf.placeholder(tf.int32, [None])
         self.answer_locs  = tf.placeholder(tf.int32, [None,None])
 
+        self.hide_answer_in_copy = tf.placeholder_with_default(False, (),"hide_answer_in_copy")
+
 
         self.this_context = (self.context_raw, self.context_ids, self.context_length)
         self.this_question = (self.question_raw, self.question_ids, self.question_length)
@@ -94,10 +96,10 @@ class Seq2SeqModel(TFModel):
             context_ix = tf.tile(tf.expand_dims(tf.range(max_context_len),axis=0), [curr_batch_size,1])
             gt_start = tf.greater_equal(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0],axis=1), [1, max_context_len]))
             lt_end = tf.less(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0]+self.answer_length,axis=1), [1, max_context_len]))
-            in_answer_feature = tf.expand_dims(tf.cast(tf.logical_and(gt_start, lt_end), tf.float32),axis=2)
+            self.in_answer_feature = tf.expand_dims(tf.cast(tf.logical_and(gt_start, lt_end), tf.float32),axis=2)
 
             # augment embedding
-            self.context_embedded = tf.concat([self.context_embedded, in_answer_feature], axis=2)
+            self.context_embedded = tf.concat([self.context_embedded, self.in_answer_feature], axis=2)
 
         # Build encoder for context
         # Build RNN cell for encoder
@@ -230,20 +232,27 @@ class Seq2SeqModel(TFModel):
 
         # We have to make two copies of the layer as beam search uses different shapes - but force them to share variables
         with tf.variable_scope('copy_layer') as scope:
+            ans_mask = 1-tf.reshape(self.in_answer_feature,[curr_batch_size,-1])
+            self.answer_mask = tf.cond(self.hide_answer_in_copy, lambda: ans_mask, lambda: tf.ones(tf.shape(ans_mask)))
+
             train_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training,
+                                            output_mask=lambda: self.answer_mask,
                                             name="copy_layer")
 
             scope.reuse_variables()
+            answer_mask_beam = tf.contrib.seq2seq.tile_batch(self.answer_mask, multiplier=FLAGS.beam_width)
+
 
             beam_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training,
+                                            output_mask=lambda: answer_mask_beam,
                                             name="copy_layer")
 
         with tf.variable_scope('decoder_unroll') as scope:
@@ -292,12 +301,12 @@ class Seq2SeqModel(TFModel):
                                                                    maximum_iterations=32 )
 
             # logits = outputs.rnn_output
-            # print(beam_out_lens)
+
             beam_pred_ids = beam_outputs.predicted_ids[:,:,0]
-            # beam_out_lens = debug_tensor(beam_out_lens, "beam lens")
+
+            # tf1.4 (and maybe others) return -1 for parts of the sequence outside the valid length, replace this with PAD (0)
             beam_mask = tf.sequence_mask(beam_out_lens[:,0], tf.shape(beam_pred_ids)[1], dtype=tf.int32)
             beam_pred_ids = beam_pred_ids*beam_mask
-            # beam_pred_ids = debug_tensor(beam_pred_ids, "beam pred ids masked")
 
             beam_pred_scores = beam_outputs.beam_search_decoder_output.scores
 

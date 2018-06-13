@@ -5,7 +5,7 @@ model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "1" if model_type == "MALUUBA" else "3"
-mem_limit=0.95
+mem_limit=1.0
 
 import tensorflow as tf
 import numpy as np
@@ -66,7 +66,7 @@ def main(_):
 
     # create data streamer
     train_data_source = SquadStreamer(vocab, FLAGS.batch_size, FLAGS.num_epochs, shuffle=True)
-    dev_data_source = SquadStreamer(vocab, FLAGS.batch_size, 1, shuffle=True)
+    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
 
     with model.graph.as_default():
         saver = tf.train.Saver()
@@ -148,12 +148,14 @@ def main(_):
                     rl_dict={model.lm_score: lm_score,
                     model.qa_score: qa_f1s,
                     model.rl_lm_enabled: True,
-                    model.rl_qa_enabled: True}
+                    model.rl_qa_enabled: True,
+                    model.hide_answer_in_copy: True}
                 elif model_type == "MALUUBA" and not perform_policy_gradient:
                     rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
                     model.qa_score: [0 for b in range(curr_batch_size)],
                     model.rl_lm_enabled: False,
-                    model.rl_qa_enabled: False}
+                    model.rl_qa_enabled: False,
+                    model.hide_answer_in_copy: False}
                 else:
                     rl_dict={}
 

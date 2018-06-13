@@ -103,6 +103,7 @@ class CopyLayer(base.Layer):
                  name=None,
                  source_provider: Callable[[], tf.Tensor] = None,
                  condition_encoding: Callable[[], tf.Tensor] = None,
+                 output_mask: Callable[[], tf.Tensor] = None,
                  training_mode=False,
                  vocab_size=None,
                  **kwargs):
@@ -123,7 +124,7 @@ class CopyLayer(base.Layer):
         self.bias_constraint = bias_constraint
         self.input_spec = base.InputSpec(min_ndim=2)
         self.training_mode=training_mode
-
+        self.output_mask=output_mask
         self.condition_encoding = condition_encoding
 
     def build(self, input_shape):
@@ -194,9 +195,12 @@ class CopyLayer(base.Layer):
         self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.glorot_uniform_initializer())
         # switch = debug_shape(switch, "switch")
 
-        copy_dist_padded = tf.pad(self.switch*alignments, [[0, 0], [0, self.units-tf.shape(alignments)[-1]]], 'CONSTANT', constant_values=0)
+        if self.output_mask is not None:
+            alignments = self.output_mask() * alignments
+        copy_dist_padded = tf.pad(alignments, [[0, 0], [0, self.units-tf.shape(alignments)[-1]]], 'CONSTANT', constant_values=0)
 
-        result = tf.concat([(1-self.switch)*shortlist,copy_dist_padded], axis=1) # this used to be safe_log'd
+
+        result = tf.concat([(1-self.switch)*shortlist,self.switch*copy_dist_padded], axis=1) # this used to be safe_log'd
 
         target_shape = tf.concat([shape[:-1], [-1]], 0)
         result =tf.reshape(result, target_shape)
