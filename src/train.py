@@ -83,10 +83,12 @@ def main(_):
         train_data_source.initialise(train_data)
 
 
-        if not FLAGS.train:
-            # saver.restore(sess, chkpt_path+ '/model.checkpoint')
-            print('Loading not implemented yet')
+        if FLAGS.restore:
+            saver.restore(sess, FLAGS.model_dir+'qa/1234567'+ '/model.checkpoint')
+            start_e=20
+            print('Loaded model')
         else:
+            start_e=0
             sess.run(tf.global_variables_initializer())
             # sess.run(model.glove_init_ops)
 
@@ -108,7 +110,7 @@ def main(_):
         max_oos_f1=0
         perform_policy_gradient = False # update this during training
 
-        for e in range(FLAGS.num_epochs):
+        for e in range(start_e,start_e+FLAGS.num_epochs):
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # Get a batch
                 train_batch, curr_batch_size = train_data_source.get_batch()

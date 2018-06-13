@@ -43,7 +43,7 @@ def main(_):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'lm/'+str(int(time.time())), sess.graph)
 
-        if not FLAGS.train:
+        if FLAGS.restore:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')
             print('Loading not implemented yet')
         else:

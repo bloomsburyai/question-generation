@@ -61,11 +61,13 @@ def main(_):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+str(int(time.time())), sess.graph)
 
-        if not FLAGS.train:
-            # saver.restore(sess, chkpt_path+ '/model.checkpoint')
-            print('Loading not implemented yet')
+        if FLAGS.restore:
+            saver.restore(sess, FLAGS.model_dir+'qa/1528714666'+ '/model.checkpoint')
+            start_e=20
+            print('Loaded model')
         else:
             print("Building graph, loading glove")
+            start_e=0
             sess.run(tf.global_variables_initializer())
 
         num_steps_train = len(train_data)//FLAGS.batch_size
@@ -81,7 +83,7 @@ def main(_):
 
         max_oos_f1=0
 
-        for e in range(FLAGS.qa_num_epochs):
+        for e in range(start_e,start_e+FLAGS.qa_num_epochs):
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # TODO: this keeps coming up - refactor it
                 batch_contexts = train_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]

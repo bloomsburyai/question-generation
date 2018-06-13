@@ -4,7 +4,7 @@ import tensorflow as tf
 # config
 tf.app.flags.DEFINE_boolean("testing", False, "Reduce model size for local testing")
 
-tf.app.flags.DEFINE_boolean("train", True, "Training mode?")
+tf.app.flags.DEFINE_boolean("restore", False, "Restore from existing chkpt?")
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epochs", 30, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 32, "Batch size")
