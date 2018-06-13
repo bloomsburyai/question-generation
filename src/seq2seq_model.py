@@ -363,7 +363,7 @@ class Seq2SeqModel(TFModel):
 
             self.q_hat_beam_ids = beam_pred_ids
             self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw)
-
+            self.q_hat_beam_lens = beam_out_lens[:,0]
             # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
             # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
 

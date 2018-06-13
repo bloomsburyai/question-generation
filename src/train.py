@@ -37,7 +37,8 @@ def main(_):
         FLAGS.eval_batch_size=8
         # FLAGS.embedding_size=50
 
-    chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+str(int(time.time()))
+    run_id = str(int(time.time()))
+    chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+run_id
     restore_path=FLAGS.model_dir+'qgen/'+model_type+'/'+'1528886861'
 
     if not os.path.exists(chkpt_path):
@@ -100,7 +101,7 @@ def main(_):
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
 
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+str(int(time.time())), sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+run_id, sess.graph)
 
         train_data_source.initialise(train_data)
 
@@ -226,12 +227,12 @@ def main(_):
             dev_data_source.initialise(dev_subset)
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,gold_batch= sess.run([model.q_hat_beam_string,model.q_gold], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_lens,gold_batch, gold_lens= sess.run([model.q_hat_beam_string,model.q_hat_beam_lens,model.q_gold, model.question_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
-                    pred_str = tokens_to_string(pred)
-                    gold_str = tokens_to_string(gold_batch[b])
+                    pred_str = tokens_to_string(pred[:pred_lens[b]-1])
+                    gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
                     out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"

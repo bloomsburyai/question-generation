@@ -31,7 +31,9 @@ def main(_):
         FLAGS.batch_size =16
         FLAGS.embedding_size=50
 
-    chkpt_path = FLAGS.model_dir+'qa/'+str(int(time.time()))
+    run_id = str(int(time.time()))
+
+    chkpt_path = FLAGS.model_dir+'qa/'+run_id
     restore_path=FLAGS.model_dir+'qa/1528885583'
 
     if not os.path.exists(chkpt_path):
@@ -69,7 +71,7 @@ def main(_):
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+str(int(time.time())), sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+run_id, sess.graph)
 
         if FLAGS.restore:
             saver.restore(sess, restore_path+ '/model.checkpoint')
