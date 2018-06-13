@@ -1,4 +1,4 @@
-import os,time
+import os,time,json
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -26,20 +26,24 @@ FLAGS = tf.app.flags.FLAGS
 
 def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+    dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:500]
 
-    np.random.shuffle(train_data)
+    chkpt_path = FLAGS.model_dir+'saved/qatest'
+    # chkpt_path = FLAGS.model_dir+'qa/1528885583'
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     dev_contexts, dev_qs, dev_as, dev_a_pos = zip(*dev_data)
-    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.qa_vocab_size)
+
+    # vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
+    with open(chkpt_path+'/vocab.json') as f:
+        vocab = json.load(f)
 
     model = MpcmQa(vocab)
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'saved/qatest'
+
 
 
 
@@ -57,6 +61,8 @@ def main(_):
         f1s = []
         exactmatches= []
         for e in range(1):
+            np.random.shuffle(train_data)
+            train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 # TODO: this keeps coming up - refactor it
                 batch_contexts = dev_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
@@ -77,7 +83,7 @@ def main(_):
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
-                                model.is_training: True})
+                                model.is_training: False})
 
                 summary_writer.add_summary(summ, global_step=(e*num_steps+i))
 

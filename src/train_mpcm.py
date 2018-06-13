@@ -1,4 +1,4 @@
-import os,time,datetime
+import os,time,datetime,json
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -31,11 +31,14 @@ def main(_):
         FLAGS.batch_size =16
         FLAGS.embedding_size=50
 
+    chkpt_path = FLAGS.model_dir+'qa/'+str(int(time.time()))
+    restore_path=FLAGS.model_dir+'qa/1528885583'
+
+    if not os.path.exists(chkpt_path):
+        os.makedirs(chkpt_path)
+
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
-
-    np.random.shuffle(train_data)
-
 
     if FLAGS.testing:
         train_data=train_data[:1000]
@@ -46,23 +49,30 @@ def main(_):
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     dev_contexts, dev_qs, dev_as,dev_a_pos = zip(*dev_data)
-    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.qa_vocab_size)
+
+    if FLAGS.restore:
+        with open(restore_path+'/vocab.json') as f:
+            vocab = json.load(f)
+    else:
+        vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
+        with open(chkpt_path+'/vocab.json', 'w') as outfile:
+            json.dump(vocab, outfile)
+
 
 
     model = MpcmQa(vocab)
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'qa/'+str(int(time.time()))
+
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        if not os.path.exists(chkpt_path):
-            os.makedirs(chkpt_path)
+
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+str(int(time.time())), sess.graph)
 
         if FLAGS.restore:
-            saver.restore(sess, FLAGS.model_dir+'qa/1528714666'+ '/model.checkpoint')
+            saver.restore(sess, restore_path+ '/model.checkpoint')
             start_e=20
             print('Loaded model')
         else:
@@ -84,6 +94,9 @@ def main(_):
         max_oos_f1=0
 
         for e in range(start_e,start_e+FLAGS.qa_num_epochs):
+            np.random.shuffle(train_data)
+            train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # TODO: this keeps coming up - refactor it
                 batch_contexts = train_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
