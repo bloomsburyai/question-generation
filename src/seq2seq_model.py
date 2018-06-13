@@ -356,7 +356,7 @@ class Seq2SeqModel(TFModel):
         self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 
 
-        with tf.variable_scope('output'):
+        with tf.variable_scope('output'), tf.device('/cpu:*'):
             self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
             self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw)
             self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw)
