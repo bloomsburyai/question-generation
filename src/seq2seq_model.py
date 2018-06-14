@@ -66,7 +66,7 @@ class Seq2SeqModel(TFModel):
         with tf.variable_scope('input_pipeline'):
             # build teacher output - coerce to vocab and pad with SOS/EOS
             # also build output for loss - one hot over vocab+context
-            self.question_onehot = tf.one_hot(self.question_ids, depth=tf.tile([len(self.vocab)+FLAGS.max_copy_size], [curr_batch_size])+self.context_length)
+            self.question_onehot = tf.one_hot(self.question_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
             self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
             self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
             self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+FLAGS.max_copy_size)
@@ -165,7 +165,7 @@ class Seq2SeqModel(TFModel):
             else:
                 self.context_encoding = tf.reduce_mean(self.context_condition_encoding, axis=1) # this is the baseline model
 
-            r = tf.reduce_sum(self.context_encoder_output, axis=1)/tf.tile(tf.expand_dims(tf.cast(self.context_length,tf.float32),axis=1),[1,self.context_encoder_units*2]) + tf.matmul(self.context_encoding,L)
+            r = tf.reduce_sum(self.context_encoder_output, axis=1)/tf.expand_dims(tf.cast(self.context_length,tf.float32),axis=1) + tf.matmul(self.context_encoding,L)
             self.s0 = tf.nn.tanh(tf.matmul(r,W0) + b0)
 
         # decode
@@ -236,6 +236,7 @@ class Seq2SeqModel(TFModel):
             self.answer_mask = tf.cond(self.hide_answer_in_copy, lambda: ans_mask, lambda: tf.ones(tf.shape(ans_mask)))
 
             train_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+                                            switch_units=FLAGS.switch_units,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
@@ -248,6 +249,7 @@ class Seq2SeqModel(TFModel):
 
 
             beam_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+                                            switch_units=FLAGS.switch_units,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),

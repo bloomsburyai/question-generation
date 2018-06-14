@@ -69,7 +69,7 @@ class LstmLm(TFModel):
         self.seq_log_prob = tf.reduce_sum(ops.safe_log(self.log_probs)*self.target_weights, axis=1)/(tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)+1e-6)
 
         # metrics
-        self.perplexity = tf.minimum(1000.0,tf.pow(2.0, 1/tf.cast(self.input_lengths,tf.float32) * tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.tgt_output)*self.target_weights,axis=1)))
+        self.perplexity = tf.minimum(1000.0,tf.pow(2.0, -1.0*self.seq_log_prob))
         self._train_summaries.append(tf.summary.scalar("train_perf/perplexity", tf.reduce_mean(self.perplexity)))
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.preds, self.tgt_output), tf.float32))
 
@@ -88,9 +88,9 @@ class LstmLmInstance():
             saver = tf.train.Saver()
             saver.restore(self.sess, path+ '/model.checkpoint')
 
-    def get_seq_prob(self, seqs):
-        probs = self.sess.run(self.model.seq_log_prob, feed_dict={self.model.input_seqs: seqs})
-        return probs
+    def get_seq_perplexity(self, seqs):
+        perp = self.sess.run(self.model.perplexity, feed_dict={self.model.input_seqs: seqs})
+        return perp
 
 
 def main(_):
@@ -112,6 +112,6 @@ def main(_):
     max_seq_len = max([len(seq) for seq in seq_batch_ids])
     padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
 
-    print(lm.get_seq_prob(padded_batch))
+    print(lm.get_seq_perplexity(padded_batch))
 if __name__ == "__main__":
     tf.app.run()

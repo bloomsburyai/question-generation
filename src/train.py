@@ -146,7 +146,7 @@ def main(_):
                     qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in res.tolist()]
                     ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
-                    lm_score = model.lm.get_seq_prob(qhat_for_lm).tolist()
+                    lm_score = -1*model.lm.get_seq_perplexity(qhat_for_lm).tolist() # lower perplexity is better
                     lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
                                                      simple_value=sum(lm_score)/len(lm_score))])
                     summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))

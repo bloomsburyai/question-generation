@@ -18,8 +18,8 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    # chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-shortlist'
-    chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba'
+    # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
@@ -68,23 +68,19 @@ def main(_):
         bleus=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
-                ops = [model.q_hat_string, model.q_gold, model.context_raw, model.question_raw, model.answer_raw]
-                res= sess.run(ops, feed_dict={model.is_training:False})
+                dev_batch, curr_batch_size = dev_data_source.get_batch()
+                pred_batch,pred_lens,gold_batch, gold_lens= sess.run([model.q_hat_beam_string,model.q_hat_beam_lens,model.q_gold, model.question_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
-
-
-                if i < 5 or i in np.random.choice(num_steps, 5):
-                    print("Pred: ", tokens_to_string(res[0][0].tolist()))
-                    print("Gold: ", tokens_to_string(res[1][0].tolist()))
-                    # print("Context: ", tokens_to_string(res[2][0].tolist()))
-                    # print("Answer: ", tokens_to_string(res[4][0].tolist()))
-                    print('***')
-
-                for b, pred in enumerate(res[0]):
-                    pred_str = tokens_to_string(pred)
-                    gold_str = tokens_to_string(res[1][b])
+                out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
+                for b, pred in enumerate(pred_batch):
+                    pred_str = tokens_to_string(pred[:pred_lens[b]-1])
+                    gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
+                    out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
+                if i==0:
+                    with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
+                        fp.write(out_str)
 
         print("F1: ", np.mean(f1s))
         print("BLEU: ", np.mean(bleus))

@@ -90,6 +90,7 @@ class CopyLayer(base.Layer):
 
     def __init__(self, embedding_dim,
                  units,
+                 switch_units=64,
                  activation=None,
                  use_bias=False,
                  kernel_initializer=None,
@@ -114,6 +115,7 @@ class CopyLayer(base.Layer):
         self.source_provider = source_provider
         self.embedding_dim = embedding_dim
         self.units = units
+        self.switch_units = switch_units
         self.activation = activation
         self.use_bias = use_bias
         self.kernel_initializer = kernel_initializer
@@ -190,8 +192,8 @@ class CopyLayer(base.Layer):
         vt = tf.concat([attention, condition_encoding_tiled], axis=1)
         # NOTE: this is missing the previous input y_t-1 and s_t
         switch_input = tf.concat([vt],axis=1)
-        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, 64, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
-        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, 64, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
+        switch_h1 = tf.layers.dropout(tf.layers.dense(switch_input, self.switch_units, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
+        switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, self.switch_units, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
         self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.glorot_uniform_initializer())
         # switch = debug_shape(switch, "switch")
 
