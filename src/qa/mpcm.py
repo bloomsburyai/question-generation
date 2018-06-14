@@ -28,7 +28,7 @@ class MpcmQa(TFModel):
 
     def build_model(self):
 
-        # TODO: dropout
+        self.dropout_prob=0.2
 
         self.context_in = tf.placeholder(tf.int32, [None, None])
         self.question_in = tf.placeholder(tf.int32, [None, None])
@@ -62,9 +62,21 @@ class MpcmQa(TFModel):
         # Layer 3: Context representation (BiLSTM encoder)
         num_units_encoder=FLAGS.qa_encoder_units
         with tf.variable_scope('layer3_fwd_cell'):
-            cell_fw = tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder)
+            cell_fw = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder),
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_size=self.embedding_size,
+                variational_recurrent=True,
+                dtype=tf.float32)
         with tf.variable_scope('layer3_bwd_cell'):
-            cell_bw = tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder)
+            cell_bw = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder),
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_size=self.embedding_size,
+                variational_recurrent=True,
+                dtype=tf.float32)
         with tf.variable_scope('context_rnn'):
             self.context_encodings,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.context_filtered, dtype=tf.float32)
         with tf.variable_scope('q_rnn'):
@@ -130,9 +142,21 @@ class MpcmQa(TFModel):
 
         # Layer 5: aggregate with BiLSTM
         with tf.variable_scope('layer5_fwd_cell'):
-            cell_fw2 = tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units)
+            cell_fw2 = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units),
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_size=50*6,
+                variational_recurrent=True,
+                dtype=tf.float32)
         with tf.variable_scope('layer5_bwd_cell'):
-            cell_bw2 = tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units)
+            cell_bw2 = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units),
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_size=50*6,
+                variational_recurrent=True,
+                dtype=tf.float32)
         with tf.variable_scope('match_rnn'):
             self.aggregated_matches,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw2, cell_bw2, self.matches, dtype=tf.float32)
         self.aggregated_matches = tf.layers.dropout(tf.concat(self.aggregated_matches, axis=2), rate=0.2, training=self.is_training)
