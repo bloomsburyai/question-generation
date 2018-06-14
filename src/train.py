@@ -1,7 +1,7 @@
 import os,time, json,datetime
 
-model_type = "SEQ2SEQ"
-# model_type = "MALUUBA"
+# model_type = "SEQ2SEQ"
+model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "1" if model_type == "MALUUBA" else "3"
@@ -11,6 +11,7 @@ import tensorflow as tf
 import numpy as np
 import helpers.loader as loader
 import helpers.preprocessing as preprocessing
+import helpers.moving_moments as moving_moments
 from helpers.output import output_pretty, output_basic, tokens_to_string
 from tqdm import tqdm
 
@@ -23,7 +24,31 @@ import flags
 
 import helpers.metrics as metrics
 
-
+# unpack a batch, duplicate the components, and insert a pred into the first half
+# schema is (c,q,a) and (raw,ids,len,?ans_pos)
+def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str):
+    new_batch=[]
+    for i,x in enumerate(batch):
+        new_subbatch=[]
+        for j,y in enumerate(x):
+            if i==1 and j==0:
+                # create a valid padded batch
+                new_str_batch=pred_q_str.tolist()+y.tolist()
+                max_len = max([len(q) for q in new_str_batch])
+                new_str_batch = [q+[loader.PAD.encode() for k in range(max_len-len(q))] for q in new_str_batch]
+                new_subbatch.append(np.asarray(new_str_batch))
+            elif i==1 and j==1:
+                # create a valid padded batch
+                new_id_batch=pred_q_ids.tolist()+y.tolist()
+                max_len = max([len(q) for q in new_id_batch])
+                new_id_batch = [q+[0 for k in range(max_len-len(q))] for q in new_id_batch]
+                new_subbatch.append(np.asarray(new_id_batch))
+            elif i==1 and j==2:
+                new_subbatch.append(np.asarray([len(q) for q in pred_q_ids]+y.tolist()))
+            else:
+                new_subbatch.append(np.asarray(y.tolist()+y.tolist())) # just duplicate
+        new_batch.append(tuple(new_subbatch))
+    return tuple(new_batch)
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -39,7 +64,8 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+run_id
-    restore_path=FLAGS.model_dir+'qgen/'+model_type+'/'+'1528886861'
+    # restore_path=FLAGS.model_dir+'qgen/'+model_type+'/'+'1528886861'
+    restore_path=FLAGS.model_dir+'saved/qgen-maluuba'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -83,8 +109,8 @@ def main(_):
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
         # TEMP
-        FLAGS.qa_weight = 0
-        FLAGS.lm_weight = 0
+        # FLAGS.qa_weight = 0
+        # FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
@@ -131,7 +157,10 @@ def main(_):
         summary_writer.add_summary(bleusummary, global_step=0)
 
         max_oos_f1=0
-        perform_policy_gradient = False # update this during training
+        perform_policy_gradient = FLAGS.restore # update this during training
+
+        lm_score_moments = moving_moments.MovingMoment(rate=0.99)
+        qa_score_moments = moving_moments.MovingMoment(rate=0.99)
 
         for e in range(start_e,start_e+FLAGS.num_epochs):
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
@@ -140,18 +169,22 @@ def main(_):
 
                 if model_type == "MALUUBA" and perform_policy_gradient:
                     # do a fwd pass first, get the score, then do another pass and optimize
-                    res= sess.run(model.q_hat_beam_string, feed_dict={model.input_batch: train_batch ,model.is_training:True})
-                    qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in res.tolist()]
+                    qhat_str,qhat_ids= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids],
+                        feed_dict={model.input_batch: train_batch,
+                        model.is_training:False,
+                        model.hide_answer_in_copy: True})
+                    qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in qhat_str.tolist()]
                     ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
-                    qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in res.tolist()]
+                    qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in qhat_str.tolist()]
+                    qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in train_batch[1][0].tolist()]
                     ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
-                    lm_score = -1*model.lm.get_seq_perplexity(qhat_for_lm).tolist() # lower perplexity is better
-                    lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
-                                                     simple_value=sum(lm_score)/len(lm_score))])
-                    summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
+                    # print(qhat_for_lm)
+                    lm_score = (-1*model.lm.get_seq_perplexity(qhat_for_lm)).tolist() # lower perplexity is better
+
 
                     qa_pred = model.qa.get_ans(ctxt_for_qa, qhat_for_qa).tolist()
+                    qa_pred_gold = model.qa.get_ans(ctxt_for_qa, qgold_for_qa).tolist()
 
                     gold_str=[]
                     pred_str=[]
@@ -160,37 +193,82 @@ def main(_):
                     for b in range(FLAGS.batch_size):
                         gold_str.append(" ".join([w.decode() for w in train_batch[2][0][b][:train_batch[2][2][b]-1].tolist()]))
                         pred_str.append(" ".join([w.decode() for w in train_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
-                    if i == 0:
-                        print(gold_str[0])
-                        print(pred_str[0])
-                        print(qa_pred[0])
+
                     qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
 
+                    lm_score_moments.push(lm_score)
+                    qa_score_moments.push(qa_f1s)
+
+                    qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
+                    lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
+
+                    lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
+                                                     simple_value=np.mean(qa_score_whitened))])
+                    summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
                     qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
-                                                     simple_value=sum(qa_f1s)/len(qa_f1s))])
+                                                     simple_value=np.mean(lm_score_whitened))])
                     summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
 
-                    rl_dict={model.lm_score: lm_score,
-                    model.qa_score: qa_f1s,
-                    model.rl_lm_enabled: True,
-                    model.rl_qa_enabled: True,
-                    model.hide_answer_in_copy: True}
-                elif model_type == "MALUUBA" and not perform_policy_gradient:
-                    rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
-                    model.qa_score: [0 for b in range(curr_batch_size)],
-                    model.rl_lm_enabled: False,
-                    model.rl_qa_enabled: False,
-                    model.hide_answer_in_copy: False}
-                else:
-                    rl_dict={}
 
-                ops = [model.optimizer, model.train_summary,model.q_hat_string]
-                if i%FLAGS.eval_freq==0:
-                    ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
-                res= sess.run(ops, feed_dict={model.input_batch: train_batch,
-                    model.is_training:True,
-                    **rl_dict})
-                summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
+
+                    train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str)
+                    # train_batch_ext = train_batch
+
+                    # if i % FLAGS.eval_freq== 0:
+                    #     print(qhat_str[0])
+                    #     print(train_batch[1][0][0])
+                    #     print(qgold_for_qa[0])
+                    #     print(qhat_for_qa[0])
+                    #     print(gold_str[0])
+                    #     print(pred_str[0])
+                    #     print(qa_pred[0])
+                    #     print(qa_pred_gold[0])
+                    #     print(qa_f1s[0])
+                    #     print(lm_score[0])
+                    #     print(qa_score_whitened[0])
+                    #     print(lm_score_whitened[0])
+
+                    # if i == 0:
+                        # print(qa_score_whitened)
+                        # print(lm_score_whitened)
+                        # print(train_batch_ext)
+                        # exit()
+
+                        # lm_score_whitened.tolist()*FLAGS.lm_weight+
+                        # qa_score_whitened.tolist()*FLAGS.qa_weight+
+                    rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1/(FLAGS.lm_weight+1e-6) for b in range(curr_batch_size)]),
+                        model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
+                        model.rl_lm_enabled: True,
+                        model.rl_qa_enabled: True,
+                        model.hide_answer_in_copy: True}
+
+                    # perform a policy gradient step, but combine with a XE step by using appropriate rewards
+                    ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
+                    if i%FLAGS.eval_freq==0:
+                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                    res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
+                        model.is_training:False,
+                        **rl_dict})
+                    summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
+                    
+                else:
+                    if model_type == "MALUUBA" and not perform_policy_gradient:
+                        rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
+                            model.qa_score: [0 for b in range(curr_batch_size)],
+                            model.rl_lm_enabled: False,
+                            model.rl_qa_enabled: False,
+                            model.hide_answer_in_copy: False}
+                    else:
+                        rl_dict={}
+
+                    # Perform a normal optimizer step
+                    ops = [model.optimizer, model.train_summary,model.q_hat_string]
+                    if i%FLAGS.eval_freq==0:
+                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                    res= sess.run(ops, feed_dict={model.input_batch: train_batch,
+                        model.is_training:True,
+                        **rl_dict})
+                    summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
 
 
 

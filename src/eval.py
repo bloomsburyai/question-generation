@@ -1,7 +1,7 @@
 import os,time, json, datetime
 
-model_type = "SEQ2SEQ"
-# model_type = "MALUUBA"
+# model_type = "SEQ2SEQ"
+model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -23,7 +23,7 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-copy'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset

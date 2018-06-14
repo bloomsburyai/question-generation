@@ -83,7 +83,8 @@ def tokenise(text, asbytes=True, append_eos=False):
     if append_eos:
         tokens.append(EOS.encode() if asbytes else EOS)
     # tokens = np.asarray(tokens)
-    return np.asarray(tokens)
+    # return np.asarray(tokens)
+    return tokens
 
 def char_pos_to_word(text, tokens, char_pos):
     ix=0

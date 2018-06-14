@@ -45,14 +45,14 @@ class MaluubaModel(Seq2SeqModel):
                 # TODO: Correct REINFORCE loss
                 # TODO: Check teacher forcing method for learning using beam search
                 # TODO: whiten rewards (popart)
-                curr_batch_size = tf.shape(self.lm_score)[0]
-                lm_score_whitened = (self.lm_score-tf.tile(tf.reduce_mean(self.lm_score, keep_dims=True),[curr_batch_size]))/tf.tile(tf.nn.moments(self.lm_score,axes=0,keep_dims=True)[1]+1e-6,[curr_batch_size])
-                qa_score_whitened = (self.qa_score-tf.tile(tf.reduce_mean(self.qa_score, keep_dims=True),[curr_batch_size]))/tf.tile(tf.nn.moments(self.qa_score,axes=0,keep_dims=True)[1]+1e-6,[curr_batch_size])
 
-                mask = tf.one_hot(self.q_hat_ids, depth=len(self.vocab) +FLAGS.max_copy_size)
+                # NOTE: This isnt obvious! If we feed in the generated Qs as the gold with a reward,
+                # we get REINFORCE. If we feed in a reward of 1.0 with an actual gold Q, we get cross entropy.
+                # So we can combine both in the same set of ops, but need to construct batches appropriately
+                mask = tf.one_hot(self.question_ids, depth=len(self.vocab) +FLAGS.max_copy_size)
 
-                lm_loss = tf.reduce_mean(-1.0*lm_score_whitened * tf.reduce_sum(safe_log(self.q_hat * mask), axis=[1,2]),axis=0)
-                qa_loss = tf.reduce_mean(-1.0*qa_score_whitened * tf.reduce_sum(safe_log(self.q_hat * mask), axis=[1,2]),axis=0)
+                lm_loss = tf.reduce_mean(-1.0*self.lm_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
+                qa_loss = tf.reduce_mean(-1.0*self.qa_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
 
             self._train_summaries.append(tf.summary.scalar("rl_rewards/lm", tf.reduce_mean(self.lm_score)))
             self._train_summaries.append(tf.summary.scalar("rl_rewards/qa", tf.reduce_mean(self.qa_score)))
@@ -60,11 +60,10 @@ class MaluubaModel(Seq2SeqModel):
             self._train_summaries.append(tf.summary.scalar("train_loss/lm", lm_loss))
             self._train_summaries.append(tf.summary.scalar("train_loss/qa", qa_loss))
 
-            self.loss = self.loss + \
-                tf.cond(self.rl_lm_enabled, lambda: lm_loss*self.lm_weight, lambda: tf.constant(0.0)) if self.lm_weight is not None else tf.constant(0) + \
-                tf.cond(self.rl_qa_enabled, lambda: qa_loss*self.qa_weight, lambda: tf.constant(0.0)) if self.qa_weight is not None else tf.constant(0)
+            self.pg_loss = tf.cond(self.rl_lm_enabled, lambda: lm_loss, lambda: tf.constant(0.0)) + \
+                tf.cond(self.rl_qa_enabled, lambda: qa_loss, lambda: tf.constant(0.0))
 
-            self._train_summaries.append(tf.summary.scalar("train_loss/loss_incrl", self.loss))
+            self._train_summaries.append(tf.summary.scalar("train_loss/pg_loss", self.pg_loss))
 
             # this needs rebuilding again
             self.train_summary = tf.summary.merge(self._train_summaries)
@@ -74,10 +73,10 @@ class MaluubaModel(Seq2SeqModel):
                 # these need to be redefined with the correct inputs
                 # Calculate and clip gradients
                 params = tf.trainable_variables()
-                gradients = tf.gradients(self.loss, params)
+                gradients = tf.gradients(self.pg_loss, params)
                 clipped_gradients, _ = tf.clip_by_global_norm(
-                    gradients, 2)
+                    gradients, 5)
 
                 # Optimization
-                self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+                self.pg_optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
