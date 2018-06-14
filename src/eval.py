@@ -1,4 +1,7 @@
-import os,time, json
+import os,time, json, datetime
+
+model_type = "SEQ2SEQ"
+# model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -12,13 +15,15 @@ from helpers.output import output_pretty, tokens_to_string
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
+from maluuba_model import MaluubaModel
+from datasources.squad_streamer import SquadStreamer
 
 import flags
 
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-copy'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
@@ -30,6 +35,7 @@ def main(_):
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     dev_contexts, dev_qs, dev_as, dev_a_pos = zip(*dev_data)
 
+
     # vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
@@ -38,9 +44,20 @@ def main(_):
     with open(chkpt_path+'/qa_vocab.json') as f:
         qa_vocab = json.load(f)
 
-    # Create model
+    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
 
-    model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=False)
+
+    # Create model
+    if model_type == "SEQ2SEQ":
+        model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+    elif model_type == "MALUUBA":
+        # TEMP
+        FLAGS.qa_weight = 0
+        FLAGS.lm_weight = 0
+        model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+    else:
+        exit("Unrecognised model type: "+model_type)
+
     with model.graph.as_default():
         saver = tf.train.Saver()
 
@@ -61,8 +78,7 @@ def main(_):
         num_steps = len(dev_data)//FLAGS.batch_size
 
         # Initialise the dataset
-        sess.run(model.iterator.initializer, feed_dict={model.context_ph: dev_contexts,
-                                          model.qs_ph: dev_qs, model.as_ph: dev_as, model.a_pos_ph: dev_a_pos})
+        dev_data_source.initialise(dev_data)
 
         f1s=[]
         bleus=[]
