@@ -45,8 +45,8 @@ class MpcmQa(TFModel):
             assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
         # Layer 1: representation layer
-        self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_in), rate=0.2, training=self.is_training)
-        self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_in), rate=0.2, training=self.is_training)
+        self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_in), rate=self.dropout_prob, training=self.is_training)
+        self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_in), rate=self.dropout_prob, training=self.is_training)
 
         # Layer 2: Filter. r is batch x con_len x q_len
         r = tf.matmul(self.context_embedded, tf.transpose(self.question_embedded,[0,2,1]))/tf.matmul(tf.expand_dims(tf.sqrt(tf.norm(self.context_embedded, ord=2, axis=2)),-1),tf.expand_dims(tf.sqrt(tf.norm(self.question_embedded, ord=2, axis=2)),-2))
@@ -135,7 +135,7 @@ class MpcmQa(TFModel):
         m_max_bwd  = tf.reduce_max(m_bwd2, axis=2)
         m_mean_fwd  = tf.reduce_mean(m_fwd3, axis=2)
         m_mean_bwd  = tf.reduce_mean(m_bwd3, axis=2)
-        self.matches = tf.layers.dropout(tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2), rate=0.2, training=self.is_training)
+        self.matches = tf.layers.dropout(tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2), rate=self.dropout_prob, training=self.is_training)
 
         # print(m_full_bwd)
         # print(self.matches)
@@ -159,7 +159,7 @@ class MpcmQa(TFModel):
                 dtype=tf.float32)
         with tf.variable_scope('match_rnn'):
             self.aggregated_matches,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw2, cell_bw2, self.matches, dtype=tf.float32)
-        self.aggregated_matches = tf.layers.dropout(tf.concat(self.aggregated_matches, axis=2), rate=0.2, training=self.is_training)
+        self.aggregated_matches = tf.layers.dropout(tf.concat(self.aggregated_matches, axis=2), rate=self.dropout_prob, training=self.is_training)
 
         # Layer 6: Fully connected to get logits
         self.logits_start = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None))

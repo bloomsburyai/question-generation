@@ -33,6 +33,7 @@ tf.app.flags.DEFINE_integer("qa_vocab_size", 20000, "QA system vocab size")
 tf.app.flags.DEFINE_integer("qa_encoder_units", 100, "QA system - num units in encoder LSTM")
 tf.app.flags.DEFINE_integer("qa_match_units", 100, "QA system - num units in match LSTM")
 tf.app.flags.DEFINE_integer("qa_num_epochs", 20, "QA num epochs")
+tf.app.flags.DEFINE_integer("qa_batch_size", 32, "QA batch size")
 tf.app.flags.DEFINE_float("qa_learning_rate", 1e-4, "QA LR")
 
 # LM hparams

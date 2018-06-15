@@ -134,7 +134,7 @@ def main(_):
 
         if FLAGS.restore:
             saver.restore(sess, restore_path+ '/model.checkpoint')
-            start_e=20
+            start_e=FLAGS.num_epochs
             print('Loaded model')
         else:
             start_e=0
@@ -153,8 +153,8 @@ def main(_):
         bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
                                   simple_value=0.0)])
 
-        summary_writer.add_summary(f1summary, global_step=0)
-        summary_writer.add_summary(bleusummary, global_step=0)
+        summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
+        summary_writer.add_summary(bleusummary, global_step=start_e*num_steps_train)
 
         max_oos_f1=0
         perform_policy_gradient = FLAGS.restore # update this during training
@@ -203,12 +203,17 @@ def main(_):
                     lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
 
                     lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
-                                                     simple_value=np.mean(qa_score_whitened))])
+                                                     simple_value=np.mean(lm_score))])
                     summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
                     qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
-                                                     simple_value=np.mean(lm_score_whitened))])
+                                                     simple_value=np.mean(qa_f1s))])
                     summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
-
+                    lm_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm_white",
+                                                     simple_value=np.mean(qa_score_whitened))])
+                    summary_writer.add_summary(lm_white_summary, global_step=(e*num_steps_train+i))
+                    qa_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa_white",
+                                                     simple_value=np.mean(lm_score_whitened))])
+                    summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
 
 
                     train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str)
@@ -250,7 +255,7 @@ def main(_):
                         model.is_training:False,
                         **rl_dict})
                     summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
-                    
+
                 else:
                     if model_type == "MALUUBA" and not perform_policy_gradient:
                         rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],

@@ -1,7 +1,7 @@
 import os,time,datetime,json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 mem_limit=0.95
 
 import tensorflow as tf
@@ -28,13 +28,13 @@ def main(_):
         print('TEST MODE - reducing model size')
         FLAGS.qa_encoder_units =32
         FLAGS.qa_match_units=32
-        FLAGS.batch_size =16
+        FLAGS.qa_batch_size =16
         FLAGS.embedding_size=50
 
     run_id = str(int(time.time()))
 
     chkpt_path = FLAGS.model_dir+'qa/'+run_id
-    restore_path=FLAGS.model_dir+'qa/1528885583'
+    restore_path=FLAGS.model_dir+'qa/1528972450'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -68,30 +68,30 @@ def main(_):
 
 
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, allow_growth = True)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qa/'+run_id, sess.graph)
 
         if FLAGS.restore:
             saver.restore(sess, restore_path+ '/model.checkpoint')
-            start_e=20
+            start_e=FLAGS.qa_num_epochs
             print('Loaded model')
         else:
             print("Building graph, loading glove")
             start_e=0
             sess.run(tf.global_variables_initializer())
 
-        num_steps_train = len(train_data)//FLAGS.batch_size
-        num_steps_dev = num_dev_samples//FLAGS.batch_size
+        num_steps_train = len(train_data)//FLAGS.qa_batch_size
+        num_steps_dev = num_dev_samples//FLAGS.qa_batch_size
 
         f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
                                          simple_value=0.0)])
         emsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/em",
                                   simple_value=0.0)])
 
-        summary_writer.add_summary(f1summary, global_step=0)
-        summary_writer.add_summary(emsummary, global_step=0)
+        summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
+        summary_writer.add_summary(emsummary, global_step=start_e*num_steps_train)
 
         max_oos_f1=0
 
@@ -101,10 +101,10 @@ def main(_):
 
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # TODO: this keeps coming up - refactor it
-                batch_contexts = train_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_questions = train_qs[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_ans_text = train_as[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_answer_charpos = train_a_pos[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                batch_contexts = train_contexts[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
+                batch_questions = train_qs[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
+                batch_ans_text = train_as[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
+                batch_answer_charpos = train_a_pos[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
 
                 batch_answers=[]
                 for j, ctxt in enumerate(batch_contexts):
@@ -114,27 +114,29 @@ def main(_):
 
                 # print(batch_answers[:3])
                 # exit()
-
+                # run_metadata = tf.RunMetadata()
+                # run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 _,summ, pred = sess.run([model.optimizer, model.train_summary, model.pred_span],
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
                                 model.is_training: True})
+                                # ,run_metadata=run_metadata, options=run_options)
 
                 summary_writer.add_summary(summ, global_step=(e*num_steps_train+i))
-
+                # summary_writer.add_run_metadata(run_metadata, tag="step "+str(i), global_step=(e*num_steps_train+i))
 
                 if i%FLAGS.eval_freq==0:
                     gold_str=[]
                     pred_str=[]
                     f1s = []
                     exactmatches= []
-                    for b in range(FLAGS.batch_size):
+                    for b in range(FLAGS.qa_batch_size):
                         gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
                         pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) )
 
-                    f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
-                    exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.batch_size) ])
+                    f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
+                    exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.qa_batch_size) ])
 
                     f1summary = tf.Summary(value=[tf.Summary.Value(tag="train_perf/f1",
                                                      simple_value=sum(f1s)/len(f1s))])
@@ -145,7 +147,7 @@ def main(_):
                     summary_writer.add_summary(emsummary, global_step=(e*num_steps_train+i))
 
                     out_str="<h1>" + str(e) + " - " + str(i)+' ('+ str(datetime.datetime.now()) +')' + "</h1>"
-                    for b in range(FLAGS.batch_size):
+                    for b in range(FLAGS.qa_batch_size):
                         out_str += batch_contexts[b] + '<br/>'
                         out_str += batch_questions[b] + '<br/>'
                         out_str += str(batch_answers[b])+ str(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]) + '<br/>'
@@ -163,10 +165,10 @@ def main(_):
             np.random.shuffle(dev_data)
             dev_subset = dev_data[:num_dev_samples]
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
-                batch_contexts = dev_contexts[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_questions = dev_qs[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_ans_text = dev_as[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-                batch_answer_charpos = dev_a_pos[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+                batch_contexts = dev_contexts[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
+                batch_questions = dev_qs[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
+                batch_ans_text = dev_as[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
+                batch_answer_charpos = dev_a_pos[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
 
                 batch_answers=[]
                 for j, ctxt in enumerate(batch_contexts):
@@ -183,12 +185,12 @@ def main(_):
                 gold_str=[]
                 pred_str=[]
 
-                for b in range(FLAGS.batch_size):
+                for b in range(FLAGS.qa_batch_size):
                     gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
                     pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) )
 
-                f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
-                exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.batch_size) ])
+                f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
+                exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.qa_batch_size) ])
 
             f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
                                              simple_value=sum(f1s)/len(f1s))])
