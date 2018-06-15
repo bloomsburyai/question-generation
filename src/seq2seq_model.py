@@ -47,6 +47,7 @@ class Seq2SeqModel(TFModel):
             self.answer_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
         self.context_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
         self.context_length  = tf.placeholder(tf.int32, [None])     # size(source)
+        self.context_vocab_size  = tf.placeholder(tf.int32, [None])     # size(source_vocab)
         self.question_ids = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
         self.question_length  = tf.placeholder(tf.int32, [None])     # size(source)
         self.answer_ids  = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
@@ -56,7 +57,7 @@ class Seq2SeqModel(TFModel):
         self.hide_answer_in_copy = tf.placeholder_with_default(False, (),"hide_answer_in_copy")
 
 
-        self.this_context = (self.context_raw, self.context_ids, self.context_length)
+        self.this_context = (self.context_raw, self.context_ids, self.context_length, self.context_vocab_size)
         self.this_question = (self.question_raw, self.question_ids, self.question_length)
         self.this_answer = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
         self.input_batch = (self.this_context, self.this_question, self.this_answer)
@@ -352,7 +353,7 @@ class Seq2SeqModel(TFModel):
         # self.context_length = debug_tensor(self.context_length, "ctxt len", summarize=None)
 
         # because we've done a few logs of softmaxes, there can be some precision problems that lead to non zero probability outside of the valid vocab, fix it here:
-        max_vocab_size = tf.tile(tf.expand_dims(self.context_length+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
+        max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
         output_mask = tf.sequence_mask(max_vocab_size, FLAGS.max_copy_size+len(self.vocab), dtype=tf.float32)
         self.q_hat = self.q_hat*output_mask
 
@@ -390,16 +391,16 @@ class Seq2SeqModel(TFModel):
 
         with tf.variable_scope('output'), tf.device('/cpu:*'):
             self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
-            self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw)
-            self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw)
+            self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+            self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
 
             self.q_hat_beam_ids = beam_pred_ids
-            self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw)
+            self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
             self.q_hat_beam_lens = beam_out_lens[:,0]
             # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
             # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
 
-            self.q_gold = ops.id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw)
+            self.q_gold = ops.id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
             self._output_summaries.extend(
                 [tf.summary.text("q_hat", self.q_hat_string),
                 tf.summary.text("q_gold", self.q_gold),

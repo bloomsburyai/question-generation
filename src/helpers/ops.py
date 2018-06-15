@@ -1,18 +1,18 @@
 import tensorflow as tf
 
-
-
 def safe_log(x):
     EPSILON = tf.cast(tf.keras.backend.epsilon(), tf.float32)
     return tf.log(tf.clip_by_value(x, EPSILON, 1-EPSILON))
 
 
-def ids_to_string(rev_vocab):
+def ids_to_string(rev_vocab, context_as_set=False):
     def _ids_to_string(ids, context):
         row_str=[]
         for i,row in enumerate(ids):
             # print(context[i])
             context_tokens = [w.decode() for w in context[i].tolist()]
+            if context_as_set:
+                context_set = sorted(set(context_tokens))
             out_str = []
             for j in row:
                 if j <0:
@@ -21,11 +21,15 @@ def ids_to_string(rev_vocab):
                     exit()
                 elif j< len(rev_vocab):
                     out_str.append(rev_vocab[j])
-                elif j < len(rev_vocab)+len(context_tokens):
+                elif not context_as_set and j < len(rev_vocab)+len(context_tokens):
                     out_str.append(context_tokens[j-len(rev_vocab)])
+                elif context_as_set and j < len(rev_vocab)+len(context_set):
+                    out_str.append(context_set[j-len(rev_vocab)])
                 else:
                     print("Token ID out of range of vocab")
                     print(j, len(rev_vocab), len(context_tokens))
+                    if context_as_set:
+                        print(len(context_set))
 
             row_str.append(out_str)
 
@@ -34,9 +38,9 @@ def ids_to_string(rev_vocab):
         return [row_str]
     return _ids_to_string
 
-def id_tensor_to_string(ids, rev_vocab, context):
+def id_tensor_to_string(ids, rev_vocab, context, context_as_set=False):
 
-    return tf.py_func(ids_to_string(rev_vocab), [ids, context], tf.string)
+    return tf.py_func(ids_to_string(rev_vocab, context_as_set), [ids, context], tf.string)
 
 def get_last_from_seq(seq, lengths): # seq is batch x time  x dim
     lengths = tf.maximum(lengths, tf.zeros_like(lengths, dtype=tf.int32))

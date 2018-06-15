@@ -1,7 +1,7 @@
 import os,time, json,datetime
 
-# model_type = "SEQ2SEQ"
-model_type = "MALUUBA"
+model_type = "SEQ2SEQ_SET"
+# model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "1" if model_type == "MALUUBA" else "3"
@@ -105,7 +105,7 @@ def main(_):
 
 
     # Create model
-    if model_type == "SEQ2SEQ":
+    if model_type[:7] == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
         # TEMP

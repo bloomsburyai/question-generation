@@ -1,5 +1,6 @@
 import numpy as np
 import string
+import tensorflow as tf
 
 from nltk.tokenize import TreebankWordTokenizer, sent_tokenize
 use_nltk = True
@@ -35,18 +36,23 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False):
+def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False, context_as_set=False):
     ids = []
 
 
     decoded_context = [w.decode() for w in tokenise(context)] if context is not None else []
     words = [w.decode() for w in tokenise(words)] if do_tokenise else [w.decode() for w in words]
+    if context_as_set:
+        context_set = sorted(set(decoded_context))
 
     for w in words:
         if w in vocab.keys():
             ids.append(vocab[w])
-        elif context is not None and w in decoded_context:
+        elif context is not None and not context_as_set and w in decoded_context:
             ids.append(len(vocab) + decoded_context.index(w))
+        elif context is not None and context_as_set and w in context_set:
+            ids.append(len(vocab) + context_set.index(w))
+            # print(len(context_set), len(vocab) + context_set.index(w))
         else:
             ids.append(vocab[OOV])
     if append_eos:
@@ -117,27 +123,31 @@ def char_pos_to_word(text, tokens, char_pos):
         print(text, tokens, char_pos, len(text))
 
 
-def process_squad_context(vocab):
+def process_squad_context(vocab, context_as_set=False):
     def _process_squad_context(context):
         # print(context)
         # print(tokenise(context))
-        context_ids = lookup_vocab(context, vocab, append_eos=True)
+        context_ids = lookup_vocab(context, vocab, append_eos=True, context_as_set=context_as_set)
+        context_set = set([w.decode() for w in tokenise(context)])
+
         context_len = np.asarray(len(context_ids), dtype=np.int32)
-        res = [tokenise(context,append_eos=True), context_ids, context_len]
+        context_vocab_size = np.asarray(len(context_set) if context_as_set else len(context_ids), dtype=np.int32)
+
+        res = [tokenise(context,append_eos=True), context_ids, context_len, context_vocab_size]
         return res
 
     return _process_squad_context
 
-def process_squad_question(vocab):
+def process_squad_question(vocab, context_as_set=False):
     def _process_squad_question(question, context):
-        question_ids = lookup_vocab(question, vocab, context=context, append_eos=True)
+        question_ids = lookup_vocab(question, vocab, context=context, append_eos=True, context_as_set=context_as_set)
         question_len = np.asarray(len(question_ids), dtype=np.int32)
         return [tokenise(question,append_eos=True), question_ids, question_len]
     return _process_squad_question
 
-def process_squad_answer(vocab):
+def process_squad_answer(vocab, context_as_set=False):
     def _process_squad_answer(answer, answer_pos, context):
-        answer_ids = lookup_vocab(answer, vocab, context=context, append_eos=True)
+        answer_ids = lookup_vocab(answer, vocab, context=context, append_eos=True, context_as_set=context_as_set)
         answer_len = np.asarray(len(answer_ids), dtype=np.int32)
         max_len = np.amax(answer_len)
 
