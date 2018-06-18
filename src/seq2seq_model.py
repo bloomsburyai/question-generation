@@ -266,26 +266,30 @@ class Seq2SeqModel(TFModel):
             ans_mask = 1-tf.reshape(self.in_answer_feature,[curr_batch_size,-1])
             self.answer_mask = tf.cond(self.hide_answer_in_copy, lambda: ans_mask, lambda: tf.ones(tf.shape(ans_mask)))
 
-            train_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+            train_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_context_len,
                                             switch_units=FLAGS.switch_units,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training,
                                             output_mask=lambda: self.answer_mask,
+                                            context_as_set=FLAGS.context_as_set,
+                                            max_copy_size=FLAGS.max_copy_size,
                                             name="copy_layer")
 
             scope.reuse_variables()
             answer_mask_beam = tf.contrib.seq2seq.tile_batch(self.answer_mask, multiplier=FLAGS.beam_width)
 
 
-            beam_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_copy_size,
+            beam_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_context_len,
                                             switch_units=FLAGS.switch_units,
                                             source_provider=lambda: self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training,
                                             output_mask=lambda: answer_mask_beam,
+                                            context_as_set=FLAGS.context_as_set,
+                                            max_copy_size=FLAGS.max_copy_size,
                                             name="copy_layer")
 
         with tf.variable_scope('decoder_unroll') as scope:

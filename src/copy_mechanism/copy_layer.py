@@ -107,6 +107,8 @@ class CopyLayer(base.Layer):
                  output_mask: Callable[[], tf.Tensor] = None,
                  training_mode=False,
                  vocab_size=None,
+                 context_as_set=False,
+                 max_copy_size=None,
                  **kwargs):
         super(CopyLayer, self).__init__(trainable=trainable, name=name,
                                         activity_regularizer=activity_regularizer,
@@ -127,6 +129,8 @@ class CopyLayer(base.Layer):
         self.input_spec = base.InputSpec(min_ndim=2)
         self.training_mode=training_mode
         self.output_mask=output_mask
+        self.max_copy_size=max_copy_size
+        self.context_as_set=context_as_set
         self.condition_encoding = condition_encoding
 
     def build(self, input_shape):
@@ -197,18 +201,30 @@ class CopyLayer(base.Layer):
         self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.glorot_uniform_initializer())
         # switch = debug_shape(switch, "switch")
 
+
         if self.output_mask is not None:
             alignments = self.output_mask() * alignments
-        copy_dist_padded = tf.pad(alignments, [[0, 0], [0, self.units-tf.shape(alignments)[-1]]], 'CONSTANT', constant_values=0)
 
+        # convert position probs to ids
+        if self.context_as_set:
+            # print(source) # batch x seq
+            # print(alignments) # batch x seq
+            source_tiled = tf.contrib.seq2seq.tile_batch(source, multiplier=beam_width)
+            pos_to_id = tf.one_hot(source_tiled-self.vocab_size, depth=self.max_copy_size) # batch x seq x vocab
+
+            copy_dist = tf.squeeze(tf.matmul(tf.expand_dims(alignments,1), pos_to_id), axis=1)
+        else:
+            copy_dist=alignments
+
+
+        copy_dist_padded = tf.pad(copy_dist, [[0, 0], [0, self.max_copy_size-tf.shape(copy_dist)[-1]]], 'CONSTANT', constant_values=0)
 
         result = tf.concat([(1-self.switch)*shortlist,self.switch*copy_dist_padded], axis=1) # this used to be safe_log'd
 
         target_shape = tf.concat([shape[:-1], [-1]], 0)
+
         result =tf.reshape(result, target_shape)
-        # result = debug_shape(result, "res")
-        # print(result)
-        # exit()
+
         return result
         # return tf.Print(result, [tf.reduce_max(switch), tf.reduce_max(shortlist),
         #                          tf.reduce_max(alignments)], summarize=10)
@@ -222,7 +238,7 @@ class CopyLayer(base.Layer):
             raise ValueError(
                 'The innermost dimension of input_shape must be defined, but saw: %s'
                 % input_shape)
-        return input_shape[:-1].concatenate(self.units+self.vocab_size)
+        return input_shape[:-1].concatenate(self.units+self.vocab_size if not self.context_as_set else self.vocab_size+self.max_copy_size)
 
     # this for older tf versions
     def _compute_output_shape(self, input_shape):
