@@ -46,6 +46,7 @@ class Seq2SeqModel(TFModel):
             self.question_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
             self.answer_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
         self.context_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
+        self.context_copy_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
         self.context_length  = tf.placeholder(tf.int32, [None])     # size(source)
         self.context_vocab_size  = tf.placeholder(tf.int32, [None])     # size(source_vocab)
         self.question_ids = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
@@ -57,7 +58,7 @@ class Seq2SeqModel(TFModel):
         self.hide_answer_in_copy = tf.placeholder_with_default(False, (),"hide_answer_in_copy")
 
 
-        self.this_context = (self.context_raw, self.context_ids, self.context_length, self.context_vocab_size)
+        self.this_context = (self.context_raw, self.context_ids, self.context_copy_ids, self.context_length, self.context_vocab_size)
         self.this_question = (self.question_raw, self.question_ids, self.question_length)
         self.this_answer = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
         self.input_batch = (self.this_context, self.this_question, self.this_answer)
@@ -268,7 +269,7 @@ class Seq2SeqModel(TFModel):
 
             train_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_context_len,
                                             switch_units=FLAGS.switch_units,
-                                            source_provider=lambda: self.context_ids,
+                                            source_provider=lambda: self.context_copy_ids if FLAGS.context_as_set else self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training,
@@ -283,7 +284,7 @@ class Seq2SeqModel(TFModel):
 
             beam_projection_layer = copy_layer.CopyLayer(FLAGS.decoder_units//2, FLAGS.max_context_len,
                                             switch_units=FLAGS.switch_units,
-                                            source_provider=lambda: self.context_ids,
+                                            source_provider=lambda: self.context_copy_ids if FLAGS.context_as_set else self.context_ids,
                                             condition_encoding=lambda: self.context_encoding,
                                             vocab_size=len(self.vocab),
                                             training_mode=self.is_training,

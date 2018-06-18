@@ -138,13 +138,14 @@ def process_squad_context(vocab, context_as_set=False):
     def _process_squad_context(context):
         # print(context)
         # print(tokenise(context))
-        context_ids = lookup_vocab(context, vocab, context=context, append_eos=True, context_as_set=context_as_set, copy_priority=True)
+        context_ids = lookup_vocab(context, vocab, context=context, append_eos=True, context_as_set=context_as_set, copy_priority=False)
+        context_copy_ids = lookup_vocab(context, vocab, context=context, append_eos=True, context_as_set=True, copy_priority=True)
         context_set = set([w.decode() for w in tokenise(context)])
 
         context_len = np.asarray(len(context_ids), dtype=np.int32)
         context_vocab_size = np.asarray(len(context_set) if context_as_set else len(context_ids), dtype=np.int32)
 
-        res = [tokenise(context,append_eos=True), context_ids, context_len, context_vocab_size]
+        res = [tokenise(context,append_eos=True), context_ids, context_copy_ids, context_len, context_vocab_size]
         return res
 
     return _process_squad_context

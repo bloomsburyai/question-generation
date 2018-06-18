@@ -50,7 +50,7 @@ class SquadStreamer():
 
             # processing pipeline
             dataset = dataset.map(lambda context,q,a,a_pos:
-                        (tuple(tf.py_func(preprocessing.process_squad_context(self.vocab, context_as_set=FLAGS.context_as_set), [context], [tf.string, tf.int32, tf.int32, tf.int32])),
+                        (tuple(tf.py_func(preprocessing.process_squad_context(self.vocab, context_as_set=FLAGS.context_as_set), [context], [tf.string, tf.int32, tf.int32, tf.int32, tf.int32])),
                         tuple(tf.py_func(preprocessing.process_squad_question(self.vocab, context_as_set=FLAGS.context_as_set), [q,context], [tf.string, tf.int32, tf.int32])),
                         tuple(tf.py_func(preprocessing.process_squad_answer(self.vocab, context_as_set=FLAGS.context_as_set), [a,a_pos,context], [tf.string, tf.int32, tf.int32, tf.int32]))
                         # q,a
@@ -63,6 +63,7 @@ class SquadStreamer():
                 batch_size,
                 padded_shapes=((tf.TensorShape([None]),  # source vectors of unknown size
                                 tf.TensorShape([None]),  # source vectors of unknown size
+                                tf.TensorShape([None]),
                                 tf.TensorShape([]),      # size(source)
                                 tf.TensorShape([])),     # size(source vocab)
                                (tf.TensorShape([None]),  # target vectors of unknown size
@@ -76,6 +77,7 @@ class SquadStreamer():
                 padding_values=((PAD,
                                 self.vocab[PAD],  # source vectors padded on the right with src_eos_id
                                  0,
+                                 2004,
                                  0),          # size(source) -- unused
                                 (PAD,
                                 self.vocab[PAD],  # target vectors padded on the right with tgt_eos_id
@@ -92,7 +94,7 @@ class SquadStreamer():
             self.iterator = dataset.make_initializable_iterator()
             self.batch_as_nested_tuple = self.iterator.get_next()
             self.this_context, self.this_question, self.this_answer = self.batch_as_nested_tuple
-            (self.context_raw, self.context_ids, self.context_length, self.context_vocab_size) = self.this_context
+            (self.context_raw, self.context_ids, self.context_copy_ids, self.context_length, self.context_vocab_size) = self.this_context
             (self.question_raw, self.question_ids, self.question_length) = self.this_question
             (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs) = self.this_answer
 
