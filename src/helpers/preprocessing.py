@@ -150,9 +150,9 @@ def process_squad_context(vocab, context_as_set=False):
 
     return _process_squad_context
 
-def process_squad_question(vocab, context_as_set=False):
+def process_squad_question(vocab, context_as_set=False, copy_priority=False):
     def _process_squad_question(question, context):
-        question_ids = lookup_vocab(question, vocab, context=context, append_eos=True, context_as_set=context_as_set)
+        question_ids = lookup_vocab(question, vocab, context=context, append_eos=True, context_as_set=context_as_set, copy_priority=copy_priority)
         question_len = np.asarray(len(question_ids), dtype=np.int32)
         return [tokenise(question,append_eos=True), question_ids, question_len]
     return _process_squad_question

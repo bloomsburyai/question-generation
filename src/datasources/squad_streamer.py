@@ -51,7 +51,7 @@ class SquadStreamer():
             # processing pipeline
             dataset = dataset.map(lambda context,q,a,a_pos:
                         (tuple(tf.py_func(preprocessing.process_squad_context(self.vocab, context_as_set=FLAGS.context_as_set), [context], [tf.string, tf.int32, tf.int32, tf.int32, tf.int32])),
-                        tuple(tf.py_func(preprocessing.process_squad_question(self.vocab, context_as_set=FLAGS.context_as_set), [q,context], [tf.string, tf.int32, tf.int32])),
+                        tuple(tf.py_func(preprocessing.process_squad_question(self.vocab, context_as_set=FLAGS.context_as_set, copy_priority=FLAGS.copy_priority), [q,context], [tf.string, tf.int32, tf.int32])),
                         tuple(tf.py_func(preprocessing.process_squad_answer(self.vocab, context_as_set=FLAGS.context_as_set), [a,a_pos,context], [tf.string, tf.int32, tf.int32, tf.int32]))
                         # q,a
                         ))

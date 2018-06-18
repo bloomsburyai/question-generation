@@ -26,6 +26,7 @@ tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 tf.app.flags.DEFINE_boolean("context_as_set", False, "Convert context into a set of tokens rather than list for use by copy mech. Must use copy priority if this is enabled!!")
+tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q using copy priority")
 
 tf.app.flags.DEFINE_float("lm_weight", 1.0, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
 tf.app.flags.DEFINE_float("qa_weight", 0.5, "Loss multiplier for QA in Maluuba model. Paper gives 1.0 alone or 0.5 joint")
