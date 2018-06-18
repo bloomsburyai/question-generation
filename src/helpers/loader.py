@@ -10,26 +10,34 @@ EOS = '</Sent>'
 PAD='<PAD>'
 OOV='<OOV>'
 
-def load_squad_dataset(path, dev=False):
-    expected_version = '1.1'
-    filename = 'train-v1.1.json' if not dev else 'dev-v1.1.json'
+def load_squad_dataset(path, dev=False, v2=False):
+    expected_version = '2.0' if v2 else '1.1'
+    if v2:
+        filename = 'train-v2.0.json' if not dev else 'dev-v2.0.json'
+    else:
+        filename = 'train-v1.1.json' if not dev else 'dev-v1.1.json'
     with open(path+filename) as dataset_file:
         dataset_json = json.load(dataset_file)
         if (dataset_json['version'] != expected_version):
             print('Expected SQuAD v-' + expected_version +
-                  ', but got dataset with v-' + dataset_json['version'],
-                  file=sys.stderr)
+                  ', but got dataset with v-' + dataset_json['version'])
         dataset = dataset_json['data']
         return(dataset)
 
-def load_squad_triples(path, dev=False):
-    raw_data = load_squad_dataset(path, dev)
+def load_squad_triples(path, dev=False, v2=False):
+    raw_data = load_squad_dataset(path, dev,v2=v2)
     triples=[]
     for doc in raw_data:
         for para in doc['paragraphs']:
             for qa in para['qas']:
                 # NOTE: this only takes the first answer per question! ToDo handle this more intelligently
-                triples.append( (para['context'], qa['question'], qa['answers'][0]['text'], int(qa['answers'][0]['answer_start'])) )  #
+                if v2:
+                    if qa['is_impossible']:
+                        triples.append( (para['context'], qa['question'], qa['plausible_answers'][0]['text'], int(qa['plausible_answers'][0]['answer_start']), True) )  #
+                    else:
+                        triples.append( (para['context'], qa['question'], qa['answers'][0]['text'], int(qa['answers'][0]['answer_start']), False) )  #
+                else:
+                    triples.append( (para['context'], qa['question'], qa['answers'][0]['text'], int(qa['answers'][0]['answer_start'])) )  #
     return triples
 
 def get_vocab(corpus, vocab_size=2000):
