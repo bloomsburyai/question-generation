@@ -63,7 +63,7 @@ class MpcmQa(TFModel):
         num_units_encoder=FLAGS.qa_encoder_units
         with tf.variable_scope('layer3_fwd_cell'):
             cell_fw = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder),
-                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_keep_prob=1.0,
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=self.embedding_size,
@@ -71,7 +71,7 @@ class MpcmQa(TFModel):
                 dtype=tf.float32)
         with tf.variable_scope('layer3_bwd_cell'):
             cell_bw = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder),
-                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_keep_prob=1.0,
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=self.embedding_size,
@@ -159,7 +159,7 @@ class MpcmQa(TFModel):
                 dtype=tf.float32)
         with tf.variable_scope('match_rnn'):
             self.aggregated_matches,_ = tf.nn.bidirectional_dynamic_rnn(cell_fw2, cell_bw2, self.matches, dtype=tf.float32)
-        self.aggregated_matches = tf.layers.dropout(tf.concat(self.aggregated_matches, axis=2), rate=self.dropout_prob, training=self.is_training)
+        self.aggregated_matches = tf.concat(self.aggregated_matches, axis=2)
 
         # Layer 6: Fully connected to get logits
         self.logits_start = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None))

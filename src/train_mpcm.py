@@ -34,7 +34,7 @@ def main(_):
     run_id = str(int(time.time()))
 
     chkpt_path = FLAGS.model_dir+'qa/'+run_id
-    restore_path=FLAGS.model_dir+'qa/1528972450'
+    restore_path=FLAGS.model_dir+'qa/1529056867'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -75,7 +75,7 @@ def main(_):
 
         if FLAGS.restore:
             saver.restore(sess, restore_path+ '/model.checkpoint')
-            start_e=FLAGS.qa_num_epochs
+            start_e=40#FLAGS.qa_num_epochs
             print('Loaded model')
         else:
             print("Building graph, loading glove")
