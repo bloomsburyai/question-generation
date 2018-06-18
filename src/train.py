@@ -12,7 +12,7 @@ import numpy as np
 import helpers.loader as loader
 import helpers.preprocessing as preprocessing
 import helpers.moving_moments as moving_moments
-from helpers.output import output_pretty, output_basic, tokens_to_string
+from helpers.output import output_pretty, output_basic, tokens_to_string, output_eval
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
@@ -190,8 +190,8 @@ def main(_):
                     pred_str=[]
                     qa_f1s = []
 
-                    for b in range(FLAGS.batch_size):
-                        gold_str.append(" ".join([w.decode() for w in train_batch[2][0][b][:train_batch[2][2][b]-1].tolist()]))
+                    for b in range(curr_batch_size):
+                        gold_str.append(" ".join([w.decode() for w in train_batch[2][0][b][:train_batch[2][2][b]].tolist()]))
                         pred_str.append(" ".join([w.decode() for w in train_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
 
                     qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
@@ -310,16 +310,18 @@ def main(_):
             dev_data_source.initialise(dev_subset)
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_lens,gold_batch, gold_lens= sess.run([model.q_hat_beam_string,model.q_hat_beam_lens,model.q_gold, model.question_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
-                out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
+                # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
                     pred_str = tokens_to_string(pred[:pred_lens[b]-1])
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
-                    out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
+                    # out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
                 if i==0:
+                    title=chkpt_path
+                    out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
                         fp.write(out_str)
 

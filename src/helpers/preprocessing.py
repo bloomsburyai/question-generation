@@ -36,7 +36,7 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False, context_as_set=False):
+def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False):
     ids = []
 
 
@@ -46,15 +46,26 @@ def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False,
         context_set = sorted(set(decoded_context))
 
     for w in words:
-        if w in vocab.keys():
-            ids.append(vocab[w])
-        elif context is not None and not context_as_set and w in decoded_context:
-            ids.append(len(vocab) + decoded_context.index(w))
-        elif context is not None and context_as_set and w in context_set:
-            ids.append(len(vocab) + context_set.index(w))
-            # print(len(context_set), len(vocab) + context_set.index(w))
+        if copy_priority:
+            if context is not None and not context_as_set and w in decoded_context:
+                ids.append(len(vocab) + decoded_context.index(w))
+            elif context is not None and context_as_set and w in context_set:
+                ids.append(len(vocab) + context_set.index(w))
+                # print(len(context_set), len(vocab) + context_set.index(w))
+            elif w in vocab.keys():
+                ids.append(vocab[w])
+            else:
+                ids.append(vocab[OOV])
         else:
-            ids.append(vocab[OOV])
+            if w in vocab.keys():
+                ids.append(vocab[w])
+            elif context is not None and not context_as_set and w in decoded_context:
+                ids.append(len(vocab) + decoded_context.index(w))
+            elif context is not None and context_as_set and w in context_set:
+                ids.append(len(vocab) + context_set.index(w))
+                # print(len(context_set), len(vocab) + context_set.index(w))
+            else:
+                ids.append(vocab[OOV])
     if append_eos:
         ids.append(vocab[EOS])
     embedded = np.asarray(ids, dtype=np.int32)
@@ -127,7 +138,7 @@ def process_squad_context(vocab, context_as_set=False):
     def _process_squad_context(context):
         # print(context)
         # print(tokenise(context))
-        context_ids = lookup_vocab(context, vocab, append_eos=True, context_as_set=context_as_set)
+        context_ids = lookup_vocab(context, vocab, context=context, append_eos=True, context_as_set=context_as_set, copy_priority=True)
         context_set = set([w.decode() for w in tokenise(context)])
 
         context_len = np.asarray(len(context_ids), dtype=np.int32)
@@ -147,7 +158,7 @@ def process_squad_question(vocab, context_as_set=False):
 
 def process_squad_answer(vocab, context_as_set=False):
     def _process_squad_answer(answer, answer_pos, context):
-        answer_ids = lookup_vocab(answer, vocab, context=context, append_eos=True, context_as_set=context_as_set)
+        answer_ids = lookup_vocab(answer, vocab, context=context, append_eos=False, context_as_set=context_as_set)
         answer_len = np.asarray(len(answer_ids), dtype=np.int32)
         max_len = np.amax(answer_len)
 
@@ -155,5 +166,5 @@ def process_squad_answer(vocab, context_as_set=False):
 
         answer_locs = np.arange(answer_token_pos, answer_token_pos+max_len, dtype=np.int32)
 
-        return [tokenise(answer,append_eos=True), answer_ids, answer_len, answer_locs]
+        return [tokenise(answer,append_eos=False), answer_ids, answer_len, answer_locs]
     return _process_squad_answer

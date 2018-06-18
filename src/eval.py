@@ -11,12 +11,15 @@ import tensorflow as tf
 import numpy as np
 import helpers.loader as loader
 import helpers.metrics as metrics
-from helpers.output import output_pretty, tokens_to_string
+import helpers.preprocessing as preprocessing
+from helpers.output import output_pretty, tokens_to_string, output_eval
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
 from maluuba_model import MaluubaModel
 from datasources.squad_streamer import SquadStreamer
+from langmodel.lm import LstmLmInstance
+from qa.mpcm import MpcmQaInstance
 
 import flags
 
@@ -51,7 +54,7 @@ def main(_):
     if model_type == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
     elif model_type == "MALUUBA":
-        # TEMP
+        # TEMP - no need to spin up the LM or QA model at eval time
         FLAGS.qa_weight = 0
         FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
@@ -61,13 +64,17 @@ def main(_):
     with model.graph.as_default():
         saver = tf.train.Saver()
 
+    lm = LstmLmInstance(lm_vocab)
+    qa = MpcmQaInstance(qa_vocab)
 
+    lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
+    qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             exit('Checkpoint path doesnt exist! '+chkpt_path)
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+str(int(time.time())), sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+"eval/"+str(int(time.time())), sess.graph)
 
         saver.restore(sess, chkpt_path+ '/model.checkpoint')
         # print('Loading not implemented yet')
@@ -82,24 +89,51 @@ def main(_):
 
         f1s=[]
         bleus=[]
+        qa_scores=[]
+        lm_scores=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_lens,gold_batch, gold_lens= sess.run([model.q_hat_beam_string,model.q_hat_beam_lens,model.q_gold, model.question_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
-                out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
+                # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
                     pred_str = tokens_to_string(pred[:pred_lens[b]-1])
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
-                    out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
+                    # out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
+
+                qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in pred_batch.tolist()]
+                ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
+                qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in pred_batch.tolist()]
+                qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in dev_batch[1][0].tolist()]
+                ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
+
+                # get QA score
+                qa_pred = qa.get_ans(ctxt_for_qa, qhat_for_qa).tolist()
+
+                gold_str=[]
+                pred_str=[]
+                qa_f1s = []
+
+                for b in range(curr_batch_size):
+                    gold_str.append(" ".join([w.decode() for w in dev_batch[2][0][b][:dev_batch[2][2][b]].tolist()]))
+                    pred_str.append(" ".join([w.decode() for w in dev_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
+
+                qa_scores.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
+                lm_scores.extend(lm.get_seq_perplexity(qhat_for_lm).tolist()) # lower perplexity is better
+
                 if i==0:
+                    title=chkpt_path
+                    out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
                         fp.write(out_str)
 
         print("F1: ", np.mean(f1s))
         print("BLEU: ", np.mean(bleus))
+        print("QA: ", np.mean(qa_scores))
+        print("LM: ", np.mean(lm_scores))
 
 if __name__ == '__main__':
     tf.app.run()

@@ -359,7 +359,7 @@ class Seq2SeqModel(TFModel):
         # because we've done a few logs of softmaxes, there can be some precision problems that lead to non zero probability outside of the valid vocab, fix it here:
         max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
         output_mask = tf.sequence_mask(max_vocab_size, FLAGS.max_copy_size+len(self.vocab), dtype=tf.float32)
-        self.q_hat = self.q_hat*output_mask
+        # self.q_hat = self.q_hat*output_mask
 
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
