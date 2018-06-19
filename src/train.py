@@ -107,7 +107,7 @@ def main(_):
     # Create model
     if model_type[:7] == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
-    elif model_type == "MALUUBA":
+    elif model_type[:7] == "MALUUBA":
         # TEMP
         # FLAGS.qa_weight = 0
         # FLAGS.lm_weight = 0

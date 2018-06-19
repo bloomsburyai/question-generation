@@ -1,4 +1,5 @@
 import tensorflow as tf
+from helpers.loader import EOS,PAD
 
 def safe_log(x):
     EPSILON = tf.cast(tf.keras.backend.epsilon(), tf.float32)
@@ -12,7 +13,7 @@ def ids_to_string(rev_vocab, context_as_set=False):
             # print(context[i])
             context_tokens = [w.decode() for w in context[i].tolist()]
             if context_as_set:
-                context_set = sorted(set(context_tokens))
+                context_set = sorted(set(context_tokens)-{EOS,PAD})
             out_str = []
             for j in row:
                 if j <0:

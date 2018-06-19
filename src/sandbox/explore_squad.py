@@ -7,7 +7,7 @@ from helpers import loader, preprocessing
 
 import string
 
-squad =  loader.load_squad_triples('./data/',False,v2=True)
+squad =  loader.load_squad_triples('./data/',True,v2=False)
 
 # start = time()
 # max_context_len=0
@@ -30,7 +30,7 @@ squad =  loader.load_squad_triples('./data/',False,v2=True)
 min_pos = 99999999
 num_out=0
 for i,triple in enumerate(squad):
-    if triple[4]:
+    if "Who led Richar" in triple[1]:
         # tokens = preprocessing.tokenise(triple[0], asbytes=False)
         # tok_pos = preprocessing.char_pos_to_word(triple[0].encode(), tokens, triple[3])
         # print(tokens[tok_pos])

@@ -1,7 +1,7 @@
 import os,time, json, datetime
 
-# model_type = "SEQ2SEQ"
-model_type = "MALUUBA"
+model_type = "SEQ2SEQ"
+# model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -26,7 +26,7 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-set'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
@@ -94,7 +94,7 @@ def main(_):
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
@@ -125,6 +125,7 @@ def main(_):
                 lm_scores.extend(lm.get_seq_perplexity(qhat_for_lm).tolist()) # lower perplexity is better
 
                 if i==0:
+
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:

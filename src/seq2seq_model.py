@@ -69,7 +69,7 @@ class Seq2SeqModel(TFModel):
             # build teacher output - coerce to vocab and pad with SOS/EOS
             # also build output for loss - one hot over vocab+context
             self.question_onehot = tf.one_hot(self.question_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
-            self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
+            # self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
             self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
             self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+FLAGS.max_copy_size)
             # Embed c,q,a
@@ -88,7 +88,7 @@ class Seq2SeqModel(TFModel):
             self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
             self.question_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_teach)
-            self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
+            # self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
             self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
             self.answer_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.answer_coerced), rate=FLAGS.dropout_rate, training=self.is_training) # batch x seq x embed
