@@ -1,10 +1,10 @@
 import os,time, json,datetime
 
-model_type = "SEQ2SEQ_SET"
-# model_type = "MALUUBA"
+# model_type = "SEQ2SEQ_SET"
+model_type = "MALUUBA_RL"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "1" if model_type == "MALUUBA" else "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "3"
 mem_limit=1.0
 
 import tensorflow as tf
@@ -64,8 +64,8 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+run_id
-    # restore_path=FLAGS.model_dir+'qgen/'+model_type+'/'+'1528886861'
-    restore_path=FLAGS.model_dir+'saved/qgen-maluuba'
+    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA'+'/'+'1528972474'
+    # restore_path=FLAGS.model_dir+'saved/qgen-maluuba'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -106,12 +106,12 @@ def main(_):
 
     # Create model
     if model_type[:7] == "SEQ2SEQ":
-        model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+        model = Seq2SeqModel(vocab, training_mode=True)
     elif model_type[:7] == "MALUUBA":
         # TEMP
         # FLAGS.qa_weight = 0
         # FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        model = MaluubaModel(vocab, lm_vocab, qa_vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
 
@@ -167,7 +167,7 @@ def main(_):
                 # Get a batch
                 train_batch, curr_batch_size = train_data_source.get_batch()
 
-                if model_type == "MALUUBA" and perform_policy_gradient:
+                if model_type == "MALUUBA_RL" and perform_policy_gradient:
                     # do a fwd pass first, get the score, then do another pass and optimize
                     qhat_str,qhat_ids= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids],
                         feed_dict={model.input_batch: train_batch,

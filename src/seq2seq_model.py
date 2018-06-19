@@ -24,10 +24,10 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Seq2SeqModel(TFModel):
-    def __init__(self, vocab, batch_size, advanced_condition_encoding=False, training_mode=False):
+    def __init__(self, vocab, advanced_condition_encoding=False, training_mode=False):
         self.vocab=vocab
         self.rev_vocab = {v:k for k,v in self.vocab.items()}
-        self.batch_size = batch_size
+        # self.batch_size = batch_size
 
         self.training_mode = training_mode
 
@@ -58,10 +58,10 @@ class Seq2SeqModel(TFModel):
         self.hide_answer_in_copy = tf.placeholder_with_default(False, (),"hide_answer_in_copy")
 
 
-        self.this_context = (self.context_raw, self.context_ids, self.context_copy_ids, self.context_length, self.context_vocab_size)
-        self.this_question = (self.question_raw, self.question_ids, self.question_length)
-        self.this_answer = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
-        self.input_batch = (self.this_context, self.this_question, self.this_answer)
+        self.context_in = (self.context_raw, self.context_ids, self.context_copy_ids, self.context_length, self.context_vocab_size)
+        self.question_in = (self.question_raw, self.question_ids, self.question_length)
+        self.answer_in = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
+        self.input_batch = (self.context_in, self.question_in, self.answer_in)
 
         curr_batch_size = tf.shape(self.answer_ids)[0]
 
@@ -323,7 +323,8 @@ class Seq2SeqModel(TFModel):
                                                                end_token = end_token,
                                                                initial_state = beam_init_state,
                                                                beam_width = FLAGS.beam_width,
-                                                               output_layer = beam_projection_layer )
+                                                               output_layer = beam_projection_layer ,
+                                                               length_penalty_weight=FLAGS.length_penalty)
 
             # helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
             #       embedding=tf.eye(len(self.vocab) + FLAGS.max_copy_size),

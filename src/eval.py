@@ -52,12 +52,12 @@ def main(_):
 
     # Create model
     if model_type == "SEQ2SEQ":
-        model = Seq2SeqModel(vocab, batch_size=FLAGS.batch_size, training_mode=True)
+        model = Seq2SeqModel(vocab, training_mode=True)
     elif model_type == "MALUUBA":
         # TEMP - no need to spin up the LM or QA model at eval time
         FLAGS.qa_weight = 0
         FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, lm_vocab, qa_vocab, batch_size=FLAGS.batch_size, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        model = MaluubaModel(vocab, lm_vocab, qa_vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
 
