@@ -136,27 +136,31 @@ def char_pos_to_word(text, tokens, char_pos):
         print(text, tokens, char_pos, len(text))
 
 # Filter a complete context down to the sentence containing the start of the answer span
-def filter_context(ctxt, char_pos, window_size=0):
+def filter_context(ctxt, char_pos, window_size=0, max_tokens=-1):
     sents = [s for s in sent_tokenize(ctxt)]
     spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
     # lens = [len(sent)+1  for sent in sents]
     offsets = []
     for i,sent in enumerate(sents):
-        offsets.append(ctxt.find(sent, offsets[-1] if i>0 else 0)) # can we do this faster?
+        offsets.append(ctxt.find(sent, offsets[-1]+1 if i>0 else 0)) # can we do this faster?
     spans = [[(span[0]+offsets[i], span[1]+offsets[i]) for span in sent] for i,sent in enumerate(spans) ]
     for ix,sent in enumerate(spans):
         # print(sent[0][0], sent[-1][1], char_pos)
         if char_pos >= sent[0][0] and char_pos <= sent[-1][1]:
             start=max(0, ix-window_size)
             end = min(len(sents)-1, ix+window_size)
+            # print(start, end, start, offsets[start])
+            # new_ix=char_pos-offsets[start]
+            # print(new_ix)
+            # print(" ".join(sents[start:end+1])[new_ix:new_ix+10])
             return " ".join(sents[start:end+1]), char_pos - offsets[start]
     print('couldnt find the char pos')
     print(ctxt, char_pos, len(ctxt))
 
-def filter_squad(data, window_size=0):
+def filter_squad(data, window_size=0, max_tokens=-1):
     filtered=[]
     for row in data:
-        filt_ctxt,new_ix = filter_context(row[0],row[3], window_size)
+        filt_ctxt,new_ix = filter_context(row[0],row[3], window_size, max_tokens)
         filtered.append( (filt_ctxt, row[1],row[2],new_ix) )
     return filtered
 

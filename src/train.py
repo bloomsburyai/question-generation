@@ -1,6 +1,6 @@
 import os,time, json,datetime
 
-model_type = "SEQ2SEQ_FILT1"
+model_type = "SEQ2SEQ_FILT"
 # model_type = "MALUUBA_RL"
 
 # CUDA config
@@ -75,8 +75,15 @@ def main(_):
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     if FLAGS.filter_window_size >-1:
-        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size)
-        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size)
+        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+
+        # max_len=0
+        # for row in train_data:
+        #     this_len=len(preprocessing.tokenise(row[0], asbytes=False))
+        #     if this_len  >max_len:
+        #         max_len=this_len
+        # print(max_len)
 
     if FLAGS.testing:
         train_data=train_data[:1000]
