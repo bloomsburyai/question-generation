@@ -110,7 +110,9 @@ def char_pos_to_word(text, tokens, char_pos):
         sents = [s for s in sent_tokenize(text)]
         spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
         # lens = [len(sent)+1  for sent in sents]
-        offsets = [text.find(sent) for sent in sents] # can we do this faster?
+        offsets = []
+        for i,sent in enumerate(sents):
+            offsets.append(ctxt.find(sent, offsets[-1] if i>0 else 0)) # can we do this faster?
         spans = [(span[0]+offsets[i], span[1]+offsets[i]) for i,sent in enumerate(spans) for span in sent]
         # print(char_pos)
         for ix,s in enumerate(spans):
@@ -138,7 +140,9 @@ def filter_context(ctxt, char_pos, window_size=0):
     sents = [s for s in sent_tokenize(ctxt)]
     spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
     # lens = [len(sent)+1  for sent in sents]
-    offsets = [ctxt.find(sent) for sent in sents] # can we do this faster?
+    offsets = []
+    for i,sent in enumerate(sents):
+        offsets.append(ctxt.find(sent, offsets[-1] if i>0 else 0)) # can we do this faster?
     spans = [[(span[0]+offsets[i], span[1]+offsets[i]) for span in sent] for i,sent in enumerate(spans) ]
     for ix,sent in enumerate(spans):
         # print(sent[0][0], sent[-1][1], char_pos)
