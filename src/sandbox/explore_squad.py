@@ -7,7 +7,7 @@ from helpers import loader, preprocessing
 
 import string
 
-squad =  loader.load_squad_triples('./data/',True,v2=False)
+squad =  loader.load_squad_triples('./data/',False,v2=False)
 
 start = time()
 max_context_len=0
@@ -15,10 +15,6 @@ max_pos = None
 debugstr = ""
 for i,triple in enumerate(squad):
     filtered,new_pos = preprocessing.filter_context(triple[0], triple[3])
-
-    print(filtered[new_pos:new_pos+20])
-    print(triple[2])
-    exit()
 
     c_toks=  preprocessing.tokenise(filtered, asbytes=False)
     # context_set = sorted(set(c_toks))
@@ -30,7 +26,7 @@ for i,triple in enumerate(squad):
 end = time()
 print(end-start)
 print(max_context_len," @ ",i)
-print(debugstr[max_pos:max_pos+20])
+print(debugstr)
 print(len(preprocessing.tokenise(debugstr, asbytes=False)))
 
 
