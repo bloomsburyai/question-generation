@@ -109,6 +109,7 @@ class CopyLayer(base.Layer):
                  vocab_size=None,
                  context_as_set=False,
                  max_copy_size=None,
+                 mask_oovs=False,
                  **kwargs):
         super(CopyLayer, self).__init__(trainable=trainable, name=name,
                                         activity_regularizer=activity_regularizer,
@@ -130,6 +131,7 @@ class CopyLayer(base.Layer):
         self.training_mode=training_mode
         self.output_mask=output_mask
         self.max_copy_size=max_copy_size
+        self.mask_oovs = mask_oovs
         self.context_as_set=context_as_set
         self.condition_encoding = condition_encoding
 
@@ -178,9 +180,9 @@ class CopyLayer(base.Layer):
         # shortlist = debug_shape(shortlist, "shortlist")
 
         # TEMP: kill OOVs
-        # s = tf.shape(shortlist)
-        # mask = tf.concat([tf.ones((s[0],1)),tf.zeros((s[0],1)),tf.ones((s[0],s[1]-2))], axis=1)
-        # shortlist = shortlist * mask
+        s = tf.shape(shortlist)
+        mask = tf.concat([tf.ones((s[0],1)),tf.zeros((s[0],1)),tf.ones((s[0],s[1]-2))], axis=1)
+        shortlist = tf.cond(self.mask_oovs, lambda: shortlist * mask, lambda: shortlist)
 
 
         # pad the alignments to the longest possible source st output vocab is fixed size

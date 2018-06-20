@@ -7,14 +7,14 @@ from helpers import loader, preprocessing
 
 import string
 
-squad =  loader.load_squad_triples('./data/',False,v2=False)
+squad =  loader.load_squad_triples('./data/',True,v2=False)[9654:9655]
 
 start = time()
 max_context_len=0
 max_pos = None
 debugstr = ""
 for i,triple in enumerate(squad):
-    filtered,new_pos = preprocessing.filter_context(triple[0], triple[3], 1, 5)
+    filtered,new_pos = preprocessing.filter_context(triple[0], triple[3], 1, 500)
 
     c_toks=  preprocessing.tokenise(filtered, asbytes=False)
     # context_set = sorted(set(c_toks))
@@ -37,14 +37,14 @@ print(len(preprocessing.tokenise(debugstr, asbytes=False)))
 # min_pos = 99999999
 # num_out=0
 # for i,triple in enumerate(squad):
-#     if "Marvel NOW!" in triple[0]:
+#     if "saudi-interpretation" in triple[0].lower():
 #         # tokens = preprocessing.tokenise(triple[0], asbytes=False)
 #         # tok_pos = preprocessing.char_pos_to_word(triple[0].encode(), tokens, triple[3])
 #         # print(tokens[tok_pos])
 #         # print(tok_pos)
 #         # print(tokens)
 #         # print(i,">>>"+triple[0][triple[3]:])
-#         print(triple[2])
+#         print(i,triple[1])
 #         filt, filt_pos = preprocessing.filter_context(triple[0], triple[3], 1)
 #         print(filt[filt_pos:filt_pos+10])
 #         num_out +=1
