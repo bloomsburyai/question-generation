@@ -133,6 +133,26 @@ def char_pos_to_word(text, tokens, char_pos):
         print('couldnt find the char pos')
         print(text, tokens, char_pos, len(text))
 
+# Filter a complete context down to the sentence containing the start of the answer span
+def filter_context(ctxt, char_pos):
+    sents = [s for s in sent_tokenize(ctxt)]
+    spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]
+    # lens = [len(sent)+1  for sent in sents]
+    offsets = [ctxt.find(sent) for sent in sents] # can we do this faster?
+    spans = [[(span[0]+offsets[i], span[1]+offsets[i]) for span in sent] for i,sent in enumerate(spans) ]
+    for ix,sent in enumerate(spans):
+        # print(sent[0][0], sent[-1][1], char_pos)
+        if char_pos >= sent[0][0] and char_pos <= sent[-1][1]:
+            return sents[ix], char_pos - offsets[ix]
+    print('couldnt find the char pos')
+    print(ctxt, char_pos, len(ctxt))
+
+def filter_squad(data):
+    filtered=[]
+    for row in data:
+        filt_ctxt,new_ix = filter_context(row[0],row[3])
+        filtered.append( (filt_ctxt, row[1],row[2],new_ix) )
+    return filtered
 
 def process_squad_context(vocab, context_as_set=False):
     def _process_squad_context(context):

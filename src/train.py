@@ -1,7 +1,7 @@
 import os,time, json,datetime
 
-# model_type = "SEQ2SEQ_SET"
-model_type = "MALUUBA_RL"
+model_type = "SEQ2SEQ_FILT"
+# model_type = "MALUUBA_RL"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "3"
@@ -73,6 +73,9 @@ def main(_):
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+
+    train_data = preprocessing.filter_squad(train_data)
+    dev_data = preprocessing.filter_squad(dev_data)
 
     if FLAGS.testing:
         train_data=train_data[:1000]
