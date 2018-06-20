@@ -1,10 +1,10 @@
 import os,time, json,datetime
 
-model_type = "SEQ2SEQ_FILT"
+model_type = "SEQ2SEQ_FILT1"
 # model_type = "MALUUBA_RL"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "1"
 mem_limit=1.0
 
 import tensorflow as tf
@@ -74,8 +74,9 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
-    train_data = preprocessing.filter_squad(train_data)
-    dev_data = preprocessing.filter_squad(dev_data)
+    if FLAGS.filter_window_size >0:
+        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size)
+        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size)
 
     if FLAGS.testing:
         train_data=train_data[:1000]

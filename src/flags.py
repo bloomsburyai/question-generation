@@ -14,8 +14,9 @@ tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 
 # hyperparams - these should probably be within the model?
-tf.app.flags.DEFINE_integer("max_context_len", 384, "Max context length. 768 for squad, 384 if filtered")
-tf.app.flags.DEFINE_integer("max_copy_size", 384, "Max size of copy vocab to limit output distribution. 768 or 384 for unfilt, 265 or 132 if filtered")
+tf.app.flags.DEFINE_integer("filter_window_size", 1, "Filter contexts down to the sentences around the answer. Set -1 to disable filtering")
+tf.app.flags.DEFINE_integer("max_context_len", 440, "Max context length. 768 for squad, 384 if filtered, 440 if filtered with window=1")
+tf.app.flags.DEFINE_integer("max_copy_size", 440, "Max size of copy vocab to limit output distribution. 768 or 384 for unfilt, 265 or 132 if filtered")
 
 tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
