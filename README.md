@@ -22,7 +22,7 @@ If you have a saved model checkpoint, you can interact with it using the demo - 
 
 `src/langmodel/lm.py` implements a relatively straightforward LSTM language model.
 
-`src/qa/mpcm.py` implements the [Multi-Perspective Context Matching(https://arxiv.org/pdf/1612.04211.pdf) QA model referenced in the Maluuba paper. NOTE: I have yet to train this successfully beyond 55% F1, there may still be bugs hidden in there.
+`src/qa/mpcm.py` implements the [Multi-Perspective Context Matching](https://arxiv.org/pdf/1612.04211.pdf) QA model referenced in the Maluuba paper. NOTE: I have yet to train this successfully beyond 55% F1, there may still be bugs hidden in there.
 
 ### ToDo
 
