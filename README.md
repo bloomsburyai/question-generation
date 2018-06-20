@@ -4,28 +4,29 @@
 
 ## Question Generation
 
-[Machine Comprehension by Text-to-Text Neural
-Question Generation](https://arxiv.org/pdf/1705.02012.pdf)
+This repo primarily comprises an implmentation of [Machine Comprehension by Text-to-Text Neural Question Generation](https://arxiv.org/pdf/1705.02012.pdf). It is a work in progress and almost certainly contains bugs!
 
-`TFModel` provides a basic starting point and should cover generic boilerplate TF work. `SQuADModel` implements loading and processing of the context/question/answer triples using TF, and makes the results (including looked-up versions and seq lengths) available to the model. So, `QGenMaluuba` should only have to worry about implementing specifics of the model.
+Requires python 3 and TensorFlow 1.4+
 
-ToDo:
- - [ ] Replicate paper
- - [ ] ???
- - [ ] Profit!
+### Usage
 
+To train a model, place `SQuAD` and `Glove` datasets in `./data/` and run `train.sh`. To evaluate a saved model, change the checkpoint path in `src/eval.py` and run `eval.sh`. See `src/flags.py` for a description of available options and hyperparameters.
 
- ## NMT
+If you have a saved model checkpoint, you can interact with it using the demo - run `python src/demo/app.py`.
 
- `./src/sandbox/nmt.py` gives an (incredibly ugly) implementation of [Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation](https://arxiv.org/pdf/1406.1078.pdf) with elements of [NEURAL MACHINE TRANSLATION BY JOINTLY LEARNING TO ALIGN AND TRANSLATE](https://arxiv.org/pdf/1409.0473.pdf) - both are well provided for in TensorFlow
+### Code structure
 
- Features:
-   - [x] Tokenisation of Europarl dataset
-   - [x] Stacked RNN encoder/decoder
-   - [x] Attention mechanism to learn alignments
-   - [ ] Beam search decoder for inference - this requires  modifications to the decoder cell, and so needs some work to ensure parameters are shared (that I haven't done)
-   - [ ] Pointer network for OOV - this turns out to be very hard when you've preprocessed the data in numpy and named your variables badly...
-   - [ ] Bidirectional RNN - not yet
-   - [ ] A saver...
-   - [ ] Shuffle training data
-   - [ ] Get a feeling for hyperparams - GRU v LSTM? tanh v lrelu?
+`TFModel` provides a basic starting point and should cover generic boilerplate TF work. `Seq2SeqModel` implements most of the model, including a copy mechanism, encoder/decoder architecture and so on. `MaluubaModel` adds the extra computations required for continued training by policy gradient.
+
+`src/datasources/squad_streamer.py` provides an input pipeline using TensorFlow datasets to do all the preprocessing.
+
+`src/langmodel/lm.py` implements a relatively straightforward LSTM language model.
+
+`src/qa/mpcm.py` implements the [Multi-Perspective Context Matching(https://arxiv.org/pdf/1612.04211.pdf) QA model referenced in the Maluuba paper. NOTE: I have yet to train this successfully beyond 55% F1, there may still be bugs hidden in there.
+
+### ToDo
+
+ - [ ] Train using the RL components
+ - [ ] Some config options are still hardcoded (eg restore paths, model type)
+ - [ ] The output code is still a bit ad-hoc, and could do with tidying up
+ - [ ] `train.py` does a lot of work that would ideally be refactored out
