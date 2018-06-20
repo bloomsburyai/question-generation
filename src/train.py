@@ -74,7 +74,7 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
-    if FLAGS.filter_window_size >0:
+    if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size)
         dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size)
 
