@@ -150,7 +150,7 @@ def main(_):
         summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
         summary_writer.add_summary(bleusummary, global_step=start_e*num_steps_train)
 
-        max_oos_f1=0
+        max_oos_bleu=0
         perform_policy_gradient = FLAGS.restore # update this during training
 
         lm_score_moments = moving_moments.MovingMoment(rate=0.99)
@@ -327,12 +327,12 @@ def main(_):
             summary_writer.add_summary(f1summary, global_step=((e+1)*num_steps_train))
             summary_writer.add_summary(bleusummary, global_step=((e+1)*num_steps_train))
 
-            mean_f1=sum(f1s)/len(f1s)
-            if mean_f1 > max_oos_f1:
-                print("New best F1! ", mean_f1, " Saving...")
-                max_oos_f1 = mean_f1
+            mean_bleu=sum(bleus)/len(bleus)
+            if mean_bleu > max_oos_bleu:
+                print("New best BLEU! ", mean_bleu, " Saving...")
+                max_oos_bleu = mean_bleu
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
-                print("F1 not improved ", mean_f1)
+                print("BLEU not improved ", mean_bleu)
 if __name__ == '__main__':
     tf.app.run()
