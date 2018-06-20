@@ -164,15 +164,15 @@ def filter_context(ctxt, char_pos, window_size=0, max_tokens=-1):
                         tok_ix =i
                         # print(span, char_pos)
                         break
-                start_tok = max(0, tok_ix-max_tokens)
-                end_tok = min(len(flat_spans)-1, tok_ix+max_tokens)
+                start_ix = max(spans[start][0][0], flat_spans[max(tok_ix-max_tokens,0)][0])
+                end_ix = min(spans[end][-1][1], flat_spans[min(tok_ix+max_tokens, len(flat_spans)-1)][1])
 
                 # if len(flat_spans[start_tok:end_tok+1]) > 21:
                 # print(start_tok, end_tok, tok_ix)
                 # print(flat_spans[tok_ix])
                 # print(flat_spans[start_tok:end_tok])
                 # print(ctxt[flat_spans[start_tok][0]:flat_spans[end_tok][1]])
-                return ctxt[flat_spans[start_tok][0]:flat_spans[end_tok][1]], char_pos-flat_spans[start_tok][0]
+                return ctxt[start_ix:end_ix], char_pos-start_ix
             else:
                 return " ".join(sents[start:end+1]), char_pos - offsets[start]
     print('couldnt find the char pos')

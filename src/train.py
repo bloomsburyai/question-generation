@@ -1,10 +1,10 @@
 import os,time, json,datetime
 
-model_type = "SEQ2SEQ_FILT"
+model_type = "SEQ2SEQ_FILT1"
 # model_type = "MALUUBA_RL"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "0"
 mem_limit=1.0
 
 import tensorflow as tf
@@ -158,7 +158,7 @@ def main(_):
         summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
         summary_writer.add_summary(bleusummary, global_step=start_e*num_steps_train)
 
-        max_oos_bleu=0
+        best_oos_nll=1e6
         perform_policy_gradient = FLAGS.restore # update this during training
 
         lm_score_moments = moving_moments.MovingMoment(rate=0.99)
@@ -340,12 +340,12 @@ def main(_):
             summary_writer.add_summary(bleusummary, global_step=((e+1)*num_steps_train))
             summary_writer.add_summary(nllsummary, global_step=((e+1)*num_steps_train))
 
-            mean_bleu=sum(bleus)/len(bleus)
-            if mean_bleu > max_oos_bleu:
-                print("New best BLEU! ", mean_bleu, " Saving...")
-                max_oos_bleu = mean_bleu
+            mean_nll=sum(nlls)/len(nlls)
+            if mean_nll < best_oos_nll:
+                print("New best NLL! ", mean_nll, " Saving...")
+                best_oos_nll = mean_nll
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
-                print("BLEU not improved ", mean_bleu)
+                print("NLL not improved ", mean_nll)
 if __name__ == '__main__':
     tf.app.run()
