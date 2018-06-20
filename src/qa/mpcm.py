@@ -1,4 +1,4 @@
-import sys
+import sys,json
 sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
 
 
@@ -193,12 +193,16 @@ class MpcmQa(TFModel):
         self.pred_span = tf.concat([tf.expand_dims(self.pred_start,1), tf.expand_dims(self.pred_end,1)], axis=1)
 
 class MpcmQaInstance():
-    def __init__(self, vocab):
-        self.model = MpcmQa(vocab, training_mode=False)
+
+
+    def load_from_chkpt(self, path):
+        with open(path+'/vocab.json') as f:
+            self.vocab = json.load(f)
+
+        self.model = MpcmQa(self.vocab, training_mode=False)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
-    def load_from_chkpt(self, path):
         with self.model.graph.as_default():
             saver = tf.train.Saver()
             saver.restore(self.sess, path+ '/model.checkpoint')
@@ -222,10 +226,9 @@ def main(_):
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
 
-    vocab = loader.get_vocab(train_qs, FLAGS.qa_vocab_size)
-
-    qa = MpcmQaInstance(vocab)
+    qa = MpcmQaInstance()
     qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+    vocab = qa.vocab
 
     questions = ["What colour is the car?","When was the car made?","Where was the date?", "What was the dog called?","Who was the oldest cat?"]
     contexts=["The car is green, and was built in 1985. This sentence should make it less likely to return the date, when asked about a cat. The oldest cat was called creme puff and lived for many years!" for i in range(len(questions))]

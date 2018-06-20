@@ -13,23 +13,23 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class MaluubaModel(Seq2SeqModel):
-    def __init__(self, vocab, lm_vocab, qa_vocab,  training_mode=False, lm_weight=0, qa_weight=0):
+    def __init__(self, vocab, training_mode=False, lm_weight=0, qa_weight=0):
         self.lm_weight = lm_weight
         self.qa_weight = qa_weight
 
         super().__init__(vocab, advanced_condition_encoding=True, training_mode=training_mode)
-        self.modify_seq2seq_model(lm_vocab, qa_vocab)
+        self.modify_seq2seq_model()
 
-    def modify_seq2seq_model(self, lm_vocab, qa_vocab):
+    def modify_seq2seq_model(self):
         print('Modifying Seq2Seq model to incorporate RL rewards')
         if self.lm_weight > 0:
             print('Building and loading LM')
-            self.lm = LstmLmInstance(lm_vocab)
+            self.lm = LstmLmInstance()
             self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
         if self.qa_weight > 0:
             print('Building and loading QA model')
-            self.qa = MpcmQaInstance(qa_vocab)
+            self.qa = MpcmQaInstance()
             self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
 
         with self.graph.as_default():

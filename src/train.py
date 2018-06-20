@@ -86,21 +86,10 @@ def main(_):
     if FLAGS.restore:
         with open(restore_path+'/vocab.json') as f:
             vocab = json.load(f)
-        with open(restore_path+'/lm_vocab.json') as f:
-            lm_vocab = json.load(f)
-        with open(restore_path+'/qa_vocab.json') as f:
-            qa_vocab = json.load(f)
     else:
         vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
         with open(chkpt_path+'/vocab.json', 'w') as outfile:
             json.dump(vocab, outfile)
-
-        lm_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.lm_vocab_size)
-        qa_vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
-        with open(chkpt_path+'/lm_vocab.json', 'w') as outfile:
-            json.dump(lm_vocab, outfile)
-        with open(chkpt_path+'/qa_vocab.json', 'w') as outfile:
-            json.dump(qa_vocab, outfile)
 
 
 
@@ -111,7 +100,9 @@ def main(_):
         # TEMP
         # FLAGS.qa_weight = 0
         # FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, lm_vocab, qa_vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        qa_vocab=model.qa.vocab
+        lm_vocab=model.lm.vocab
     else:
         exit("Unrecognised model type: "+model_type)
 

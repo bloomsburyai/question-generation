@@ -1,4 +1,4 @@
-import sys
+import sys,json
 sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
 
 
@@ -28,6 +28,8 @@ class LstmLm(TFModel):
 
     def build_model(self):
 
+        self.dropout_prob=0.2
+
         with tf.device('/cpu:*'):
             # Load glove embeddings
             glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
@@ -46,7 +48,13 @@ class LstmLm(TFModel):
         self.tgt_output = self.input_seqs[:,1:]  # start+1:end - ids
 
         # RNN
-        cell = tf.contrib.rnn.BasicLSTMCell(self.num_units)
+        cell = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=self.num_units),
+            input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+            state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+            output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+            input_size=self.embedding_size,
+            variational_recurrent=True,
+            dtype=tf.float32)
 
         outputs, states = tf.nn.dynamic_rnn(cell, self.tgt_input, dtype=tf.float32)
 
@@ -75,15 +83,18 @@ class LstmLm(TFModel):
 
 # This should handle a concrete instance of a LM, loading params, spinning up the graph etc, to be used by other models
 class LstmLmInstance():
-    def __init__(self, vocab):
-        self.model = LstmLm(vocab, num_units=512, training_mode=False)
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
-        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
     def __del__(self):
         self.sess.close()
 
     def load_from_chkpt(self, path):
+        with open(path+'/vocab.json') as f:
+            self.vocab = json.load(f)
+
+        self.model = LstmLm(self.vocab, num_units=512, training_mode=False)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
+        self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
+
         with self.model.graph.as_default():
             saver = tf.train.Saver()
             saver.restore(self.sess, path+ '/model.checkpoint')
@@ -101,10 +112,11 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
-    vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.lm_vocab_size)
 
-    lm = LstmLmInstance(vocab)
+    lm = LstmLmInstance()
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
+
+    vocab=lm.vocab
 
     # random words, basic q, common words, real q, real context
     seq_batch = [" ".join(np.random.choice(list(vocab.keys()), 20)), "what ?","what is is is the ?", "Where is the Baha'i national office located in Nepal?", "Kathmandu Metropolitan City (KMC), in order to promote international relations has established an International Relations Secretariat (IRC). KMC's first international relationship was established in 1975 with the city of Eugene, Oregon, United States. This activity has been further enhanced by establishing formal relationships with 8 other cities"]

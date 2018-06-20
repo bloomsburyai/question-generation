@@ -1,4 +1,4 @@
-import os,time
+import os,time,json
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
@@ -18,6 +18,12 @@ from helpers import loader
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
+
+    chkpt_path = FLAGS.model_dir+'lm/'+str(int(time.time()))
+
+    if not os.path.exists(chkpt_path):
+        os.makedirs(chkpt_path)
+
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
@@ -27,18 +33,21 @@ def main(_):
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.lm_vocab_size)
 
+    with open(chkpt_path+'/vocab.json', 'w') as outfile:
+        json.dump(vocab, outfile)
+
     unique_sents = list(set(train_qs))
     print(len(unique_sents)," unique sentences")
 
     # Create model
 
     model = LstmLm(vocab, num_units=FLAGS.lm_units)
-    saver = tf.train.Saver()
+    with model.graph.as_default():
+        saver = tf.train.Saver()
 
-    chkpt_path = FLAGS.model_dir+'lm/'+str(int(time.time()))
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with tf.Session(graph = model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'lm/'+str(int(time.time())), sess.graph)
