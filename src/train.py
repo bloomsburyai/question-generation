@@ -306,14 +306,16 @@ def main(_):
 
             f1s=[]
             bleus=[]
+            nlls=[]
 
             np.random.shuffle(dev_data)
             dev_subset = dev_data[:num_dev_samples]
             dev_data_source.initialise(dev_subset)
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
+                nlls.extend(nll.tolist())
                 # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
                     pred_str = tokens_to_string(pred[:pred_lens[b]-1])
@@ -331,9 +333,12 @@ def main(_):
                                              simple_value=sum(f1s)/len(f1s))])
             bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
                                       simple_value=sum(bleus)/len(bleus))])
+            nllsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/nll",
+                               simple_value=sum(nlls)/len(nlls))])
 
             summary_writer.add_summary(f1summary, global_step=((e+1)*num_steps_train))
             summary_writer.add_summary(bleusummary, global_step=((e+1)*num_steps_train))
+            summary_writer.add_summary(nllsummary, global_step=((e+1)*num_steps_train))
 
             mean_bleu=sum(bleus)/len(bleus)
             if mean_bleu > max_oos_bleu:

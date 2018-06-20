@@ -112,7 +112,7 @@ def char_pos_to_word(text, tokens, char_pos):
         # lens = [len(sent)+1  for sent in sents]
         offsets = []
         for i,sent in enumerate(sents):
-            offsets.append(text.find(sent, offsets[-1] if i>0 else 0)) # can we do this faster?
+            offsets.append(text.find(sent, offsets[i-1]+len(sents[i-1]) if i>0 else 0)) # can we do this faster?
         spans = [(span[0]+offsets[i], span[1]+offsets[i]) for i,sent in enumerate(spans) for span in sent]
         # print(char_pos)
         for ix,s in enumerate(spans):
@@ -142,18 +142,39 @@ def filter_context(ctxt, char_pos, window_size=0, max_tokens=-1):
     # lens = [len(sent)+1  for sent in sents]
     offsets = []
     for i,sent in enumerate(sents):
-        offsets.append(ctxt.find(sent, offsets[-1]+1 if i>0 else 0)) # can we do this faster?
+        # print(ctxt.find(sent, offsets[i-1]+len(sents[i-1]) if i>0 else 0))
+        # print(len(sents[i-1]) if i>0 else 0)
+        # print(offsets[i-1] if i>0 else 0)
+        # print(offsets[i-1]+len(sents[i-1]) if i>0 else 0)
+        offsets.append(ctxt.find(sent, offsets[i-1]+len(sents[i-1]) if i>0 else 0)) # can we do this faster?
     spans = [[(span[0]+offsets[i], span[1]+offsets[i]) for span in sent] for i,sent in enumerate(spans) ]
     for ix,sent in enumerate(spans):
         # print(sent[0][0], sent[-1][1], char_pos)
-        if char_pos >= sent[0][0] and char_pos <= sent[-1][1]:
+        if char_pos >= sent[0][0] and char_pos < sent[-1][1]:
             start=max(0, ix-window_size)
             end = min(len(sents)-1, ix+window_size)
             # print(start, end, start, offsets[start])
             # new_ix=char_pos-offsets[start]
             # print(new_ix)
             # print(" ".join(sents[start:end+1])[new_ix:new_ix+10])
-            return " ".join(sents[start:end+1]), char_pos - offsets[start]
+            flat_spans=[span for sen in spans for span in sen]
+            if max_tokens > -1 and len([span for sen in spans[start:end+1] for span in sen]) > max_tokens:
+                for i,span in enumerate(flat_spans):
+                    if char_pos < span[1]:
+                        tok_ix =i
+                        # print(span, char_pos)
+                        break
+                start_tok = max(0, tok_ix-max_tokens)
+                end_tok = min(len(flat_spans)-1, tok_ix+max_tokens)
+
+                # if len(flat_spans[start_tok:end_tok+1]) > 21:
+                # print(start_tok, end_tok, tok_ix)
+                # print(flat_spans[tok_ix])
+                # print(flat_spans[start_tok:end_tok])
+                # print(ctxt[flat_spans[start_tok][0]:flat_spans[end_tok][1]])
+                return ctxt[flat_spans[start_tok][0]:flat_spans[end_tok][1]], char_pos-flat_spans[start_tok][0]
+            else:
+                return " ".join(sents[start:end+1]), char_pos - offsets[start]
     print('couldnt find the char pos')
     print(ctxt, char_pos, len(ctxt))
 

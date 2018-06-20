@@ -372,6 +372,7 @@ class Seq2SeqModel(TFModel):
                 labels=self.question_ids, logits=logits)
             qlen_float = tf.cast(self.question_length, tf.float32)
             self.xe_loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1)/qlen_float,axis=0)
+            self.nll = -1*tf.reduce_sum(self.crossent * self.target_weights,axis=1)
 
             # TODO: Check these should be included in baseline?
             # get sum of all probabilities for words that are also in answer
