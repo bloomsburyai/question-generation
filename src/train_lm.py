@@ -31,6 +31,7 @@ def main(_):
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    _, dev_qs, _,_ = zip(*dev_data)
     vocab = loader.get_vocab(train_qs, tf.app.flags.FLAGS.lm_vocab_size)
 
     with open(chkpt_path+'/vocab.json', 'w') as outfile:
@@ -61,7 +62,10 @@ def main(_):
 
         num_steps = len(unique_sents)//FLAGS.batch_size
 
+        best_perp = 1e6
+
         for e in range(FLAGS.lm_num_epochs):
+            np.random.shuffle(unique_sents)
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 seq_batch = unique_sents[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
 
@@ -75,10 +79,29 @@ def main(_):
                 # print(pred, gold, seq)
                 # exit()
 
-                if i%FLAGS.eval_freq==0:
-                    saver.save(sess, chkpt_path+'/model.checkpoint')
+                # if i%FLAGS.eval_freq==0:
+                #     saver.save(sess, chkpt_path+'/model.checkpoint')
                     # print(pred, gold, seq)
 
+            perps=[]
+            num_steps_dev = len(dev_qs)//FLAGS.batch_size
+            for i in tqdm(range(num_steps_dev), desc="Eval"):
+                seq_batch = dev_qs[i:i+128]
+                seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
+                max_seq_len = max([len(seq) for seq in seq_batch_ids])
+                padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+
+                perp = sess.run(model.perplexity, feed_dict={model.input_seqs: padded_batch})
+                perps.extend(perp)
+
+            perpsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/perplexity",
+                                      simple_value=sum(perps)/len(perps))])
+
+            summary_writer.add_summary(perpsummary, global_step=((e+1)*num_steps))
+
+            if np.mean(perps) < best_perp:
+                print(np.mean(perps), " Saving!")
+                saver.save(sess, chkpt_path+'/model.checkpoint')
 
 if __name__ == '__main__':
     tf.app.run()

@@ -74,7 +74,7 @@ class LstmLm(TFModel):
 
         # seq evaluation
         self.log_probs = tf.reduce_sum(tf.one_hot(self.tgt_output, depth=len(self.vocab))*self.probs,axis=2)
-        self.seq_log_prob = tf.reduce_sum(ops.safe_log(self.log_probs)*self.target_weights, axis=1)/(tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)+1e-6)
+        self.seq_log_prob = tf.reduce_sum(ops.log2(self.log_probs)*self.target_weights, axis=1)/(tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)+1e-6)
 
         # metrics
         self.perplexity = tf.minimum(1000.0,tf.pow(2.0, -1.0*self.seq_log_prob))
@@ -106,12 +106,15 @@ class LstmLmInstance():
 
 def main(_):
     train_data = loader.load_squad_triples("./data/", False)
+    dev_data = loader.load_squad_triples("./data/", True)
 
     import numpy as np
     from helpers.preprocessing import tokenise
+    from tqdm import tqdm
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    _, dev_qs, _,_ = zip(*dev_data)
 
     lm = LstmLmInstance()
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
@@ -125,5 +128,16 @@ def main(_):
     padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
 
     print(lm.get_seq_perplexity(padded_batch))
+
+    perps=[]
+    num_steps = len(dev_qs)//128
+    for i in tqdm(range(num_steps)):
+        seq_batch = dev_qs[i:i+128]
+        seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
+        max_seq_len = max([len(seq) for seq in seq_batch_ids])
+        padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+        perps.extend(lm.get_seq_perplexity(padded_batch))
+    print(np.mean(perps))
+
 if __name__ == "__main__":
     tf.app.run()

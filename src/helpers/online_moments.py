@@ -1,15 +1,16 @@
 import numpy as np
 
-class MovingMoment:
+class OnlineMoment:
 
     def __init__(self):
-        self._n=0.9
+        self._n=1
         self._mean=None
         self._var=None
 
     def push(self, batch):
-        self._mean = np.mean(batch) if self._mean is None else float(self._n-1)/self._n*self._mean + float(1)/self._n*np.mean(batch)
-        self._var = np.var(batch) if self._var is None else float(self._n-1)/self._n*self._var + float(1)/self._n*np.var(batch-self._mean)
+        self._mean = np.mean(batch) if self._mean is None else float(self._n-1)/float(self._n)*self._mean + float(1)/float(self._n)*np.mean(batch)
+        self._var = np.var(batch) if self._var is None else float(self._n-1)/float(self._n)*self._var + float(1)/float(self._n)*np.var(batch-self._mean)
+        self._n +=1
 
     @property
     def mean(self):
@@ -22,7 +23,7 @@ class MovingMoment:
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    mm = MovingMoment()
+    mm = OnlineMoment()
 
     means=[]
     vars=[]

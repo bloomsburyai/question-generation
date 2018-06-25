@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 import helpers.loader as loader
 import helpers.preprocessing as preprocessing
-import helpers.moving_moments as moving_moments
+import helpers.online_moments as online_moments
 from helpers.output import output_pretty, output_basic, tokens_to_string, output_eval
 from tqdm import tqdm
 
@@ -165,8 +165,8 @@ def main(_):
         best_oos_nll=1e6
         perform_policy_gradient = FLAGS.restore # update this during training
 
-        lm_score_moments = moving_moments.MovingMoment()
-        qa_score_moments = moving_moments.MovingMoment()
+        lm_score_moments = online_moments.OnlineMoment()
+        qa_score_moments = online_moments.OnlineMoment()
 
         for e in range(start_e,start_e+FLAGS.num_epochs):
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):

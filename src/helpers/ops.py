@@ -5,6 +5,10 @@ def safe_log(x):
     EPSILON = tf.cast(tf.keras.backend.epsilon(), tf.float32)
     return tf.log(tf.clip_by_value(x, EPSILON, 1-EPSILON))
 
+def log2(x):
+  numerator = safe_log(x)
+  denominator = tf.log(tf.constant(2, dtype=numerator.dtype))
+  return numerator / denominator
 
 def ids_to_string(rev_vocab, context_as_set=False):
     def _ids_to_string(ids, context):
