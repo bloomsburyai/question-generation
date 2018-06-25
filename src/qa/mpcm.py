@@ -162,8 +162,8 @@ class MpcmQa(TFModel):
         self.aggregated_matches = tf.concat(self.aggregated_matches, axis=2)
 
         # Layer 6: Fully connected to get logits
-        self.logits_start = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None))
-        self.logits_end = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None))
+        self.logits_start = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None),-1)
+        self.logits_end = tf.squeeze(tf.layers.dense(self.aggregated_matches, 1, activation=None),-1)
 
         self.prob_start = tf.nn.softmax(self.logits_start)
         self.prob_end = tf.nn.softmax(self.logits_end)

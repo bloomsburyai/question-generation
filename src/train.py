@@ -1,10 +1,10 @@
 import os,time, json,datetime
 
 # model_type = "SEQ2SEQ_FILT1"
-model_type = "MALUUBA_RL"
+model_type = "MALUUBA_RL_QA"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "2" if model_type == "MALUUBA_RL" else "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2" if model_type == "MALUUBA_RL" else "2"
 mem_limit=1.0
 
 import tensorflow as tf
@@ -113,7 +113,7 @@ def main(_):
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
-        if model_type == "MALUUBA_RL":
+        if model_type[:10] == "MALUUBA_RL":
             qa_vocab=model.qa.vocab
             lm_vocab=model.lm.vocab
     else:
@@ -128,7 +128,7 @@ def main(_):
 
 
     # change visible devices if using RL models
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0' if model_type=='MALUUBA_RL' else '0',allow_growth = True)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
 
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+run_id, sess.graph)
@@ -173,7 +173,7 @@ def main(_):
                 # Get a batch
                 train_batch, curr_batch_size = train_data_source.get_batch()
 
-                if model_type == "MALUUBA_RL" and perform_policy_gradient:
+                if model_type[:10] == "MALUUBA_RL" and perform_policy_gradient:
                     # do a fwd pass first, get the score, then do another pass and optimize
                     qhat_str,qhat_ids= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids],
                         feed_dict={model.input_batch: train_batch,
@@ -247,7 +247,7 @@ def main(_):
 
                         # lm_score_whitened.tolist()*FLAGS.lm_weight+
                         # qa_score_whitened.tolist()*FLAGS.qa_weight+
-                    rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1/(FLAGS.lm_weight+1e-6) for b in range(curr_batch_size)]),
+                    rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                         model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
                         model.rl_lm_enabled: True,
                         model.rl_qa_enabled: True,
@@ -351,5 +351,8 @@ def main(_):
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
                 print("NLL not improved ", mean_nll)
+                if model_type[:7] == "MALUUBA_RL":
+                    print("Saving anyway")
+                    saver.save(sess, chkpt_path+'/model.checkpoint')
 if __name__ == '__main__':
     tf.app.run()

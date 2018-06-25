@@ -36,18 +36,23 @@ squad =  loader.load_squad_triples('./data/',True,v2=False)#[9654:9655]
 
 min_pos = 99999999
 num_out=0
+out_str=""
 for i,triple in enumerate(squad):
-    if "westwood one will carry the game throughout north america" in triple[0].lower():
-        # tokens = preprocessing.tokenise(triple[0], asbytes=False)
-        # tok_pos = preprocessing.char_pos_to_word(triple[0].encode(), tokens, triple[3])
-        # print(tokens[tok_pos])
-        # print(tok_pos)
-        # print(tokens)
-        # print(i,">>>"+triple[0][triple[3]:])
-        print(i,triple[1], triple[2], triple[3])
-        print(triple[0])
-        filt, filt_pos = preprocessing.filter_context(triple[0], triple[3], 1, 100)
-        print(filt[filt_pos:filt_pos+10])
-        num_out +=1
-        if num_out >5:
-            exit()
+    filt, filt_pos = preprocessing.filter_context(triple[0], triple[3], 1, 100)
+    out_str += filt +"\n"
+    # if "westwood one will carry the game throughout north america" in triple[0].lower():
+    #     # tokens = preprocessing.tokenise(triple[0], asbytes=False)
+    #     # tok_pos = preprocessing.char_pos_to_word(triple[0].encode(), tokens, triple[3])
+    #     # print(tokens[tok_pos])
+    #     # print(tok_pos)
+    #     # print(tokens)
+    #     # print(i,">>>"+triple[0][triple[3]:])
+    #     print(i,triple[1], triple[2], triple[3])
+    #     print(triple[0])
+    #     filt, filt_pos = preprocessing.filter_context(triple[0], triple[3], 1, 100)
+    #     print(filt[filt_pos:filt_pos+10])
+    #     num_out +=1
+    #     if num_out >5:
+    #         exit()
+with open('openie_dev.txt', 'w') as fp:
+    fp.write(out_str)

@@ -22,15 +22,14 @@ class MaluubaModel(Seq2SeqModel):
 
     def modify_seq2seq_model(self):
         print('Modifying Seq2Seq model to incorporate RL rewards')
-        if self.lm_weight > 0:
-            print('Building and loading LM')
-            self.lm = LstmLmInstance()
-            self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
-        if self.qa_weight > 0:
-            print('Building and loading QA model')
-            self.qa = MpcmQaInstance()
-            self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+        print('Building and loading LM')
+        self.lm = LstmLmInstance()
+        self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
+
+        print('Building and loading QA model')
+        self.qa = MpcmQaInstance()
+        self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
 
         with self.graph.as_default():
 
@@ -40,12 +39,6 @@ class MaluubaModel(Seq2SeqModel):
             self.rl_qa_enabled = tf.placeholder_with_default(False,(), "rl_qa_enabled")
 
             with tf.variable_scope('rl_rewards'):
-                # TODO: Fluency reward from LM
-                # TODO: Answerability reward from QA model
-                # TODO: Correct REINFORCE loss
-                # TODO: Check teacher forcing method for learning using beam search
-                # TODO: whiten rewards (popart)
-
                 # NOTE: This isnt obvious! If we feed in the generated Qs as the gold with a reward,
                 # we get REINFORCE. If we feed in a reward of 1.0 with an actual gold Q, we get cross entropy.
                 # So we can combine both in the same set of ops, but need to construct batches appropriately
@@ -68,7 +61,7 @@ class MaluubaModel(Seq2SeqModel):
             # this needs rebuilding again
             self.train_summary = tf.summary.merge(self._train_summaries)
 
-            #dont bother calculating gradients if not training
+            # dont bother calculating gradients if not training
             if self.training_mode:
                 # these need to be redefined with the correct inputs
                 # Calculate and clip gradients

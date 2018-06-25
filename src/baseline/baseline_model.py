@@ -2,6 +2,9 @@ import sys,json
 sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
 
 import spacy
+import helpers.preprocessing as preprocessing
+
+from collections import Counter
 
 # Spacy entity types
 # PERSON	People, including fictional.
@@ -185,13 +188,11 @@ class BaselineModel():
 
 if __name__ == "__main__":
     import helpers.loader as loader
-    import helpers.preprocessing as preprocessing
     import helpers.metrics as metrics
 
     from langmodel.lm import LstmLmInstance
     from qa.mpcm import MpcmQaInstance
 
-    from collections import Counter
 
     import flags
     import tensorflow as tf
