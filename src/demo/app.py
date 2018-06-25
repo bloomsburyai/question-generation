@@ -16,8 +16,8 @@ mem_limit=0.9
 
 class AQInstance():
     def __init__(self, vocab):
-        # self.model = Seq2SeqModel(vocab, training_mode=False)
-        self.model = MaluubaModel(vocab, None, None, training_mode=False)
+        self.model = Seq2SeqModel(vocab, training_mode=False)
+        # self.model = MaluubaModel(vocab, training_mode=False)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
@@ -55,6 +55,8 @@ def get_q():
     ctxt = request.args['context']
     ans = request.args['answer']
     ans_pos = ctxt.find(ans)
+
+    ctxt,ans_pos = preprocessing.filter_context(ctxt, ans_pos, FLAGS.filter_window_size, FLAGS.filter_max_tokens)
     if ans_pos > -1:
         q =current_app.generator.get_q(ctxt.encode(), ans.encode(), ans_pos)
         return q
@@ -65,7 +67,7 @@ def init():
     print('Spinning up AQ demo app')
 
     # chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-shortlist'
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-filt1'
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
     app.generator = AQInstance(vocab=vocab)

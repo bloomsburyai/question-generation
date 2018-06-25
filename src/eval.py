@@ -42,10 +42,6 @@ def main(_):
     # vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
-    with open(chkpt_path+'/lm_vocab.json') as f:
-        lm_vocab = json.load(f)
-    with open(chkpt_path+'/qa_vocab.json') as f:
-        qa_vocab = json.load(f)
 
     dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
 
@@ -64,8 +60,8 @@ def main(_):
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    lm = LstmLmInstance(lm_vocab)
-    qa = MpcmQaInstance(qa_vocab)
+    lm = LstmLmInstance()
+    qa = MpcmQaInstance()
 
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
     qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
@@ -91,10 +87,11 @@ def main(_):
         bleus=[]
         qa_scores=[]
         lm_scores=[]
+        nlls=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
@@ -123,6 +120,7 @@ def main(_):
 
                 qa_scores.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
                 lm_scores.extend(lm.get_seq_perplexity(qhat_for_lm).tolist()) # lower perplexity is better
+                nlls.extend(nll.tolist())
 
                 if i==0:
 
@@ -135,6 +133,7 @@ def main(_):
         print("BLEU: ", np.mean(bleus))
         print("QA: ", np.mean(qa_scores))
         print("LM: ", np.mean(lm_scores))
+        print("NLL: ", np.mean(nlls))
 
 if __name__ == '__main__':
     tf.app.run()

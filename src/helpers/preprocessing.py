@@ -36,12 +36,12 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False):
+def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False, asbytes=True):
     ids = []
 
 
-    decoded_context = [w.decode() for w in tokenise(context)] if context is not None else []
-    words = [w.decode() for w in tokenise(words)] if do_tokenise else [w.decode() for w in words]
+    decoded_context = [w.decode() if asbytes else w for w in tokenise(context)] if context is not None else []
+    words = [w.decode() if asbytes else w for w in tokenise(words)] if do_tokenise else [w.decode() if asbytes else w for w in words]
     if context_as_set:
         context_set = sorted(set(decoded_context))
 
@@ -103,9 +103,9 @@ def tokenise(text, asbytes=True, append_eos=False):
     # return np.asarray(tokens)
     return tokens
 
-def char_pos_to_word(text, tokens, char_pos):
+def char_pos_to_word(text, tokens, char_pos, asbytes=True):
     ix=0
-    text=text.decode()
+    text=text.decode() if asbytes else text
     if use_nltk:
         sents = [s for s in sent_tokenize(text)]
         spans = [[s for s in TreebankWordTokenizer().span_tokenize(sent)] for sent in sents]

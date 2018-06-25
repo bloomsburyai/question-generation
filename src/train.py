@@ -1,10 +1,10 @@
 import os,time, json,datetime
 
-model_type = "SEQ2SEQ_FILT1"
-# model_type = "MALUUBA_RL"
+# model_type = "SEQ2SEQ_FILT1"
+model_type = "MALUUBA_RL"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3" if model_type == "MALUUBA_RL" else "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2" if model_type == "MALUUBA_RL" else "1"
 mem_limit=1.0
 
 import tensorflow as tf
@@ -64,8 +64,8 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+run_id
-    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA'+'/'+'1528972474'
-    # restore_path=FLAGS.model_dir+'saved/qgen-maluuba'
+    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
+    # restore_path=FLAGS.model_dir+'saved/qgen-maluuba-filt'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -109,11 +109,13 @@ def main(_):
         model = Seq2SeqModel(vocab, training_mode=True)
     elif model_type[:7] == "MALUUBA":
         # TEMP
-        # FLAGS.qa_weight = 0
-        # FLAGS.lm_weight = 0
+        if not FLAGS.restore:
+            FLAGS.qa_weight = 0
+            FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
-        qa_vocab=model.qa.vocab
-        lm_vocab=model.lm.vocab
+        if model_type == "MALUUBA_RL":
+            qa_vocab=model.qa.vocab
+            lm_vocab=model.lm.vocab
     else:
         exit("Unrecognised model type: "+model_type)
 
@@ -126,43 +128,45 @@ def main(_):
 
 
     # change visible devices if using RL models
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0',allow_growth = True)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0' if model_type=='MALUUBA_RL' else '0',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
 
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+run_id, sess.graph)
 
         train_data_source.initialise(train_data)
 
+        num_steps_train = len(train_data)//FLAGS.batch_size
+        num_steps_dev = num_dev_samples//FLAGS.batch_size
 
         if FLAGS.restore:
             saver.restore(sess, restore_path+ '/model.checkpoint')
-            start_e=FLAGS.num_epochs
+            start_e=15#FLAGS.num_epochs
             print('Loaded model')
         else:
             start_e=0
             sess.run(tf.global_variables_initializer())
             # sess.run(model.glove_init_ops)
 
-        num_steps_train = len(train_data)//FLAGS.batch_size
-        num_steps_dev = num_dev_samples//FLAGS.batch_size
+            f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
+                                             simple_value=0.0)])
+            bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
+                                      simple_value=0.0)])
+
+            summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
+            summary_writer.add_summary(bleusummary, global_step=start_e*num_steps_train)
+
 
         # Initialise the dataset
         # sess.run(model.iterator.initializer, feed_dict={model.context_ph: train_contexts,
         #                                   model.qs_ph: train_qs, model.as_ph: train_as, model.a_pos_ph: train_a_pos})
 
-        f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
-                                         simple_value=0.0)])
-        bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
-                                  simple_value=0.0)])
 
-        summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
-        summary_writer.add_summary(bleusummary, global_step=start_e*num_steps_train)
 
         best_oos_nll=1e6
         perform_policy_gradient = FLAGS.restore # update this during training
 
-        lm_score_moments = moving_moments.MovingMoment(rate=0.99)
-        qa_score_moments = moving_moments.MovingMoment(rate=0.99)
+        lm_score_moments = moving_moments.MovingMoment()
+        qa_score_moments = moving_moments.MovingMoment()
 
         for e in range(start_e,start_e+FLAGS.num_epochs):
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
@@ -196,7 +200,7 @@ def main(_):
                         gold_str.append(" ".join([w.decode() for w in train_batch[2][0][b][:train_batch[2][2][b]].tolist()]))
                         pred_str.append(" ".join([w.decode() for w in train_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
 
-                    qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(FLAGS.batch_size)])
+                    qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
 
                     lm_score_moments.push(lm_score)
                     qa_score_moments.push(qa_f1s)
@@ -259,7 +263,7 @@ def main(_):
                     summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
 
                 else:
-                    if model_type == "MALUUBA" and not perform_policy_gradient:
+                    if model_type[:7] == "MALUUBA" and not perform_policy_gradient:
                         rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
                             model.qa_score: [0 for b in range(curr_batch_size)],
                             model.rl_lm_enabled: False,
@@ -271,7 +275,7 @@ def main(_):
                     # Perform a normal optimizer step
                     ops = [model.optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
-                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch,
                         model.is_training:True,
                         **rl_dict})
@@ -313,7 +317,7 @@ def main(_):
             dev_data_source.initialise(dev_subset)
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.q_gold, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 nlls.extend(nll.tolist())
                 # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
