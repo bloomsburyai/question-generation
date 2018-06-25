@@ -102,6 +102,7 @@ def main(_):
             if np.mean(perps) < best_perp:
                 print(np.mean(perps), " Saving!")
                 saver.save(sess, chkpt_path+'/model.checkpoint')
+                best_perp = np.mean(perps)
 
 if __name__ == '__main__':
     tf.app.run()
