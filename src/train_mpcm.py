@@ -1,7 +1,7 @@
 import os,time,datetime,json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+# os.environ["CUDA_VISIBLE_DEVICES"]="1"
 mem_limit=0.95
 
 import tensorflow as tf
@@ -11,7 +11,7 @@ from tqdm import tqdm
 import flags
 
 from qa.mpcm import MpcmQa
-from helpers.preprocessing import tokenise, char_pos_to_word
+from helpers.preprocessing import tokenise, char_pos_to_word, filter_squad
 from helpers import loader
 from helpers.metrics import f1
 
@@ -41,6 +41,9 @@ def main(_):
 
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+
+    train_data = filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+    # dev_data = filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
 
     if FLAGS.testing:
         train_data=train_data[:1000]
@@ -153,7 +156,7 @@ def main(_):
                         out_str += str(batch_answers[b])+ str(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]) + '<br/>'
                         out_str += str(pred[b]) + str(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) + '<br/>'
                         out_str += "<hr/>"
-                    with open(FLAGS.log_dir+'out_qa.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out_qa.htm', 'w', encoding='utf-8') as fp:
                         fp.write(out_str)
 
                     # saver.save(sess, chkpt_path+'/model.checkpoint')

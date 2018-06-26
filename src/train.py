@@ -351,7 +351,7 @@ def main(_):
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
                 print("NLL not improved ", mean_nll)
-                if model_type[:7] == "MALUUBA_RL":
+                if model_type[:10] == "MALUUBA_RL":
                     print("Saving anyway")
                     saver.save(sess, chkpt_path+'/model.checkpoint')
 if __name__ == '__main__':

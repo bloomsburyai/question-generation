@@ -111,12 +111,12 @@ class MpcmQa(TFModel):
             # print(similarity)
             return similarity/v1_norm/v2_norm
 
-        m_fwd = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W1", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
-        m_bwd = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W2", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
-        m_fwd2 = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W3", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
-        m_bwd2 = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W4", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
-        m_fwd3 = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W5", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
-        m_bwd3 = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W6", (50, num_units_encoder), tf.float32, tf.glorot_uniform_initializer()))
+        m_fwd = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W1", (50, num_units_encoder), tf.float32))
+        m_bwd = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W2", (50, num_units_encoder), tf.float32))
+        m_fwd2 = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W3", (50, num_units_encoder), tf.float32))
+        m_bwd2 = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W4", (50, num_units_encoder), tf.float32))
+        m_fwd3 = similarity(self.context_encodings[0], self.question_encodings[0], tf.get_variable("W5", (50, num_units_encoder), tf.float32))
+        m_bwd3 = similarity(self.context_encodings[1], self.question_encodings[1], tf.get_variable("W6", (50, num_units_encoder), tf.float32))
 
         def get_last_seq(seq, lengths): # seq is batch x dim1 x time  x dim2
             seq = tf.transpose(seq, [0,2,1,3]) # batch x time x dim1 x dim2
@@ -143,7 +143,7 @@ class MpcmQa(TFModel):
         # Layer 5: aggregate with BiLSTM
         with tf.variable_scope('layer5_fwd_cell'):
             cell_fw2 = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units),
-                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_keep_prob=1.0,
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=50*6,
@@ -151,7 +151,7 @@ class MpcmQa(TFModel):
                 dtype=tf.float32)
         with tf.variable_scope('layer5_bwd_cell'):
             cell_bw2 = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units),
-                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+                input_keep_prob=1.0,
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=50*6,
