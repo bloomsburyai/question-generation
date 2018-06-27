@@ -1,7 +1,7 @@
 import os,time,datetime,json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+# os.environ["CUDA_VISIBLE_DEVICES"]="3"
 mem_limit=0.95
 
 import tensorflow as tf
@@ -112,7 +112,7 @@ def main(_):
                 batch_answers=[]
                 for j, ctxt in enumerate(batch_contexts):
                     ans_span=char_pos_to_word(ctxt.encode(), [t.encode() for t in tokenise(ctxt, asbytes=False)], batch_answer_charpos[j])
-                    ans_span=(ans_span, ans_span+len(tokenise(batch_ans_text[j],asbytes=False)))
+                    ans_span=(ans_span, ans_span+len(tokenise(batch_ans_text[j],asbytes=False))-1)
                     batch_answers.append(ans_span)
 
                 # print(batch_answers[:3])
@@ -178,7 +178,7 @@ def main(_):
                 batch_answers=[]
                 for j, ctxt in enumerate(batch_contexts):
                     ans_span=char_pos_to_word(ctxt.encode(), [t.encode() for t in tokenise(ctxt, asbytes=False)], batch_answer_charpos[j])
-                    ans_span=(ans_span, ans_span+len(tokenise(batch_ans_text[j],asbytes=False)))
+                    ans_span=(ans_span, ans_span+len(tokenise(batch_ans_text[j],asbytes=False))-1)
                     batch_answers.append(ans_span)
 
 
@@ -192,7 +192,7 @@ def main(_):
 
                 for b in range(FLAGS.qa_batch_size):
                     gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
-                    pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) )
+                    pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]+1]) )
 
                 f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
                 exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.qa_batch_size) ])
