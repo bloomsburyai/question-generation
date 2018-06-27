@@ -1,7 +1,7 @@
 import os,time, json, datetime
 
-model_type = "SEQ2SEQ"
-# model_type = "MALUUBA"
+# model_type = "SEQ2SEQ"
+model_type = "MALUUBA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -26,12 +26,17 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-set'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-filt'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:1500]
+
+    if FLAGS.filter_window_size >-1:
+        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     print('Loaded SQuAD dev set with ',len(dev_data),' triples')
@@ -53,7 +58,7 @@ def main(_):
         # TEMP - no need to spin up the LM or QA model at eval time
         FLAGS.qa_weight = 0
         FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, lm_vocab, qa_vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
 
@@ -65,6 +70,9 @@ def main(_):
 
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
     qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+
+    lm_vocab=lm.vocab
+    qa_vocab=qa.vocab
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:

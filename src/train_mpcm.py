@@ -96,7 +96,7 @@ def main(_):
         summary_writer.add_summary(f1summary, global_step=start_e*num_steps_train)
         summary_writer.add_summary(emsummary, global_step=start_e*num_steps_train)
 
-        max_oos_f1=0
+        best_oos_nll=1e6
 
         for e in range(start_e,start_e+FLAGS.qa_num_epochs):
             np.random.shuffle(train_data)
@@ -164,10 +164,12 @@ def main(_):
 
             f1s=[]
             exactmatches=[]
+            nlls=[]
 
             np.random.shuffle(dev_data)
             dev_subset = dev_data[:num_dev_samples]
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
+                dev_contexts,dev_qs,dev_as,dev_a_pos = dev_subset
                 batch_contexts = dev_contexts[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
                 batch_questions = dev_qs[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
                 batch_ans_text = dev_as[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
@@ -180,7 +182,7 @@ def main(_):
                     batch_answers.append(ans_span)
 
 
-                pred = sess.run(model.pred_span,
+                pred,nll = sess.run([model.pred_span, model.nll]
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
@@ -194,22 +196,25 @@ def main(_):
 
                 f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
                 exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.qa_batch_size) ])
-
+                nlls.extend(nll.tolist())
             f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
                                              simple_value=sum(f1s)/len(f1s))])
             emsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/em",
                                       simple_value=sum(exactmatches)/len(exactmatches))])
+            nllsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/nll",
+                                      simple_value=np.mean(nlls))])
 
             summary_writer.add_summary(f1summary, global_step=((e+1)*num_steps_train))
             summary_writer.add_summary(emsummary, global_step=((e+1)*num_steps_train))
+            summary_writer.add_summary(nllsummary, global_step=((e+1)*num_steps_train))
 
-            mean_f1=sum(f1s)/len(f1s)
-            if mean_f1 > max_oos_f1:
-                print("New best F1! ", mean_f1, " Saving...")
-                max_oos_f1 = mean_f1
+            mean_nll=np.mean(nlls)
+            if mean_nll < best_oos_nll:
+                print("New best NLL! ", mean_nll, " Saving...")
+                best_oos_nll = mean_nll
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
-                print("F1 not improved ", mean_f1)
+                print("NLL not improved ", mean_nll)
 
 if __name__ == '__main__':
     tf.app.run()

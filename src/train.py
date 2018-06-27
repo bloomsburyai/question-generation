@@ -1,10 +1,10 @@
 import os,time, json,datetime
 
 # model_type = "SEQ2SEQ_FILT1"
-model_type = "MALUUBA_RL_QA"
+model_type = "MALUUBA_RL_LM"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"] = "2" if model_type == "MALUUBA_RL" else "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 mem_limit=1.0
 
 import tensorflow as tf

@@ -122,22 +122,29 @@ def main(_):
     vocab=lm.vocab
 
     # random words, basic q, common words, real q, real context
-    seq_batch = [" ".join(np.random.choice(list(vocab.keys()), 20)), "what ?","what is is is the ?", "Where is the Baha'i national office located in Nepal?", "Kathmandu Metropolitan City (KMC), in order to promote international relations has established an International Relations Secretariat (IRC). KMC's first international relationship was established in 1975 with the city of Eugene, Oregon, United States. This activity has been further enhanced by establishing formal relationships with 8 other cities"]
+    seq_batch = ["who refused to approve the funding plan to pay for the renovations ? ",
+        "what is the education school of technology in the country ? </Sent> ",
+        "what was the name of the company that did the broncos attempt to deal with ? </Sent> ",
+        "Which NFL team represented the AFC at Super Bowl 50?",
+        "which NFL team represented the <OOV> at <OOV> <OOV> <OOV> ?"]
+    # seq_batch=dev_qs[:5]
     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
     max_seq_len = max([len(seq) for seq in seq_batch_ids])
     padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
 
-    print(lm.get_seq_perplexity(padded_batch))
+    perps=lm.get_seq_perplexity(padded_batch)
+    print(perps)
+    print(seq_batch)
 
-    perps=[]
-    num_steps = len(dev_qs)//128
-    for i in tqdm(range(num_steps)):
-        seq_batch = dev_qs[i:i+128]
-        seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
-        max_seq_len = max([len(seq) for seq in seq_batch_ids])
-        padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
-        perps.extend(lm.get_seq_perplexity(padded_batch))
-    print(np.mean(perps))
+    # perps=[]
+    # num_steps = len(dev_qs)//128
+    # for i in tqdm(range(num_steps)):
+    #     seq_batch = dev_qs[i:i+128]
+    #     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
+    #     max_seq_len = max([len(seq) for seq in seq_batch_ids])
+    #     padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+    #     perps.extend(lm.get_seq_perplexity(padded_batch))
+    # print(np.mean(perps))
 
 if __name__ == "__main__":
     tf.app.run()

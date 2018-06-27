@@ -276,7 +276,7 @@ class Seq2SeqModel(TFModel):
                                             output_mask=lambda: self.answer_mask,
                                             context_as_set=FLAGS.context_as_set,
                                             max_copy_size=FLAGS.max_copy_size,
-                                            mask_oovs=self.is_training,
+                                            mask_oovs=tf.logical_not(self.is_training),
                                             name="copy_layer")
 
             scope.reuse_variables()
@@ -292,7 +292,7 @@ class Seq2SeqModel(TFModel):
                                             output_mask=lambda: answer_mask_beam,
                                             context_as_set=FLAGS.context_as_set,
                                             max_copy_size=FLAGS.max_copy_size,
-                                            mask_oovs=self.is_training,
+                                            mask_oovs=tf.logical_not(self.is_training),
                                             name="copy_layer")
 
         with tf.variable_scope('decoder_unroll') as scope:
