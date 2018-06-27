@@ -135,8 +135,8 @@ def main(_):
                     f1s = []
                     exactmatches= []
                     for b in range(FLAGS.qa_batch_size):
-                        gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
-                        pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) )
+                        gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]+1]))
+                        pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]+1]) )
 
                     f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
                     exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.qa_batch_size) ])
@@ -191,7 +191,7 @@ def main(_):
                 pred_str=[]
 
                 for b in range(FLAGS.qa_batch_size):
-                    gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]))
+                    gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]+1]))
                     pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]+1]) )
 
                 f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
@@ -210,7 +210,7 @@ def main(_):
 
             mean_nll=np.mean(nlls)
             if mean_nll < best_oos_nll:
-                print("New best NLL! ", mean_nll, " Saving...")
+                print("New best NLL! ", mean_nll, " Saving... F1: ", np.mean(f1s))
                 best_oos_nll = mean_nll
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
