@@ -131,6 +131,7 @@ def main(_):
                 nlls.extend(nll.tolist())
 
                 if i==0:
+                    print(qhat_for_lm[0])
 
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)

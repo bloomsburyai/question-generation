@@ -169,7 +169,7 @@ def main(_):
             np.random.shuffle(dev_data)
             dev_subset = dev_data[:num_dev_samples]
             for i in tqdm(range(num_steps_dev), desc='Eval '+str(e)):
-                dev_contexts,dev_qs,dev_as,dev_a_pos = dev_subset
+                dev_contexts,dev_qs,dev_as,dev_a_pos = zip(*dev_subset)
                 batch_contexts = dev_contexts[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
                 batch_questions = dev_qs[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]
                 batch_ans_text = dev_as[i*FLAGS.qa_batch_size:(i+1)*FLAGS.qa_batch_size]

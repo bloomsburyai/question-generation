@@ -77,7 +77,7 @@ class LstmLm(TFModel):
         self.seq_log_prob = tf.reduce_sum(ops.log2(self.log_probs)*self.target_weights, axis=1)/(tf.cast(tf.reduce_sum(self.target_weights,axis=1),tf.float32)+1e-6)
 
         # metrics
-        self.perplexity = tf.minimum(1000.0,tf.pow(2.0, -1.0*self.seq_log_prob))
+        self.perplexity = tf.minimum(10000.0,tf.pow(2.0, -1.0*self.seq_log_prob))
         self._train_summaries.append(tf.summary.scalar("train_perf/perplexity", tf.reduce_mean(self.perplexity)))
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.preds, self.tgt_output), tf.float32))
 
@@ -122,9 +122,10 @@ def main(_):
     vocab=lm.vocab
 
     # random words, basic q, common words, real q, real context
-    seq_batch = ["who refused to approve the funding plan to pay for the renovations ? ",
-        "what is the education school of technology in the country ? </Sent> ",
-        "what was the name of the company that did the broncos attempt to deal with ? </Sent> ",
+    seq_batch = ["what played a chance to defend their title from super bowl xlix ?",
+        "who were the defending super bowl champions ?",
+        "what was the name of the company that tesla the public ? </Sent>",
+        "what was the boat called ?",
         "Which NFL team represented the AFC at Super Bowl 50?",
         "which NFL team represented the <OOV> at <OOV> <OOV> <OOV> ?"]
     # seq_batch=dev_qs[:5]
@@ -136,15 +137,15 @@ def main(_):
     print(perps)
     print(seq_batch)
 
-    # perps=[]
-    # num_steps = len(dev_qs)//128
-    # for i in tqdm(range(num_steps)):
-    #     seq_batch = dev_qs[i:i+128]
-    #     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
-    #     max_seq_len = max([len(seq) for seq in seq_batch_ids])
-    #     padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
-    #     perps.extend(lm.get_seq_perplexity(padded_batch))
-    # print(np.mean(perps))
+    perps=[]
+    num_steps = len(dev_qs)//128
+    for i in tqdm(range(num_steps)):
+        seq_batch = dev_qs[i:i+128]
+        seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
+        max_seq_len = max([len(seq) for seq in seq_batch_ids])
+        padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+        perps.extend(lm.get_seq_perplexity(padded_batch))
+    print(np.mean(perps))
 
 if __name__ == "__main__":
     tf.app.run()
