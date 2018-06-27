@@ -182,7 +182,7 @@ def main(_):
                     batch_answers.append(ans_span)
 
 
-                pred,nll = sess.run([model.pred_span, model.nll]
+                pred,nll = sess.run([model.pred_span, model.nll],
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
