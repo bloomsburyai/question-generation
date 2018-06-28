@@ -63,7 +63,7 @@ class MpcmQa(TFModel):
         num_units_encoder=FLAGS.qa_encoder_units
         with tf.variable_scope('layer3_fwd_cell'):
             cell_fw = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder),
-                input_keep_prob=1.0,
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=self.embedding_size,
@@ -71,7 +71,7 @@ class MpcmQa(TFModel):
                 dtype=tf.float32)
         with tf.variable_scope('layer3_bwd_cell'):
             cell_bw = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=num_units_encoder),
-                input_keep_prob=1.0,
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=self.embedding_size,
@@ -133,9 +133,9 @@ class MpcmQa(TFModel):
         m_full_bwd = m_bwd[:,:,0,:]
         m_max_fwd  = tf.reduce_max(m_fwd2, axis=2)
         m_max_bwd  = tf.reduce_max(m_bwd2, axis=2)
-        m_mean_fwd  = tf.reduce_mean(m_fwd3, axis=2)
-        m_mean_bwd  = tf.reduce_mean(m_bwd3, axis=2)
-        self.matches = tf.layers.dropout(tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2), rate=self.dropout_prob, training=self.is_training)
+        m_mean_fwd  = tf.reduce_sum(m_fwd3, axis=2)/tf.expand_dims(tf.expand_dims(tf.cast(self.question_len, tf.float32),-1),-1)
+        m_mean_bwd  = tf.reduce_sum(m_bwd3, axis=2)/tf.expand_dims(tf.expand_dims(tf.cast(self.question_len, tf.float32),-1),-1)
+        self.matches = tf.concat([m_full_fwd, m_full_bwd, m_max_fwd, m_max_bwd, m_mean_fwd, m_mean_bwd], axis=2)
 
         # print(m_full_bwd)
         # print(self.matches)
@@ -143,7 +143,7 @@ class MpcmQa(TFModel):
         # Layer 5: aggregate with BiLSTM
         with tf.variable_scope('layer5_fwd_cell'):
             cell_fw2 = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=FLAGS.qa_match_units),
-                input_keep_prob=1.0,
+                input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                 input_size=50*6,

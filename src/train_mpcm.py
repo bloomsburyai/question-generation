@@ -119,7 +119,7 @@ def main(_):
                 # exit()
                 # run_metadata = tf.RunMetadata()
                 # run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                _,summ, pred = sess.run([model.optimizer, model.train_summary, model.pred_span],
+                _,summ, pred, debug = sess.run([model.optimizer, model.train_summary, model.pred_span, model.matches],
                         feed_dict={model.context_in: get_padded_batch(batch_contexts,vocab),
                                 model.question_in: get_padded_batch(batch_questions,vocab),
                                 model.answer_spans_in: batch_answers,
@@ -130,6 +130,10 @@ def main(_):
                 # summary_writer.add_run_metadata(run_metadata, tag="step "+str(i), global_step=(e*num_steps_train+i))
 
                 if i%FLAGS.eval_freq==0:
+                    print(np.shape(debug))
+                    print(np.min(debug))
+                    print(np.max(debug))
+
                     gold_str=[]
                     pred_str=[]
                     f1s = []
