@@ -49,11 +49,12 @@ class MpcmQa(TFModel):
         self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_in), rate=self.dropout_prob, training=self.is_training)
 
         # Layer 2: Filter. r is batch x con_len x q_len
-        r = tf.matmul(self.context_embedded, tf.transpose(self.question_embedded,[0,2,1]))/tf.matmul(tf.expand_dims(tf.sqrt(tf.norm(self.context_embedded, ord=2, axis=2)),-1),tf.expand_dims(tf.sqrt(tf.norm(self.question_embedded, ord=2, axis=2)),-2))
-        r_context = tf.reduce_max(r, axis=2, keep_dims=True)
+        self.r_norm = (tf.expand_dims(tf.norm(self.context_embedded, ord=2, axis=2),-1) * tf.expand_dims(tf.norm(self.question_embedded, ord=2, axis=2),-2))
+        self.r = tf.matmul(self.context_embedded, tf.transpose(self.question_embedded,[0,2,1]))/self.r_norm
+        self.r_context = tf.reduce_max(self.r, axis=2, keep_dims=True)
         # r_question = tf.reduce_max(r, axis=1, keep_dims=True)
 
-        self.context_filtered = r_context * self.context_embedded
+        self.context_filtered = self.r_context * self.context_embedded
         self.question_filtered = self.question_embedded#tf.layers.dropout(tf.tile(tf.transpose(r_question,[0,2,1]), [1,1,self.embedding_size]) * self.question_embedded, rate=0.2, training=self.is_training)
 
         # print(self.context_filtered)
@@ -105,8 +106,8 @@ class MpcmQa(TFModel):
             similarity = tf.matmul(tf.transpose(v1_weighted,[0,2,1,3]), tf.transpose(v2_weighted, [0,2,3,1]))
             similarity = tf.transpose(similarity, [0,2,3,1])
             # v1_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v1_weighted, ord=2,axis=-1)),axis=-2), [1,1,tf.shape(v2)[1],1])
-            v1_norm = tf.expand_dims(tf.sqrt(tf.norm(v1_weighted, ord=2,axis=-1)),axis=-2)
-            v2_norm = tf.expand_dims(tf.sqrt(tf.norm(v2_weighted, ord=2,axis=-1)),axis=-3)
+            v1_norm = tf.expand_dims(tf.norm(v1_weighted, ord=2,axis=-1),axis=-2)
+            v2_norm = tf.expand_dims(tf.norm(v2_weighted, ord=2,axis=-1),axis=-3)
             # v2_norm = tf.tile(tf.expand_dims(tf.sqrt(tf.norm(v2_weighted, ord=2,axis=-1)),axis=-3), [1,tf.shape(v1)[1],1,1])
             # print(similarity)
             return similarity/v1_norm/v2_norm
