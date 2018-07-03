@@ -1,7 +1,7 @@
 import os,time,json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 mem_limit=0.5
 
 import tensorflow as tf
@@ -86,7 +86,7 @@ def main(_):
             perps=[]
             num_steps_dev = len(dev_qs)//FLAGS.batch_size
             for i in tqdm(range(num_steps_dev), desc="Eval"):
-                seq_batch = dev_qs[i:i+128]
+                seq_batch = dev_qs[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
                 seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
                 max_seq_len = max([len(seq) for seq in seq_batch_ids])
                 padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
