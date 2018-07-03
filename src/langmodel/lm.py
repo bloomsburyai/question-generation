@@ -28,13 +28,14 @@ class LstmLm(TFModel):
 
     def build_model(self):
 
-        self.dropout_prob=0.2
+        self.dropout_prob=0.3
 
         with tf.device('/cpu:*'):
             # Load glove embeddings
             glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
             embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
             self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+            # self.embeddings = tf.get_variable('word_embeddings', (len(self.vocab), FLAGS.embedding_size), dtype=tf.float32)
             assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
         # input placeholder
@@ -48,13 +49,14 @@ class LstmLm(TFModel):
         self.tgt_output = self.input_seqs[:,1:]  # start+1:end - ids
 
         # RNN
-        cell = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=self.num_units),
-            input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-            state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-            output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-            input_size=self.embedding_size,
-            variational_recurrent=True,
-            dtype=tf.float32)
+        # cell = tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(num_units=self.num_units),
+        #     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+        #     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+        #     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
+        #     input_size=self.embedding_size,
+        #     variational_recurrent=True,
+        #     dtype=tf.float32)
+        cell = tf.contrib.rnn.LayerNormBasicLSTMCell(num_units=self.num_units, dropout_keep_prob=tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.))
 
         outputs, states = tf.nn.dynamic_rnn(cell, self.tgt_input, dtype=tf.float32)
 
@@ -91,7 +93,7 @@ class LstmLmInstance():
         with open(path+'/vocab.json') as f:
             self.vocab = json.load(f)
 
-        self.model = LstmLm(self.vocab, num_units=512, training_mode=False)
+        self.model = LstmLm(self.vocab, num_units=FLAGS.lm_units, training_mode=False)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
 
