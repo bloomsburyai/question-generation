@@ -33,7 +33,8 @@ class Model(object):
             self.q_len = tf.reduce_sum(tf.cast(self.q_mask, tf.int32), axis=1)
 
             if opt:
-                N, CL = config.batch_size if not self.demo else 32, config.char_limit
+                # we have to hardcode the max batch size here! use the batch size from the generator as this will be used for PG
+                N, CL = config.batch_size if not self.demo else config.batch_size, config.char_limit
                 self.c_maxlen = tf.reduce_max(self.c_len)
                 self.q_maxlen = tf.reduce_max(self.q_len)
                 self.c = tf.slice(self.c, [0, 0], [N, self.c_maxlen])
@@ -67,7 +68,7 @@ class Model(object):
 
     def forward(self):
         config = self.config
-        N, PL, QL, CL, d, dc, nh = config.batch_size if not self.demo else 32, self.c_maxlen, self.q_maxlen, config.char_limit, config.hidden, config.char_dim, config.num_heads
+        N, PL, QL, CL, d, dc, nh = config.batch_size if not self.demo else config.batch_size, self.c_maxlen, self.q_maxlen, config.char_limit, config.hidden, config.char_dim, config.num_heads
 
         with tf.variable_scope("Input_Embedding_Layer"):
             ch_emb = tf.reshape(tf.nn.embedding_lookup(
