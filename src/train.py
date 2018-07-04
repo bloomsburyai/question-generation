@@ -218,9 +218,9 @@ def main(_):
                     # Build a combined batch - half ground truth for MLE, half generated for PG
                     train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
 
-                    print(qhat_ids)
-                    print(qhat_lens)
-                    print(train_batch_ext[2][2])
+                    # print(qhat_ids)
+                    # print(qhat_lens)
+                    # print(train_batch_ext[2][2])
 
                     rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                         model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
