@@ -230,6 +230,9 @@ def main(_):
                         **rl_dict})
                     summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
 
+                    # self._train_summaries.append(tf.summary.scalar("train_loss/lm", self.lm_loss))
+                    # self._train_summaries.append(tf.summary.scalar("train_loss/qa", self.qa_loss))
+
                 else:
                     # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
                     if FLAGS.model_type[:7] == "MALUUBA" and not FLAGS.policy_gradient:

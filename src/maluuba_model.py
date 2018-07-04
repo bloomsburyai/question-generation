@@ -47,17 +47,13 @@ class MaluubaModel(Seq2SeqModel):
                 # So we can combine both in the same set of ops, but need to construct batches appropriately
                 mask = tf.one_hot(self.question_ids, depth=len(self.vocab) +FLAGS.max_copy_size)
 
-                lm_loss = tf.reduce_mean(-1.0*self.lm_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
-                qa_loss = tf.reduce_mean(-1.0*self.qa_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
+                self.lm_loss = tf.reduce_mean(-1.0*self.lm_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
+                self.qa_loss = tf.reduce_mean(-1.0*self.qa_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
 
-            self._train_summaries.append(tf.summary.scalar("rl_rewards/lm", tf.reduce_mean(self.lm_score)))
-            self._train_summaries.append(tf.summary.scalar("rl_rewards/qa", tf.reduce_mean(self.qa_score)))
+            
 
-            self._train_summaries.append(tf.summary.scalar("train_loss/lm", lm_loss))
-            self._train_summaries.append(tf.summary.scalar("train_loss/qa", qa_loss))
-
-            self.pg_loss = tf.cond(self.rl_lm_enabled, lambda: lm_loss, lambda: tf.constant(0.0)) + \
-                tf.cond(self.rl_qa_enabled, lambda: qa_loss, lambda: tf.constant(0.0))
+            self.pg_loss = tf.cond(self.rl_lm_enabled, lambda: self.lm_loss, lambda: tf.constant(0.0)) + \
+                tf.cond(self.rl_qa_enabled, lambda: self.qa_loss, lambda: tf.constant(0.0))
 
             self._train_summaries.append(tf.summary.scalar("train_loss/pg_loss", self.pg_loss))
 
