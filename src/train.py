@@ -179,6 +179,9 @@ def main(_):
                     # Get reward values
                     lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str, qhat_lens))).tolist() # lower perplexity is better
 
+                    # The output is as long as the max allowed len - remove the pointless extra padding
+                    qhat_ids = qhat_ids[:,:np.max(qhat_lens)]
+                    qhat_str = qhat_str[:,:np.max(qhat_lens)]
 
                     qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0], train_batch[0][3]), byte_token_array_to_str(qhat_str, qhat_lens))
                     qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0], train_batch[0][3]), byte_token_array_to_str(train_batch[1][0], train_batch[1][2]))
@@ -214,6 +217,10 @@ def main(_):
 
                     # Build a combined batch - half ground truth for MLE, half generated for PG
                     train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
+
+                    print(qhat_ids)
+                    print(qhat_lens)
+                    print(train_batch_ext[2][2])
 
                     rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                         model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
