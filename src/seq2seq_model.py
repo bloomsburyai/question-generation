@@ -367,7 +367,7 @@ class Seq2SeqModel(TFModel):
 
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
-                        self.question_length, tf.shape(self.question_ids)[1], dtype=tf.float32)
+                        self.question_length, tf.shape(self.q_hat)[1], dtype=tf.float32)
             logits = ops.safe_log(self.q_hat)
 
             self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
