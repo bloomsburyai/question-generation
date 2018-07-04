@@ -1,23 +1,26 @@
 import tensorflow as tf
 import random
 from tqdm import tqdm
-import spacy
+# import spacy
+from nltk.tokenize import TreebankWordTokenizer
 import ujson as json
 from collections import Counter
 import numpy as np
 from codecs import open
+
 
 '''
 This file is taken and modified from R-Net by HKUST-KnowComp
 https://github.com/HKUST-KnowComp/R-Net
 '''
 
-nlp = spacy.blank("en")
+# nlp = spacy.blank("en")
 
 
 def word_tokenize(sent):
-    doc = nlp(sent)
-    return [token.text for token in doc]
+    # doc = nlp(sent)
+    # return [token.text for token in doc]
+    return TreebankWordTokenizer().tokenize(sent)
 
 
 def convert_idx(text, tokens):
@@ -143,6 +146,9 @@ def convert_to_features(config, data, word2idx_dict, char2idx_dict):
                len(example["ques_tokens"]) > ques_limit
 
     if filter_func(example):
+        print("C", len(example["context_tokens"]), para_limit)
+        print("Q", len(example["ques_tokens"]), ques_limit)
+        print(example['ques_tokens'])
         raise ValueError("Context/Questions lengths are over the limit")
 
     context_idxs = np.zeros([para_limit], dtype=np.int32)

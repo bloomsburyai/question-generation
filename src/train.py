@@ -171,23 +171,23 @@ def main(_):
                 if FLAGS.model_type[:10] == "MALUUBA_RL" and FLAGS.policy_gradient:
 
                     # do a fwd pass first, get the score, then do another pass and optimize
-                    qhat_str,qhat_ids= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids],
+                    qhat_str,qhat_ids, qhat_lens= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids, model.q_hat_beam_lens],
                         feed_dict={model.input_batch: train_batch,
                         model.is_training:False,
                         model.hide_answer_in_copy: True})
 
                     # Get reward values
-                    lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str))).tolist() # lower perplexity is better
+                    lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str, qhat_lens))).tolist() # lower perplexity is better
 
 
-                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(qhat_str))
-                    qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(train_batch[1][0]))
+                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0], train_batch[0][3]), byte_token_array_to_str(qhat_str, qhat_lens))
+                    qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0], train_batch[0][3]), byte_token_array_to_str(train_batch[1][0], train_batch[1][2]))
 
                     gold_str=[]
                     # pred_str=[]
                     qa_f1s = []
 
-                    gold_str = byte_token_array_to_str([train_batch[2][0][b][:train_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
+                    gold_str = byte_token_array_to_str(train_batch[2][0], train_batch[2][2], is_array=False)
                     # pred_str = byte_token_array_to_str([train_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
                     qa_f1s.extend([metrics.f1(gold_str[b], qa_pred[b]) for b in range(curr_batch_size)])

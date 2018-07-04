@@ -339,7 +339,7 @@ class Seq2SeqModel(TFModel):
 
             beam_outputs, beam_decoder_states,beam_out_lens = tf.contrib.seq2seq.dynamic_decode(  beam_decoder,
                                                                     impute_finished=False,
-                                                                   maximum_iterations=32 )
+                                                                   maximum_iterations=48 )
 
             # logits = outputs.rnn_output
 

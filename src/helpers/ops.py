@@ -47,8 +47,10 @@ def id_tensor_to_string(ids, rev_vocab, context, context_as_set=False):
 
     return tf.py_func(ids_to_string(rev_vocab, context_as_set), [ids, context], tf.string)
 
-def byte_token_array_to_str(batch, is_array=True):
-    return [" ".join([w.decode() for w in toks]) for toks in (batch.tolist() if is_array else batch)]
+def byte_token_array_to_str(batch, lengths=None, is_array=True):
+    if is_array and lengths is not None:
+        lengths = lengths.tolist()
+    return [" ".join([w.decode() for w in toks[:(lengths[i] if lengths is not None else len(toks[i]))]]) for i,toks in enumerate(batch.tolist() if is_array else batch)]
 
 def get_last_from_seq(seq, lengths): # seq is batch x time  x dim
     lengths = tf.maximum(lengths, tf.zeros_like(lengths, dtype=tf.int32))
