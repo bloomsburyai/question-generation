@@ -46,8 +46,13 @@ class QANetInstance():
         config = tf.app.flags.FLAGS
 
         # query = zip(contexts, questions)
-        # contexts = [word_tokenize(q[0].replace("''", '" ').replace("``", '" ')) for q in query]
-        query = zip(contexts, questions)
+        toks = [word_tokenize(ctxt.replace("''", '" ').replace("``", '" ')) for ctxt in contexts]
+        query = list(zip(contexts, questions))
+
+        length=32
+        if len(query) < 32:
+            length=len(query)
+            query += [["blank","blank"] for i in range(32-len(query))]
         feats=[convert_to_features(config, q, self.word_dictionary, self.char_dictionary) for q in query]
         c,ch,q,qh = zip(*feats)
         fd = {'context:0': c,
@@ -56,7 +61,8 @@ class QANetInstance():
               'question_char:0': qh}
 
         yp1,yp2 = self.sess.run([self.model.yp1, self.model.yp2], feed_dict = fd)
-        return list(zip(yp1,yp2))
+        spans = list(zip(yp1, yp2))[:length]
+        return [" ".join(toks[i][span[0]:span[1]+1]) for i,span in enumerate(spans)]
 
 def main(_):
     questions = ["What colour is the car?","When was the car made?","Where was the date?", "What was the dog called?","Who was the oldest cat?"]
@@ -69,10 +75,8 @@ def main(_):
 
     print(contexts[0])
     for i, q in enumerate(questions):
-        toks = word_tokenize(contexts[i].replace("''", '" ').replace("``", '" '))
-        print(len(toks))
-        print(spans)
-        print(q, "->", toks[spans[i][0]:spans[i][1]+1])
+
+        print(q, "->", spans[i])
 
 if __name__ == "__main__":
     tf.app.run()

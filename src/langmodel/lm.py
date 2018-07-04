@@ -31,7 +31,7 @@ class LstmLm(TFModel):
 
     def build_model(self):
 
-        self.dropout_prob=0.3
+        self.dropout_prob=FLAGS.lm_dropout
 
         with tf.device('/cpu:*'):
             # Load glove embeddings

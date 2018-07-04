@@ -4,7 +4,11 @@ import tensorflow as tf
 # config
 tf.app.flags.DEFINE_boolean("testing", False, "Reduce model size for local testing")
 
+tf.app.flags.DEFINE_string("model_type", 'MALUUBA', "Model type code")
+
 tf.app.flags.DEFINE_boolean("restore", False, "Restore from existing chkpt?")
+tf.app.flags.DEFINE_boolean("policy_gradient", False, "Train using policy gradient?")
+
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epochs", 30, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size")
@@ -13,7 +17,7 @@ tf.app.flags.DEFINE_string("data_path", './data/', "Path to dataset")
 tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 
-# hyperparams - these should probably be within the model?
+# hyperparams
 tf.app.flags.DEFINE_integer("filter_window_size", 1, "Filter contexts down to the sentences around the answer. Set -1 to disable filtering")
 tf.app.flags.DEFINE_integer("filter_max_tokens", 100, "Filter contexts down to at most this many tokens around the answer. Set -1 to disable filtering")
 
@@ -48,6 +52,7 @@ tf.app.flags.DEFINE_float("qa_learning_rate", 1e-4, "QA LR")
 tf.app.flags.DEFINE_integer("lm_vocab_size", 20000, "LM vocab size")
 tf.app.flags.DEFINE_integer("lm_units", 384, "LM num units")
 tf.app.flags.DEFINE_integer("lm_num_epochs", 25, "LM num epochs")
+tf.app.flags.DEFINE_float("lm_dropout", 0.3, "LM num epochs")
 
 
 # eval params

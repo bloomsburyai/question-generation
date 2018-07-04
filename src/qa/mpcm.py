@@ -221,10 +221,11 @@ class MpcmQaInstance():
             saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_ans(self, contexts, questions):
+        toks=tokenise(contexts, asbytes=False)
         padded_batch_cs = self.get_padded_batch(contexts)
         padded_batch_qs = self.get_padded_batch(questions)
         spans = self.sess.run(self.model.pred_span, feed_dict={self.model.context_in: padded_batch_cs, self.model.question_in: padded_batch_qs})
-        return spans
+        return [" ".join(toks[i][span[0]:span[1]+1]) for i,span in enumerate(spans)]
 
 
 def main(_):

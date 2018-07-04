@@ -18,8 +18,8 @@ from helpers import loader
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-
-    chkpt_path = FLAGS.model_dir+'lm/'+str(int(time.time()))
+    run_id=str(int(time.time()))
+    chkpt_path = FLAGS.model_dir+'lm/'+run_id
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -51,7 +51,7 @@ def main(_):
     with tf.Session(graph = model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             os.makedirs(chkpt_path)
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'lm/'+str(int(time.time())), sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'lm/'+run_id, sess.graph)
 
         if FLAGS.restore:
             # saver.restore(sess, chkpt_path+ '/model.checkpoint')

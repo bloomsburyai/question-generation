@@ -124,17 +124,17 @@ def main(_):
                 # ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
 
                 # get QA score
-                qa_pred = qa.get_ans(ops.byte_token_array_to_str(dev_batch[0][0]), ops.byte_token_array_to_str(pred_batch)).tolist()
+                qa_pred = qa.get_ans(ops.byte_token_array_to_str(dev_batch[0][0]), ops.byte_token_array_to_str(pred_batch))
 
                 gold_str=[]
                 pred_str=[]
 
 
                 gold_str = ops.byte_token_array_to_str([dev_batch[2][0][b][:dev_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
-                pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
+                # pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
 
-                qa_scores.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
+                qa_scores.extend([metrics.f1(gold_str[b], qa_pred[b]) for b in range(curr_batch_size)])
                 lm_scores.extend(lm.get_seq_perplexity(ops.byte_token_array_to_str(pred_batch)).tolist()) # lower perplexity is better
                 nlls.extend(nll.tolist())
 

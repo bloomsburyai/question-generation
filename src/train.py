@@ -1,8 +1,5 @@
 import os,time, json,datetime
 
-# model_type = "SEQ2SEQ_FILT1"
-model_type = "MALUUBA_RL_QA"
-
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 mem_limit=1.0
@@ -22,9 +19,12 @@ from maluuba_model import MaluubaModel
 from datasources.squad_streamer import SquadStreamer
 
 import flags
+FLAGS = tf.app.flags.FLAGS
 
 import helpers.metrics as metrics
 
+
+# TODO: Move this somewhere more appropriate
 # unpack a batch, duplicate the components, and insert a pred into the first half
 # schema is (c,q,a) and (raw,ids,len,?ans_pos)
 def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str):
@@ -51,7 +51,7 @@ def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str):
         new_batch.append(tuple(new_subbatch))
     return tuple(new_batch)
 
-FLAGS = tf.app.flags.FLAGS
+
 
 def main(_):
     if FLAGS.testing:
@@ -64,7 +64,7 @@ def main(_):
         # FLAGS.embedding_size=50
 
     run_id = str(int(time.time()))
-    chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+run_id
+    chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
     # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
     restore_path=FLAGS.model_dir+'saved/qgen-maluuba-filt'
 
@@ -78,13 +78,6 @@ def main(_):
     if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
         dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
-
-        # max_len=0
-        # for row in train_data:
-        #     this_len=len(preprocessing.tokenise(row[0], asbytes=False))
-        #     if this_len  >max_len:
-        #         max_len=this_len
-        # print(max_len)
 
     if FLAGS.testing:
         train_data=train_data[:1000]
@@ -106,19 +99,19 @@ def main(_):
 
 
     # Create model
-    if model_type[:7] == "SEQ2SEQ":
+    if FLAGS.model_type[:7] == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, training_mode=True)
-    elif model_type[:7] == "MALUUBA":
+    elif FLAGS.model_type[:7] == "MALUUBA":
         # TEMP
-        if not FLAGS.restore:
+        if not FLAGS.policy_gradient:
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
-        # if model_type[:10] == "MALUUBA_RL":
+        # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
     else:
-        exit("Unrecognised model type: "+model_type)
+        exit("Unrecognised model type: "+FLAGS.model_type)
 
     # create data streamer
     train_data_source = SquadStreamer(vocab, FLAGS.batch_size, FLAGS.num_epochs, shuffle=True)
@@ -132,7 +125,7 @@ def main(_):
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit, visible_device_list='0',allow_growth = True)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=False), graph=model.graph) as sess:
 
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+model_type+'/'+run_id, sess.graph)
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+'qgen/'+FLAGS.model_type+'/'+run_id, sess.graph)
 
         train_data_source.initialise(train_data)
 
@@ -164,47 +157,45 @@ def main(_):
 
 
         best_oos_nll=1e6
-        perform_policy_gradient = FLAGS.restore # update this during training
 
         lm_score_moments = online_moments.OnlineMoment()
         qa_score_moments = online_moments.OnlineMoment()
 
         for e in range(start_e,start_e+FLAGS.num_epochs):
+            # Train for one epoch
             for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
                 # Get a batch
                 train_batch, curr_batch_size = train_data_source.get_batch()
 
-                if model_type[:10] == "MALUUBA_RL" and perform_policy_gradient:
+                # Are we doing policy gradient? Do a forward pass first, then build the PG batch and do an update step
+                if FLAGS.model_type[:10] == "MALUUBA_RL" and FLAGS.policy_gradient:
+
                     # do a fwd pass first, get the score, then do another pass and optimize
                     qhat_str,qhat_ids= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids],
                         feed_dict={model.input_batch: train_batch,
                         model.is_training:False,
                         model.hide_answer_in_copy: True})
-                    # qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in qhat_str.tolist()]
-                    # ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
-                    # qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in qhat_str.tolist()]
-                    # qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in train_batch[1][0].tolist()]
-                    # ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
-                    # print(qhat_for_lm)
+                    # Get reward values
                     lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str))).tolist() # lower perplexity is better
 
 
-                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(qhat_str)).tolist()
-                    qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(train_batch[1][0])).tolist()
+                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(qhat_str))
+                    qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(train_batch[1][0]))
 
                     gold_str=[]
-                    pred_str=[]
+                    # pred_str=[]
                     qa_f1s = []
 
-                    gold_str = byte_token_array_to_str([dev_batch[2][0][b][:dev_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
-                    pred_str = byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
+                    gold_str = byte_token_array_to_str([train_batch[2][0][b][:train_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
+                    # pred_str = byte_token_array_to_str([train_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
-                    qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
+                    qa_f1s.extend([metrics.f1(gold_str[b], qa_pred[b]) for b in range(curr_batch_size)])
 
                     lm_score_moments.push(lm_score)
                     qa_score_moments.push(qa_f1s)
 
+                    # A variant of popart
                     qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
                     lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
 
@@ -221,32 +212,9 @@ def main(_):
                                                      simple_value=np.mean(lm_score_whitened))])
                     summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
 
-
+                    # Build a combined batch - half ground truth for MLE, half generated for PG
                     train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str)
-                    # train_batch_ext = train_batch
 
-                    # if i % FLAGS.eval_freq== 0:
-                    #     print(qhat_str[0])
-                    #     print(train_batch[1][0][0])
-                    #     print(qgold_for_qa[0])
-                    #     print(qhat_for_qa[0])
-                    #     print(gold_str[0])
-                    #     print(pred_str[0])
-                    #     print(qa_pred[0])
-                    #     print(qa_pred_gold[0])
-                    #     print(qa_f1s[0])
-                    #     print(lm_score[0])
-                    #     print(qa_score_whitened[0])
-                    #     print(lm_score_whitened[0])
-
-                    # if i == 0:
-                        # print(qa_score_whitened)
-                        # print(lm_score_whitened)
-                        # print(train_batch_ext)
-                        # exit()
-
-                        # lm_score_whitened.tolist()*FLAGS.lm_weight+
-                        # qa_score_whitened.tolist()*FLAGS.qa_weight+
                     rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                         model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
                         model.rl_lm_enabled: True,
@@ -263,7 +231,8 @@ def main(_):
                     summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
 
                 else:
-                    if model_type[:7] == "MALUUBA" and not perform_policy_gradient:
+                    # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
+                    if FLAGS.model_type[:7] == "MALUUBA" and not FLAGS.policy_gradient:
                         rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
                             model.qa_score: [0 for b in range(curr_batch_size)],
                             model.rl_lm_enabled: False,
@@ -283,11 +252,8 @@ def main(_):
 
 
 
-
+                # Dump some output periodically
                 if i%FLAGS.eval_freq==0:
-                    # summary_writer.add_summary(res[2], global_step=(e*num_steps+i))
-
-                    # q_hat_decoded = output_pretty(res[3].tolist(), res[4].tolist(), res[5].tolist(), res[6].tolist(), res[7].tolist())
                     with open(FLAGS.log_dir+'out.htm', 'w') as fp:
                         fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
 
@@ -308,6 +274,7 @@ def main(_):
                     summary_writer.add_summary(f1summary, global_step=(e*num_steps_train+i))
                     summary_writer.add_summary(bleusummary, global_step=(e*num_steps_train+i))
 
+            # Evaluate against dev set
             f1s=[]
             bleus=[]
             nlls=[]
@@ -330,7 +297,7 @@ def main(_):
                 if i==0:
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
-                    with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out_eval_'+FLAGS.model_type+'.htm', 'w') as fp:
                         fp.write(out_str)
 
             f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
@@ -351,7 +318,7 @@ def main(_):
                 saver.save(sess, chkpt_path+'/model.checkpoint')
             else:
                 print("NLL not improved ", mean_nll)
-                if model_type[:10] == "MALUUBA_RL":
+                if FLAGS.model_type[:10] == "MALUUBA_RL":
                     print("Saving anyway")
                     saver.save(sess, chkpt_path+'/model.checkpoint')
 if __name__ == '__main__':
