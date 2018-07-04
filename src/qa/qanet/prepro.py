@@ -1,8 +1,8 @@
 import tensorflow as tf
 import random
 from tqdm import tqdm
-# import spacy
-from nltk.tokenize import TreebankWordTokenizer
+import spacy
+# from nltk.tokenize import TreebankWordTokenizer
 import ujson as json
 from collections import Counter
 import numpy as np
@@ -14,13 +14,13 @@ This file is taken and modified from R-Net by HKUST-KnowComp
 https://github.com/HKUST-KnowComp/R-Net
 '''
 
-# nlp = spacy.blank("en")
+nlp = spacy.blank("en")
 
 
 def word_tokenize(sent):
-    # doc = nlp(sent)
-    # return [token.text for token in doc]
-    return TreebankWordTokenizer().tokenize(sent)
+    doc = nlp(sent)
+    return [token.text for token in doc]
+    # return TreebankWordTokenizer().tokenize(sent)
 
 
 def convert_idx(text, tokens):
