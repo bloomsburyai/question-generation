@@ -206,10 +206,10 @@ def main(_):
                                                      simple_value=np.mean(qa_f1s))])
                     summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
                     lm_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm_white",
-                                                     simple_value=np.mean(qa_score_whitened))])
+                                                     simple_value=np.mean(lm_score_whitened))])
                     summary_writer.add_summary(lm_white_summary, global_step=(e*num_steps_train+i))
                     qa_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa_white",
-                                                     simple_value=np.mean(lm_score_whitened))])
+                                                     simple_value=np.mean(qa_score_whitened))])
                     summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
 
                     # Build a combined batch - half ground truth for MLE, half generated for PG
