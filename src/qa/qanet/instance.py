@@ -12,6 +12,7 @@ from helpers.preprocessing import tokenise
 mem_limit=0.5
 
 
+# This provides a somewhat normalised interface to a pre-trained QANet model - some tweaks have been made to get it to play nicely when other models are spun up
 class QANetInstance():
     def load_from_chkpt(self, path):
 
