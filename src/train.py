@@ -1,7 +1,7 @@
 import os,time, json,datetime
 
 # model_type = "SEQ2SEQ_FILT1"
-model_type = "MALUUBA_RL_LM"
+model_type = "MALUUBA_RL_QA"
 
 # CUDA config
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
