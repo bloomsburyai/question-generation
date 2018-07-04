@@ -49,10 +49,10 @@ class QANetInstance():
         toks = [word_tokenize(ctxt.replace("''", '" ').replace("``", '" ')) for ctxt in contexts]
         query = list(zip(contexts, questions))
 
-        length=32
-        if len(query) < 32:
+        length=config.batch_size
+        if len(query) < config.batch_size:
             length=len(query)
-            query += [["blank","blank"] for i in range(32-len(query))]
+            query += [["blank","blank"] for i in range(config.batch_size-len(query))]
         feats=[convert_to_features(config, q, self.word_dictionary, self.char_dictionary) for q in query]
         c,ch,q,qh = zip(*feats)
         fd = {'context:0': c,
