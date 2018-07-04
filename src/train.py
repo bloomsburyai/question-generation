@@ -222,9 +222,13 @@ def main(_):
                         model.hide_answer_in_copy: True}
 
                     # perform a policy gradient step, but combine with a XE step by using appropriate rewards
-                    ops = [model.pg_optimizer, model.train_summary,model.q_hat_string, model.lm_loss, model.qa_loss]
+                    ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
                         ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                        res_offset = 4
+                    else:
+                        res_offset=0
+                    ops.extend([model.lm_loss, model.qa_loss])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
                         model.is_training:False,
                         **rl_dict})
@@ -232,10 +236,10 @@ def main(_):
 
                     # Log only the first half of the PG related losses
                     lm_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/lm",
-                                                     simple_value=np.mean(res[3][:curr_batch_size]))])
+                                                     simple_value=np.mean(res[3+res_offset][:curr_batch_size]))])
                     summary_writer.add_summary(lm_loss_summary, global_step=(e*num_steps_train+i))
                     qa_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/qa",
-                                                     simple_value=np.mean(res[4][:curr_batch_size]))])
+                                                     simple_value=np.mean(res[4+res_offset][:curr_batch_size]))])
                     summary_writer.add_summary(qa_loss_summary, global_step=(e*num_steps_train+i))
 
                 else:

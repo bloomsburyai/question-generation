@@ -23,7 +23,13 @@ if not os.path.exists(train_dir):
     os.mkdir(train_dir)
 if not os.path.exists(os.path.join(os.getcwd(),dir_name)):
     os.mkdir(os.path.join(os.getcwd(),dir_name))
-target_dir = "./models/saved/qanet"
+
+# TODO: This needs to be passed in from the cmd line somehow - but flags doesnt exist yet because all the logic happens when the defaults are being built, grr
+if "CLUSTER" in os.environ.keys():
+    target_dir = "/home/thosking/msc-project/models/saved/qanet"
+else:
+    target_dir = "./models/saved/qanet"
+
 log_dir = os.path.join(dir_name, "event")
 save_dir = os.path.join(dir_name, "model")
 answer_dir = os.path.join(dir_name, "answer")
