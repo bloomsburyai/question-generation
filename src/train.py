@@ -12,7 +12,7 @@ import numpy as np
 import helpers.loader as loader
 import helpers.preprocessing as preprocessing
 import helpers.online_moments as online_moments
-import helpers.ops as ops
+from helpers.ops import byte_token_array_to_str
 from helpers.output import output_pretty, output_basic, tokens_to_string, output_eval
 from tqdm import tqdm
 
@@ -187,18 +187,18 @@ def main(_):
                     # ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
                     # print(qhat_for_lm)
-                    lm_score = (-1*model.lm.get_seq_perplexity(ops.byte_token_array_to_str(qhat_str))).tolist() # lower perplexity is better
+                    lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str))).tolist() # lower perplexity is better
 
 
-                    qa_pred = model.qa.get_ans(ops.byte_token_array_to_str(train_batch[0][0]), ops.byte_token_array_to_str()).tolist()
-                    qa_pred_gold = model.qa.get_ans(ops.byte_token_array_to_str(train_batch[0][0]), ops.byte_token_array_to_str(train_batch[1][0])).tolist()
+                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str()).tolist()
+                    qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(train_batch[1][0])).tolist()
 
                     gold_str=[]
                     pred_str=[]
                     qa_f1s = []
 
-                    gold_str = ops.byte_token_array_to_str([dev_batch[2][0][b][:dev_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
-                    pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
+                    gold_str = byte_token_array_to_str([dev_batch[2][0][b][:dev_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
+                    pred_str = byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
                     qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
 
@@ -256,7 +256,7 @@ def main(_):
                     # perform a policy gradient step, but combine with a XE step by using appropriate rewards
                     ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
-                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                        extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
                         model.is_training:False,
                         **rl_dict})
@@ -275,7 +275,7 @@ def main(_):
                     # Perform a normal optimizer step
                     ops = [model.optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
-                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw])
+                        extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch,
                         model.is_training:True,
                         **rl_dict})
