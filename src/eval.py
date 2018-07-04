@@ -12,6 +12,7 @@ import numpy as np
 import helpers.loader as loader
 import helpers.metrics as metrics
 import helpers.preprocessing as preprocessing
+import helpers.ops as ops
 from helpers.output import output_pretty, tokens_to_string, output_eval
 from tqdm import tqdm
 
@@ -48,7 +49,7 @@ def main(_):
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
 
-    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
+    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=False)
 
 
     # Create model
@@ -96,47 +97,57 @@ def main(_):
         qa_scores=[]
         lm_scores=[]
         nlls=[]
+
+        qgolds=[]
+        qpreds=[]
+        ctxts=[]
+        answers=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
                 pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
-                # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
                     pred_str = tokens_to_string(pred[:pred_lens[b]-1])
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
-                    # out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
+                    qgolds.append(gold_str)
+                    qpreds.append(pred_str)
+                    ctxts.append(dev_batch[0][0][b].tolist())
+                    answers.append(dev_batch[2][0][b].tolist())
 
-                qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in pred_batch.tolist()]
-                ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
-                qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in pred_batch.tolist()]
-                qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in dev_batch[1][0].tolist()]
-                ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
+                # qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in pred_batch.tolist()]
+                # qgold_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in gold_batch.tolist()]
+                # qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in pred_batch.tolist()]
+                # qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in dev_batch[1][0].tolist()]
+                # ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
 
                 # get QA score
-                qa_pred = qa.get_ans(ctxt_for_qa, qhat_for_qa).tolist()
+                qa_pred = qa.get_ans(ops.byte_token_array_to_str(dev_batch[0][0]), ops.byte_token_array_to_str(pred_batch)).tolist()
 
                 gold_str=[]
                 pred_str=[]
-                qa_f1s = []
 
-                for b in range(curr_batch_size):
-                    gold_str.append(" ".join([w.decode() for w in dev_batch[2][0][b][:dev_batch[2][2][b]].tolist()]))
-                    pred_str.append(" ".join([w.decode() for w in dev_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
+
+                gold_str = ops.byte_token_array_to_str([dev_batch[2][0][b][:dev_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
+                pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
+
 
                 qa_scores.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
-                lm_scores.extend(lm.get_seq_perplexity(qhat_for_lm).tolist()) # lower perplexity is better
+                lm_scores.extend(lm.get_seq_perplexity(ops.byte_token_array_to_str(pred_batch)).tolist()) # lower perplexity is better
                 nlls.extend(nll.tolist())
 
                 if i==0:
-                    print(qhat_for_lm[0])
-
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
                         fp.write(out_str)
+
+        res = list(zip(qpreds,qgolds,ctxts,answers))
+        print(res)
+        with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w') as fp:
+            json.dump(res, fp)
 
         print("F1: ", np.mean(f1s))
         print("BLEU: ", np.mean(bleus))

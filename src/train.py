@@ -64,8 +64,8 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+model_type+'/'+run_id
-    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
-    # restore_path=FLAGS.model_dir+'saved/qgen-maluuba-filt'
+    # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
+    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-filt'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
@@ -113,9 +113,9 @@ def main(_):
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0
         model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
-        if model_type[:10] == "MALUUBA_RL":
-            qa_vocab=model.qa.vocab
-            lm_vocab=model.lm.vocab
+        # if model_type[:10] == "MALUUBA_RL":
+        #     qa_vocab=model.qa.vocab
+        #     lm_vocab=model.lm.vocab
     else:
         exit("Unrecognised model type: "+model_type)
 
@@ -179,26 +179,25 @@ def main(_):
                         feed_dict={model.input_batch: train_batch,
                         model.is_training:False,
                         model.hide_answer_in_copy: True})
-                    qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in qhat_str.tolist()]
-                    ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
-                    qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in qhat_str.tolist()]
-                    qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in train_batch[1][0].tolist()]
-                    ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
+                    # qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in qhat_str.tolist()]
+                    # ctxt_for_lm = [preprocessing.lookup_vocab(ctxt, lm_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
+                    # qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in qhat_str.tolist()]
+                    # qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in train_batch[1][0].tolist()]
+                    # ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in train_batch[0][0].tolist()]
 
                     # print(qhat_for_lm)
-                    lm_score = (-1*model.lm.get_seq_perplexity(qhat_for_lm)).tolist() # lower perplexity is better
+                    lm_score = (-1*model.lm.get_seq_perplexity(ops.byte_token_array_to_str(qhat_str))).tolist() # lower perplexity is better
 
 
-                    qa_pred = model.qa.get_ans(ctxt_for_qa, qhat_for_qa).tolist()
-                    qa_pred_gold = model.qa.get_ans(ctxt_for_qa, qgold_for_qa).tolist()
+                    qa_pred = model.qa.get_ans(ops.byte_token_array_to_str(train_batch[0][0]), ops.byte_token_array_to_str()).tolist()
+                    qa_pred_gold = model.qa.get_ans(ops.byte_token_array_to_str(train_batch[0][0]), ops.byte_token_array_to_str(train_batch[1][0])).tolist()
 
                     gold_str=[]
                     pred_str=[]
                     qa_f1s = []
 
-                    for b in range(curr_batch_size):
-                        gold_str.append(" ".join([w.decode() for w in train_batch[2][0][b][:train_batch[2][2][b]].tolist()]))
-                        pred_str.append(" ".join([w.decode() for w in train_batch[0][0][b].tolist()[qa_pred[b][0]:qa_pred[b][1]]]) )
+                    gold_str = ops.byte_token_array_to_str([dev_batch[2][0][b][:dev_batch[2][2][b]] for b in range(curr_batch_size)], is_array=False)
+                    pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
                     qa_f1s.extend([metrics.f1(gold_str[b], pred_str[b]) for b in range(curr_batch_size)])
 

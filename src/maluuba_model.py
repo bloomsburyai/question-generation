@@ -4,6 +4,7 @@ from seq2seq_model import Seq2SeqModel
 
 from langmodel.lm import LstmLmInstance
 from qa.mpcm import MpcmQaInstance
+from qa.qanet.instance import QANetInstance
 
 from helpers.misc_utils import debug_shape
 
@@ -28,8 +29,10 @@ class MaluubaModel(Seq2SeqModel):
         self.lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
 
         print('Building and loading QA model')
-        self.qa = MpcmQaInstance()
-        self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+        # self.qa = MpcmQaInstance()
+        # self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+        self.qa = QANetInstance()
+        self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet')
 
         with self.graph.as_default():
 

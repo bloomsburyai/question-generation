@@ -3,11 +3,14 @@ sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
 
 
 import tensorflow as tf
+import numpy as np
+
 
 from base_model import TFModel
 
 import helpers.loader as loader
 import helpers.ops as ops
+from helpers.preprocessing import tokenise
 
 
 import flags
@@ -85,6 +88,11 @@ class LstmLm(TFModel):
 
 # This should handle a concrete instance of a LM, loading params, spinning up the graph etc, to be used by other models
 class LstmLmInstance():
+    def get_padded_batch(self, seq_batch):
+        seq_batch_ids = [[self.vocab[loader.SOS]]+[self.vocab[tok if tok in self.vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[self.vocab[loader.EOS]] for sent in seq_batch]
+        max_seq_len = max([len(seq) for seq in seq_batch_ids])
+        padded_batch = np.asarray([seq + [self.vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
+        return padded_batch
 
     def __del__(self):
         self.sess.close()
@@ -102,7 +110,8 @@ class LstmLmInstance():
             saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_seq_perplexity(self, seqs):
-        perp = self.sess.run(self.model.perplexity, feed_dict={self.model.input_seqs: seqs})
+        padded_seqs = self.get_padded_batch(seqs)
+        perp = self.sess.run(self.model.perplexity, feed_dict={self.model.input_seqs: padded_seqs})
         return perp
 
 
@@ -110,8 +119,7 @@ def main(_):
     train_data = loader.load_squad_triples("./data/", False)
     dev_data = loader.load_squad_triples("./data/", True)
 
-    import numpy as np
-    from helpers.preprocessing import tokenise
+
     from tqdm import tqdm
 
     print('Loaded SQuAD with ',len(train_data),' triples')
@@ -131,22 +139,16 @@ def main(_):
         "Which NFL team represented the AFC at Super Bowl 50?",
         "which NFL team represented the <OOV> at <OOV> <OOV> <OOV> ?"]
     # seq_batch=dev_qs[:5]
-    seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
-    max_seq_len = max([len(seq) for seq in seq_batch_ids])
-    padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
 
-    perps=lm.get_seq_perplexity(padded_batch)
+
+    perps=lm.get_seq_perplexity(seq_batch)
     print(perps)
     print(seq_batch)
 
     perps=[]
     num_steps = len(dev_qs)//128
     for i in tqdm(range(num_steps)):
-        seq_batch = dev_qs[i:i+128]
-        seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
-        max_seq_len = max([len(seq) for seq in seq_batch_ids])
-        padded_batch = np.asarray([seq + [vocab[loader.PAD] for i in range(max_seq_len-len(seq))] for seq in seq_batch_ids])
-        perps.extend(lm.get_seq_perplexity(padded_batch))
+        perps.extend(lm.get_seq_perplexity(dev_qs[i:i+128]))
     print(np.mean(perps))
 
 if __name__ == "__main__":

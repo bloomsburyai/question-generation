@@ -1,6 +1,7 @@
-data/
-logs/
-models/
+/data
+/logs
+/models
+/qanet
 
 
 # Byte-compiled / optimized / DLL files
