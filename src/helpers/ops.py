@@ -58,3 +58,13 @@ def get_last_from_seq(seq, lengths): # seq is batch x time  x dim
     indices = tf.stack((batch_nums, lengths), axis=1) # shape (batch_size, 2)
     result = tf.gather_nd(seq, indices)
     return result # [batch_size, dim]
+
+def total_params():
+    total_parameters = 0
+    for variable in tf.trainable_variables():
+        shape = variable.get_shape()
+        variable_parametes = 1
+        for dim in shape:
+            variable_parametes *= dim.value
+        total_parameters += variable_parametes
+    print("Total number of trainable parameters: {}".format(total_parameters))

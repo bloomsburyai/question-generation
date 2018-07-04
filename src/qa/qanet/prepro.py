@@ -1,7 +1,7 @@
 import tensorflow as tf
 import random
 from tqdm import tqdm
-# import spacy
+import spacy
 import ujson as json
 from collections import Counter
 import numpy as np

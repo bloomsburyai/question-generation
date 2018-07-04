@@ -1,5 +1,5 @@
 import tensorflow as tf
-from helpers.ops import safe_log
+from helpers.ops import safe_log, total_params
 from seq2seq_model import Seq2SeqModel
 
 from langmodel.lm import LstmLmInstance
@@ -76,3 +76,5 @@ class MaluubaModel(Seq2SeqModel):
                 # Optimization
                 self.pg_optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
+
+            total_params()
