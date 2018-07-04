@@ -27,7 +27,7 @@ import helpers.metrics as metrics
 # TODO: Move this somewhere more appropriate
 # unpack a batch, duplicate the components, and insert a pred into the first half
 # schema is (c,q,a) and (raw,ids,len,?ans_pos)
-def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str):
+def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str, pred_q_lens):
     new_batch=[]
     for i,x in enumerate(batch):
         new_subbatch=[]
@@ -45,7 +45,7 @@ def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str):
                 new_id_batch = [q+[0 for k in range(max_len-len(q))] for q in new_id_batch]
                 new_subbatch.append(np.asarray(new_id_batch))
             elif i==1 and j==2:
-                new_subbatch.append(np.asarray([len(q) for q in pred_q_ids]+y.tolist()))
+                new_subbatch.append(np.asarray(pred_q_lens.tolist()+y.tolist()))
             else:
                 new_subbatch.append(np.asarray(y.tolist()+y.tolist())) # just duplicate
         new_batch.append(tuple(new_subbatch))
@@ -213,7 +213,7 @@ def main(_):
                     summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
 
                     # Build a combined batch - half ground truth for MLE, half generated for PG
-                    train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str)
+                    train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
 
                     rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                         model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
