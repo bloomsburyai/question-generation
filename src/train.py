@@ -190,7 +190,7 @@ def main(_):
                     lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str))).tolist() # lower perplexity is better
 
 
-                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str()).tolist()
+                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(qhat_str)).tolist()
                     qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0]), byte_token_array_to_str(train_batch[1][0])).tolist()
 
                     gold_str=[]
@@ -256,7 +256,7 @@ def main(_):
                     # perform a policy gradient step, but combine with a XE step by using appropriate rewards
                     ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
-                        extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
                         model.is_training:False,
                         **rl_dict})
@@ -275,7 +275,7 @@ def main(_):
                     # Perform a normal optimizer step
                     ops = [model.optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
-                        extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw])
+                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch,
                         model.is_training:True,
                         **rl_dict})
