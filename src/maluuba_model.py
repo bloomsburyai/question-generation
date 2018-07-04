@@ -50,12 +50,15 @@ class MaluubaModel(Seq2SeqModel):
                 self.lm_loss = tf.reduce_mean(-1.0*self.lm_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
                 self.qa_loss = tf.reduce_mean(-1.0*self.qa_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32),axis=[0])
 
-            
+
 
             self.pg_loss = tf.cond(self.rl_lm_enabled, lambda: self.lm_loss, lambda: tf.constant(0.0)) + \
                 tf.cond(self.rl_qa_enabled, lambda: self.qa_loss, lambda: tf.constant(0.0))
 
-            self._train_summaries.append(tf.summary.scalar("train_loss/pg_loss", self.pg_loss))
+
+            curr_batch_size_pg = tf.shape(self.answer_ids)[0]//2
+
+            self._train_summaries.append(tf.summary.scalar("train_loss/pg_loss", self.pg_loss[:curr_batch_size_pg]))
 
             # this needs rebuilding again
             self.train_summary = tf.summary.merge(self._train_summaries)

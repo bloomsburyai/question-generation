@@ -222,7 +222,7 @@ def main(_):
                         model.hide_answer_in_copy: True}
 
                     # perform a policy gradient step, but combine with a XE step by using appropriate rewards
-                    ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
+                    ops = [model.pg_optimizer, model.train_summary,model.q_hat_string, model.lm_loss, model.qa_loss]
                     if i%FLAGS.eval_freq==0:
                         ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
@@ -230,8 +230,13 @@ def main(_):
                         **rl_dict})
                     summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
 
-                    # self._train_summaries.append(tf.summary.scalar("train_loss/lm", self.lm_loss))
-                    # self._train_summaries.append(tf.summary.scalar("train_loss/qa", self.qa_loss))
+                    # Log only the first half of the PG related losses
+                    lm_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/lm",
+                                                     simple_value=np.mean(res[3][:curr_batch_size]))])
+                    summary_writer.add_summary(lm_loss_summary, global_step=(e*num_steps_train+i))
+                    qa_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/qa",
+                                                     simple_value=np.mean(res[4][:curr_batch_size]))])
+                    summary_writer.add_summary(qa_loss_summary, global_step=(e*num_steps_train+i))
 
                 else:
                     # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
