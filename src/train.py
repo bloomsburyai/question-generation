@@ -97,8 +97,12 @@ def main(_):
     if FLAGS.restore:
         with open(restore_path+'/vocab.json') as f:
             vocab = json.load(f)
+    elif FLAGS.glove_vocab:
+        vocab = loader.get_glove_vocab(FLAGS.data_path, size=FLAGS.vocab_size, d=FLAGS.embedding_size)
+        with open(chkpt_path+'/vocab.json', 'w') as outfile:
+            json.dump(vocab, outfile)
     else:
-        vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.vocab_size)
+        vocab = loader.get_vocab(train_contexts, FLAGS.vocab_size)
         with open(chkpt_path+'/vocab.json', 'w') as outfile:
             json.dump(vocab, outfile)
 

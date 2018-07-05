@@ -13,11 +13,12 @@ with open('./logs'+'/out_eval_MALUUBA.json') as f:
 
 
 gold_pred_f1=[]
-ctxt_pred_f1=[]
+x=[]
 for res in results:
     qpred,qgold,ctxt,answer = res
-    gold_pred_f1.append(metrics.f1(qgold, qpred))
-    ctxt_pred_f1.append(metrics.f1(ctxt, qpred))
+    gold_pred_f1.append(metrics.bleu(qgold, qpred))
+    # x.append(metrics.f1(ctxt, qpred))
+    x.append(len(preprocessing.tokenise(qgold, asbytes=False)))
 
-plt.scatter(ctxt_pred_f1, gold_pred_f1)
+plt.scatter(x, gold_pred_f1)
 plt.show()

@@ -40,16 +40,7 @@ def load_squad_triples(path, dev=False, v2=False):
                     triples.append( (para['context'], qa['question'], qa['answers'][0]['text'], int(qa['answers'][0]['answer_start'])) )  #
     return triples
 
-def get_vocab(corpus, vocab_size=2000):
-    vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
 
-    for l in corpus:
-        for w in l.lower().split():
-            word_count[w] +=1
-    vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
-    for w in vocab_list:
-        vocab[w] = len(vocab)
-    return vocab
 
 def load_multiline(path, limit_length=32, vocab_size=5000):
     with open(path,'r') as fp:
@@ -108,18 +99,42 @@ def load_multiline(path, limit_length=32, vocab_size=5000):
 
     return id_arr, vocab
 
-def get_vocab(corpus, vocab_size=1000):
-    lines = [re.sub(r'([\,\?\!\.]+)',r' \1 ', line).lower() for line in corpus]
-    # lines = re.split('[\n]+',raw_data.lower())
+def get_vocab(corpus, vocab_size=2000):
     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
-    word_count = defaultdict(float)
-    for l in lines:
-        for w in l.split():
+
+    for l in corpus:
+        for w in l.lower().split():
             word_count[w] +=1
     vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
     for w in vocab_list:
         vocab[w] = len(vocab)
     return vocab
+
+def get_glove_vocab(path, size=2000, d=200):
+    vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
+    with open(path+'glove.6B/glove.6B.'+str(d)+'d.txt') as fp:
+        entries = fp.readlines()
+    for i,row in enumerate(entries):
+        if i>= size:
+            break
+        cols = row.strip().split(' ')
+        if len(cols) < d+1:
+            print(row)
+        vocab[cols[0]] = len(vocab)
+    return vocab
+
+# def get_vocab(corpus, vocab_size=1000):
+#     lines = [re.sub(r'([\,\?\!\.]+)',r' \1 ', line).lower() for line in corpus]
+#     # lines = re.split('[\n]+',raw_data.lower())
+#     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
+#     word_count = defaultdict(float)
+#     for l in lines:
+#         for w in l.split():
+#             word_count[w] +=1
+#     vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
+#     for w in vocab_list:
+#         vocab[w] = len(vocab)
+#     return vocab
 
 def get_line_ids(line, ref_line, vocab, limit_length):
     line_ids=[vocab[SOS]]
