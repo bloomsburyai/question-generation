@@ -26,29 +26,32 @@ import helpers.metrics as metrics
 
 # TODO: Move this somewhere more appropriate
 # unpack a batch, duplicate the components, and insert a pred into the first half
-# schema is (c,q,a) and (raw,ids,len,?ans_pos)
+# schema is (c,q,a,ix) and (raw,ids,len,?ans_pos)
 def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str, pred_q_lens):
     new_batch=[]
     for i,x in enumerate(batch):
         new_subbatch=[]
-        for j,y in enumerate(x):
-            if i==1 and j==0:
-                # create a valid padded batch
-                new_str_batch=pred_q_str.tolist()+y.tolist()
-                max_len = max([len(q) for q in new_str_batch])
-                new_str_batch = [q+[loader.PAD.encode() for k in range(max_len-len(q))] for q in new_str_batch]
-                new_subbatch.append(np.asarray(new_str_batch))
-            elif i==1 and j==1:
-                # create a valid padded batch
-                new_id_batch=pred_q_ids.tolist()+y.tolist()
-                max_len = max([len(q) for q in new_id_batch])
-                new_id_batch = [q+[0 for k in range(max_len-len(q))] for q in new_id_batch]
-                new_subbatch.append(np.asarray(new_id_batch))
-            elif i==1 and j==2:
-                new_subbatch.append(np.asarray(pred_q_lens.tolist()+y.tolist()))
-            else:
-                new_subbatch.append(np.asarray(y.tolist()+y.tolist())) # just duplicate
-        new_batch.append(tuple(new_subbatch))
+        if i == 3: # ix is not nested
+            new_batch.append(np.asarray(x.tolist()+x.tolist()))
+        else:
+            for j,y in enumerate(x):
+                if i==1 and j==0:
+                    # create a valid padded batch
+                    new_str_batch=pred_q_str.tolist()+y.tolist()
+                    max_len = max([len(q) for q in new_str_batch])
+                    new_str_batch = [q+[loader.PAD.encode() for k in range(max_len-len(q))] for q in new_str_batch]
+                    new_subbatch.append(np.asarray(new_str_batch))
+                elif i==1 and j==1:
+                    # create a valid padded batch
+                    new_id_batch=pred_q_ids.tolist()+y.tolist()
+                    max_len = max([len(q) for q in new_id_batch])
+                    new_id_batch = [q+[0 for k in range(max_len-len(q))] for q in new_id_batch]
+                    new_subbatch.append(np.asarray(new_id_batch))
+                elif i==1 and j==2:
+                    new_subbatch.append(np.asarray(pred_q_lens.tolist()+y.tolist()))
+                else:
+                    new_subbatch.append(np.asarray(y.tolist()+y.tolist())) # just duplicate
+            new_batch.append(tuple(new_subbatch))
     return tuple(new_batch)
 
 
@@ -74,6 +77,9 @@ def main(_):
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+
+    train_contexts_unfilt, _,_,_ = zip(*train_data)
+    dev_contexts_unfilt, _,_,_ = zip(*train_data)
 
     if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
@@ -183,8 +189,11 @@ def main(_):
                     qhat_ids = qhat_ids[:,:np.max(qhat_lens)]
                     qhat_str = qhat_str[:,:np.max(qhat_lens)]
 
-                    qa_pred = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0], train_batch[0][3]), byte_token_array_to_str(qhat_str, qhat_lens))
-                    qa_pred_gold = model.qa.get_ans(byte_token_array_to_str(train_batch[0][0], train_batch[0][3]), byte_token_array_to_str(train_batch[1][0], train_batch[1][2]))
+                    # retrieve the uncropped context for QA evaluation
+                    unfilt_ctxt_batch = [train_contexts_unfilt[ix] for ix in train_batch[3]]
+
+                    qa_pred = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(qhat_str, qhat_lens))
+                    qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(train_batch[1][0], train_batch[1][2]))
 
                     gold_str=[]
                     # pred_str=[]
@@ -273,7 +282,7 @@ def main(_):
 
                 # Dump some output periodically
                 if i%FLAGS.eval_freq==0:
-                    with open(FLAGS.log_dir+'out.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out.htm', 'w', encoding='utf-8') as fp:
                         fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
 
                     f1s=[]
@@ -316,7 +325,7 @@ def main(_):
                 if i==0:
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
-                    with open(FLAGS.log_dir+'out_eval_'+FLAGS.model_type+'.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out_eval_'+FLAGS.model_type+'.htm', 'w', encoding='utf-8') as fp:
                         fp.write(out_str)
 
             f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",

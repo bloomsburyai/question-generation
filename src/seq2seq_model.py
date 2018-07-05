@@ -54,6 +54,7 @@ class Seq2SeqModel(TFModel):
         self.answer_ids  = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
         self.answer_length  = tf.placeholder(tf.int32, [None])
         self.answer_locs  = tf.placeholder(tf.int32, [None,None])
+        self.original_ix  = tf.placeholder(tf.int32, [None]) # unused - gives the index of the input in the unshuffled dataset
 
         self.hide_answer_in_copy = tf.placeholder_with_default(False, (),"hide_answer_in_copy")
 
@@ -61,7 +62,7 @@ class Seq2SeqModel(TFModel):
         self.context_in = (self.context_raw, self.context_ids, self.context_copy_ids, self.context_length, self.context_vocab_size)
         self.question_in = (self.question_raw, self.question_ids, self.question_length)
         self.answer_in = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
-        self.input_batch = (self.context_in, self.question_in, self.answer_in)
+        self.input_batch = (self.context_in, self.question_in, self.answer_in, self.original_ix)
 
         curr_batch_size = tf.shape(self.answer_ids)[0]
 

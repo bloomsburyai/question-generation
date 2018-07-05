@@ -8,6 +8,7 @@ import qa.qanet.config
 from qa.qanet.model import Model
 from qa.qanet.prepro import convert_to_features, word_tokenize
 from helpers.preprocessing import tokenise
+import helpers.loader as loader
 
 mem_limit=0.5
 
@@ -47,6 +48,7 @@ class QANetInstance():
 
         # query = zip(contexts, questions)
         toks = [word_tokenize(ctxt.replace("''", '" ').replace("``", '" ')) for ctxt in contexts]
+        questions = [q.replace(loader.PAD,"").replace(loader.EOS,"") for q in questions]
         query = list(zip(contexts, questions))
 
         length=config.batch_size
