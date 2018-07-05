@@ -79,7 +79,7 @@ def main(_):
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     train_contexts_unfilt, _,_,_ = zip(*train_data)
-    dev_contexts_unfilt, _,_,_ = zip(*train_data)
+    dev_contexts_unfilt, _,_,_ = zip(*dev_data)
 
     if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)

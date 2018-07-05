@@ -21,6 +21,7 @@ from maluuba_model import MaluubaModel
 from datasources.squad_streamer import SquadStreamer
 from langmodel.lm import LstmLmInstance
 from qa.mpcm import MpcmQaInstance
+from qa.qanet.instance import QANetInstance
 
 import flags
 
@@ -33,6 +34,9 @@ def main(_):
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:1500]
+
+    train_contexts_unfilt, _,_,_ = zip(*train_data)
+    dev_contexts_unfilt, _,_,_ = zip(*dev_data)
 
     if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
@@ -67,13 +71,12 @@ def main(_):
         saver = tf.train.Saver()
 
     lm = LstmLmInstance()
-    qa = MpcmQaInstance()
+    # qa = MpcmQaInstance()
+    qa = QANetInstance()
 
     lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
-    qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
-
-    lm_vocab=lm.vocab
-    qa_vocab=qa.vocab
+    # qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+    qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet')
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -107,6 +110,8 @@ def main(_):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
                 pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
+                unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
+
                 for b, pred in enumerate(pred_batch):
                     pred_str = tokens_to_string(pred[:pred_lens[b]-1])
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
@@ -114,17 +119,14 @@ def main(_):
                     bleus.append(metrics.bleu(gold_str, pred_str))
                     qgolds.append(gold_str)
                     qpreds.append(pred_str)
-                    ctxts.append(dev_batch[0][0][b].tolist())
-                    answers.append(dev_batch[2][0][b].tolist())
+                ctxts.extend(unfilt_ctxt_batch)
+                answers.extend(ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2]))
 
-                # qhat_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in pred_batch.tolist()]
-                # qgold_for_lm = [preprocessing.lookup_vocab(q, lm_vocab, do_tokenise=False) for q in gold_batch.tolist()]
-                # qhat_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in pred_batch.tolist()]
-                # qgold_for_qa = [preprocessing.lookup_vocab(q, qa_vocab, do_tokenise=False) for q in dev_batch[1][0].tolist()]
-                # ctxt_for_qa = [preprocessing.lookup_vocab(ctxt, qa_vocab, do_tokenise=False) for ctxt in dev_batch[0][0].tolist()]
+
+
 
                 # get QA score
-                qa_pred = qa.get_ans(ops.byte_token_array_to_str(dev_batch[0][0],dev_batch[0][3]), ops.byte_token_array_to_str(pred_batch, pred_lens))
+                qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(pred_batch, pred_lens))
 
                 gold_str=[]
                 pred_str=[]
