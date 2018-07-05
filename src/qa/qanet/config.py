@@ -47,14 +47,14 @@ word_dictionary = os.path.join(target_dir, "word_dictionary.json")
 char_dictionary = os.path.join(target_dir, "char_dictionary.json")
 answer_file = os.path.join(answer_dir, "answer.json")
 
-if not os.path.exists(target_dir):
-    os.makedirs(target_dir)
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-if not os.path.exists(answer_dir):
-    os.makedirs(answer_dir)
+# if not os.path.exists(target_dir):
+#     os.makedirs(target_dir)
+# if not os.path.exists(log_dir):
+#     os.makedirs(log_dir)
+# if not os.path.exists(save_dir):
+#     os.makedirs(save_dir)
+# if not os.path.exists(answer_dir):
+#     os.makedirs(answer_dir)
 
 flags.DEFINE_string("mode", "train", "Running mode train/debug/test")
 

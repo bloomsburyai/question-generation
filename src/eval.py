@@ -147,7 +147,7 @@ def main(_):
                         fp.write(out_str)
 
         res = list(zip(qpreds,qgolds,ctxts,answers))
-        print(res)
+        # print(res)
         with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w') as fp:
             json.dump(res, fp)
 
