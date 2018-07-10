@@ -1,6 +1,6 @@
 import numpy as np
 import string
-import tensorflow as tf
+# import tensorflow as tf
 
 from nltk.tokenize import TreebankWordTokenizer, sent_tokenize
 use_nltk = True
@@ -36,9 +36,10 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False, asbytes=True):
+def lookup_vocab(words, vocab, context=None, ans_tok_pos=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False, asbytes=True):
     ids = []
 
+    smart_copy=True # TODO: this should be a flag
 
     decoded_context = [w.decode() if asbytes else w for w in tokenise(context)] if context is not None else []
     words = [w.decode() if asbytes else w for w in tokenise(words)] if do_tokenise else [w.decode() if asbytes else w for w in words]
@@ -46,7 +47,28 @@ def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False,
         context_set = sorted(set(decoded_context))
 
     for w in words:
-        if copy_priority:
+        # Use a few heuristics to decide where to copy from
+        if copy_priority and smart_copy:
+            if context is not None and not context_as_set and w in decoded_context:
+                if decoded_context.count(w) > 1 and ans_tok_pos is not None:
+                    # Multiple options, either pick the one that flows from previous, or pick the nearest to answer
+                    if len(ids) > 0 and ids[-1]>=len(vocab) and  decoded_context[ids[-1]-len(vocab)+1] == w:
+                        copy_ix = ids[-1]-len(vocab)+1
+                    else:
+                        indices = [i for i, x in enumerate(decoded_context) if x == w]
+                        distances = [abs(ix-ans_tok_pos) for ix in indices]
+                        copy_ix=indices[np.argmin(distances)]
+                else:
+                    copy_ix = decoded_context.index(w)
+                ids.append(len(vocab) + copy_ix)
+            elif context is not None and context_as_set and w in context_set:
+                ids.append(len(vocab) + context_set.index(w))
+            elif w in vocab.keys():
+                ids.append(vocab[w])
+            else:
+                ids.append(vocab[OOV])
+        # Copy using first occurence
+        elif copy_priority:
             if context is not None and not context_as_set and w in decoded_context:
                 ids.append(len(vocab) + decoded_context.index(w))
             elif context is not None and context_as_set and w in context_set:
@@ -56,6 +78,7 @@ def lookup_vocab(words, vocab, context=None, do_tokenise=True, append_eos=False,
                 ids.append(vocab[w])
             else:
                 ids.append(vocab[OOV])
+        # Shortlist priority
         else:
             if w in vocab.keys():
                 ids.append(vocab[w])
@@ -202,8 +225,9 @@ def process_squad_context(vocab, context_as_set=False):
     return _process_squad_context
 
 def process_squad_question(vocab, context_as_set=False, copy_priority=False):
-    def _process_squad_question(question, context):
-        question_ids = lookup_vocab(question, vocab, context=context, append_eos=True, context_as_set=context_as_set, copy_priority=copy_priority)
+    def _process_squad_question(question, context, ans_loc):
+        ans_tok_pos=char_pos_to_word(context, tokenise(context), ans_loc)
+        question_ids = lookup_vocab(question, vocab, context=context, ans_tok_pos=ans_tok_pos, append_eos=True, context_as_set=context_as_set, copy_priority=copy_priority)
         question_len = np.asarray(len(question_ids), dtype=np.int32)
         return [tokenise(question,append_eos=True), question_ids, question_len]
     return _process_squad_question

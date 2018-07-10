@@ -54,7 +54,7 @@ class SquadStreamer():
             # processing pipeline
             dataset = dataset.map(lambda context,q,a,a_pos,ix:
                         (tuple(tf.py_func(preprocessing.process_squad_context(self.vocab, context_as_set=FLAGS.context_as_set), [context], [tf.string, tf.int32, tf.int32, tf.int32, tf.int32])),
-                        tuple(tf.py_func(preprocessing.process_squad_question(self.vocab, context_as_set=FLAGS.context_as_set, copy_priority=FLAGS.copy_priority), [q,context], [tf.string, tf.int32, tf.int32])),
+                        tuple(tf.py_func(preprocessing.process_squad_question(self.vocab, context_as_set=FLAGS.context_as_set, copy_priority=FLAGS.copy_priority), [q,context,a_pos], [tf.string, tf.int32, tf.int32])),
                         tuple(tf.py_func(preprocessing.process_squad_answer(self.vocab, context_as_set=FLAGS.context_as_set), [a,a_pos,context], [tf.string, tf.int32, tf.int32, tf.int32])),
                         ix
                         # q,a
@@ -81,7 +81,7 @@ class SquadStreamer():
                 padding_values=((PAD,
                                 self.vocab[PAD],  # source vectors padded on the right with src_eos_id
                                  0,
-                                 2004,
+                                 len(self.vocab),
                                  0),          # size(source) -- unused
                                 (PAD,
                                 self.vocab[PAD],  # target vectors padded on the right with tgt_eos_id

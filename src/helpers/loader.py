@@ -101,7 +101,7 @@ def load_multiline(path, limit_length=32, vocab_size=5000):
 
 def get_vocab(corpus, vocab_size=2000):
     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
-
+    word_count = defaultdict(float)
     for l in corpus:
         for w in l.lower().split():
             word_count[w] +=1
@@ -110,9 +110,9 @@ def get_vocab(corpus, vocab_size=2000):
         vocab[w] = len(vocab)
     return vocab
 
-def get_glove_vocab(path, size=2000, d=200):
+def get_glove_vocab(path, size=2000, d=200, variant='6B'):
     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
-    with open(path+'glove.6B/glove.6B.'+str(d)+'d.txt') as fp:
+    with open(path+'glove.'+variant+'/glove.'+variant+'.'+str(d)+'d.txt') as fp:
         entries = fp.readlines()
     for i,row in enumerate(entries):
         if i>= size:
@@ -204,9 +204,9 @@ def load_multiline_aligned(path_src, path_tgt, limit_length=32, vocab_size=1000)
 
     return id_arr_src, id_arr_tgt, vocab_src, vocab_tgt
 
-def load_glove(path, d=200):
+def load_glove(path, d=200, variant='6B'):
     glove = {}
-    with open(path+'glove.6B/glove.6B.'+str(d)+'d.txt') as fp:
+    with open(path+'glove.'+variant+'/glove.'+variant+'.'+str(d)+'d.txt') as fp:
         entries = fp.readlines()
     for row in entries:
         cols = row.strip().split(' ')
