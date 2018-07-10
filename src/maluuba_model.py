@@ -14,11 +14,11 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class MaluubaModel(Seq2SeqModel):
-    def __init__(self, vocab, training_mode=False, lm_weight=0, qa_weight=0):
+    def __init__(self, vocab, training_mode=False, lm_weight=0, qa_weight=0, use_embedding_loss=False):
         self.lm_weight = lm_weight
         self.qa_weight = qa_weight
 
-        super().__init__(vocab, advanced_condition_encoding=True, training_mode=training_mode)
+        super().__init__(vocab, advanced_condition_encoding=True, training_mode=training_mode, use_embedding_loss=False)
         self.modify_seq2seq_model()
 
     def modify_seq2seq_model(self):

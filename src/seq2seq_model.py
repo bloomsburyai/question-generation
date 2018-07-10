@@ -86,7 +86,7 @@ class Seq2SeqModel(TFModel):
 
                 # this uses a load of memory, dont create unless it's actually needed
                 if self.use_embedding_loss:
-                    self.glove_vocab = loader.get_glove_vocab(FLAGS.data_path, size=-1, d=FLAGS.embedding_size)
+                    self.glove_vocab = loader.get_glove_vocab(FLAGS.data_path, size=-1, d=FLAGS.embedding_size, filter_to_squad=True)
                     extended_embeddings_init = tf.constant(loader.get_embeddings(self.glove_vocab, glove_embeddings, D=FLAGS.embedding_size))
                     self.extended_embeddings = tf.get_variable('full_word_embeddings', initializer=extended_embeddings_init, dtype=tf.float32, trainable=False)
 

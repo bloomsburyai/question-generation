@@ -114,7 +114,7 @@ def get_vocab(corpus, vocab_size=2000):
 
 
 
-def get_glove_vocab(path, size=2000, d=200, variant='6B', filter_to_squad=True):
+def get_glove_vocab(path, size=2000, d=200, variant='6B', filter_to_squad=False):
     # this is a copy of the function in preprocessing.py - but we can't use it as we'd get a circular import!
     def tokenise(text):
         sents = [s for s in sent_tokenize(text)]
@@ -133,7 +133,7 @@ def get_glove_vocab(path, size=2000, d=200, variant='6B', filter_to_squad=True):
     with open(path+'glove.'+variant+'/glove.'+variant+'.'+str(d)+'d.txt') as fp:
         entries = fp.readlines()
     for i,row in enumerate(entries):
-        if i>= size and size > 0:
+        if len(vocab)-4>= size and size > 0:
             break
         cols = row.strip().split(' ')
         if len(cols) < d+1:
