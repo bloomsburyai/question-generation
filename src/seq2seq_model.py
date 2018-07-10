@@ -24,12 +24,13 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Seq2SeqModel(TFModel):
-    def __init__(self, vocab, advanced_condition_encoding=False, training_mode=False):
+    def __init__(self, vocab, advanced_condition_encoding=False, training_mode=False, use_embedding_loss=False):
         self.vocab=vocab
         self.rev_vocab = {v:k for k,v in self.vocab.items()}
         # self.batch_size = batch_size
 
         self.training_mode = training_mode
+        self.use_embedding_loss = use_embedding_loss
 
         self.embedding_size = tf.app.flags.FLAGS.embedding_size
         self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
@@ -82,6 +83,12 @@ class Seq2SeqModel(TFModel):
                 embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
                 self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
                 assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+
+                # this uses a load of memory, dont create unless it's actually needed
+                if self.use_embedding_loss:
+                    self.glove_vocab = loader.get_glove_vocab(FLAGS.data_path, size=-1, d=FLAGS.embedding_size)
+                    extended_embeddings_init = tf.constant(loader.get_embeddings(self.glove_vocab, glove_embeddings, D=FLAGS.embedding_size))
+                    self.extended_embeddings = tf.get_variable('full_word_embeddings', initializer=extended_embeddings_init, dtype=tf.float32, trainable=False)
 
 
             # First, coerce them to the shortlist vocab. Then embed
@@ -362,13 +369,40 @@ class Seq2SeqModel(TFModel):
         # self.context_length = debug_tensor(self.context_length, "ctxt len", summarize=None)
 
         # because we've done a few logs of softmaxes, there can be some precision problems that lead to non zero probability outside of the valid vocab, fix it here:
-        max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
-        output_mask = tf.sequence_mask(max_vocab_size, FLAGS.max_copy_size+len(self.vocab), dtype=tf.float32)
+        self.max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
+        output_mask = tf.sequence_mask(self.max_vocab_size, FLAGS.max_copy_size+len(self.vocab), dtype=tf.float32)
         # self.q_hat = self.q_hat*output_mask
+
+
+        with tf.variable_scope('output'), tf.device('/cpu:*'):
+            self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
+            self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+            self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+
+
+
+
+            self.q_hat_beam_ids = beam_pred_ids
+            self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+            self.q_hat_beam_lens = beam_out_lens[:,0]
+            # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
+            # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
+
+            self.q_gold = ops.id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+            self._output_summaries.extend(
+                [tf.summary.text("q_hat", self.q_hat_string),
+                tf.summary.text("q_gold", self.q_gold),
+                # tf.summary.text("q_gold_ids", tf.as_string(self.question_ids)),
+                # tf.summary.text("q_raw", self.question_raw),
+                # tf.summary.text("context", self.context_raw),
+                tf.summary.text("answer", self.answer_raw)])
+
+
 
         with tf.variable_scope('train_loss'):
             self.target_weights = tf.sequence_mask(
                         self.question_length, tf.shape(self.q_hat)[1], dtype=tf.float32)
+
             logits = ops.safe_log(self.q_hat)
 
             self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -386,6 +420,28 @@ class Seq2SeqModel(TFModel):
             # entropy maximiser
             self.entropy_loss = tf.reduce_mean(tf.reduce_sum(tf.reduce_sum(self.q_hat *ops.safe_log(self.q_hat),axis=2)*self.target_weights,axis=1)/qlen_float,axis=0)
 
+            if self.use_embedding_loss:
+                vocab_cap = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab)-1,axis=1),[1,FLAGS.max_copy_size+len(self.vocab)])
+                self.local_vocab_string = ops.id_tensor_to_string(tf.minimum(tf.tile(tf.expand_dims(tf.range(FLAGS.max_copy_size+len(self.vocab)),axis=0), [curr_batch_size,1]), vocab_cap), self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+                self.local_vocab_to_extended = tf.one_hot(ops.string_tensor_to_id(self.local_vocab_string, self.glove_vocab), depth=len(self.glove_vocab), dtype=tf.float32) # batch x vocab x ext_vocab
+
+                self.q_gold_ids_extended = ops.string_tensor_to_id(self.question_raw, self.glove_vocab)
+
+                self.q_hat_extended = tf.matmul(self.q_hat, tf.stop_gradient(self.local_vocab_to_extended)) # batch x seq x ext_vocab
+
+                self.q_gold_embedded_extended = tf.nn.embedding_lookup(self.extended_embeddings, self.q_gold_ids_extended)
+
+
+                self.q_hat_embedded_extended = tf.einsum("id,bti->btd",self.extended_embeddings, self.q_hat_extended)
+                # self.q_hat_embedded_extended = tf.matmul(self.extended_embeddings, tf.cast(self.q_hat_ids_extended, tf.int32), b_is_sparse=True)
+
+                self.similarity = tf.reduce_sum(self.q_hat_embedded_extended * tf.stop_gradient(self.q_gold_embedded_extended), axis=-1)/(1e-6+tf.norm(self.q_gold_embedded_extended, axis=-1)*tf.norm(self.q_hat_embedded_extended, axis=-1)) # batch x seq
+                self._train_summaries.append(tf.summary.scalar("debug/similarities", tf.reduce_mean(tf.reduce_sum(self.similarity* self.target_weights,axis=1)/qlen_float)))
+                self.loss = 1/(1e-6+0.5+0.5*tf.reduce_mean(tf.reduce_sum(self.similarity * self.target_weights,axis=1)/qlen_float,axis=0))-1
+            else:
+
+                self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
+
         self.shortlist_prob = tf.reduce_sum(self.q_hat[:,:,:len(self.vocab)],axis=2)*self.target_weights
         self.copy_prob = tf.reduce_sum(self.q_hat[:,:,len(self.vocab):],axis=2)*self.target_weights
 
@@ -396,28 +452,9 @@ class Seq2SeqModel(TFModel):
         self._train_summaries.append(tf.summary.scalar('train_loss/entropy_loss', self.entropy_loss))
         self._train_summaries.append(tf.summary.scalar('train_loss/suppr_loss', self.suppression_loss))
 
-        self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
 
 
-        with tf.variable_scope('output'), tf.device('/cpu:*'):
-            self.q_hat_ids = tf.argmax(self.q_hat,axis=2,output_type=tf.int32)
-            self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
-            self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
 
-            self.q_hat_beam_ids = beam_pred_ids
-            self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
-            self.q_hat_beam_lens = beam_out_lens[:,0]
-            # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
-            # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
-
-            self.q_gold = ops.id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
-            self._output_summaries.extend(
-                [tf.summary.text("q_hat", self.q_hat_string),
-                tf.summary.text("q_gold", self.q_gold),
-                # tf.summary.text("q_gold_ids", tf.as_string(self.question_ids)),
-                # tf.summary.text("q_raw", self.question_raw),
-                # tf.summary.text("context", self.context_raw),
-                tf.summary.text("answer", self.answer_raw)])
 
         #dont bother calculating gradients if not training
         if self.training_mode:

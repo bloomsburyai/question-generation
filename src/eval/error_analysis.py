@@ -5,12 +5,15 @@ import helpers.preprocessing as preprocessing
 import helpers.metrics as metrics
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 
 with open('./logs'+'/out_eval_MALUUBA.json') as f:
     results = json.load(f)
 
+q_words=["who","when","what","why","how many","which"]
+scores = {k:[] for k in q_words}
 
 gold_pred_f1=[]
 x=[]
@@ -20,5 +23,12 @@ for res in results:
     # x.append(metrics.f1(ctxt, qpred))
     x.append(len(preprocessing.tokenise(qgold, asbytes=False)))
 
-plt.scatter(x, gold_pred_f1)
+    for q in q_words:
+        if q in qgold.lower():
+            scores[q].append(metrics.bleu(qgold, qpred))
+
+# plt.scatter(x, gold_pred_f1)
+# plt.show()
+
+plt.bar([x for x in range(len(q_words))], [np.mean(scores[q]) for q in q_words], tick_label=q_words)
 plt.show()

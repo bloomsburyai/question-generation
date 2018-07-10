@@ -3,6 +3,8 @@ import json
 import re
 from collections import defaultdict
 
+from nltk.tokenize import TreebankWordTokenizer, sent_tokenize
+
 import numpy as np
 
 SOS = '<Sent>'
@@ -110,17 +112,34 @@ def get_vocab(corpus, vocab_size=2000):
         vocab[w] = len(vocab)
     return vocab
 
-def get_glove_vocab(path, size=2000, d=200, variant='6B'):
+
+
+def get_glove_vocab(path, size=2000, d=200, variant='6B', filter_to_squad=True):
+    # this is a copy of the function in preprocessing.py - but we can't use it as we'd get a circular import!
+    def tokenise(text):
+        sents = [s for s in sent_tokenize(text)]
+        tokens = [tok.lower() for sent in sents for tok in TreebankWordTokenizer().tokenize(sent)]
+        return tokens
+
     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
+    if filter_to_squad:
+        squad_words = set()
+        squad_train = load_squad_triples(path, dev=False)
+        squad_dev = load_squad_triples(path, dev=True)
+        for triple in squad_train+squad_dev:
+            squad_words |= set(tokenise(triple[0]))
+            squad_words |= set(tokenise(triple[1]))
+            squad_words |= set(tokenise(triple[2]))
     with open(path+'glove.'+variant+'/glove.'+variant+'.'+str(d)+'d.txt') as fp:
         entries = fp.readlines()
     for i,row in enumerate(entries):
-        if i>= size:
+        if i>= size and size > 0:
             break
         cols = row.strip().split(' ')
         if len(cols) < d+1:
             print(row)
-        vocab[cols[0]] = len(vocab)
+        if (filter_to_squad and cols[0] in squad_words) or not filter_to_squad:
+            vocab[cols[0]] = len(vocab)
     return vocab
 
 # def get_vocab(corpus, vocab_size=1000):

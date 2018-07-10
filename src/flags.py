@@ -9,6 +9,7 @@ tf.app.flags.DEFINE_string("model_type", 'MALUUBA', "Model type code")
 tf.app.flags.DEFINE_boolean("restore", False, "Restore from existing chkpt?")
 tf.app.flags.DEFINE_boolean("policy_gradient", False, "Train using policy gradient?")
 tf.app.flags.DEFINE_boolean("glove_vocab", False, "Use glove to determine the top n words? Set false to use corpus")
+tf.app.flags.DEFINE_boolean("embedding_loss", False, "Use a loss based on similarity between embeddings instead of XE")
 
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epochs", 30, "Train the model for this many epochs")

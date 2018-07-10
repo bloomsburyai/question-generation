@@ -28,7 +28,7 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-filt'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-crop-set'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset

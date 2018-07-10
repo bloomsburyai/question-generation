@@ -97,16 +97,16 @@ class MpcmQa(TFModel):
             # v1_weighted =tf.tensordot(v1, W_tiled, [[-1],[-1]])
             # v2_weighted =tf.tensordot(v2, W_tiled, [[-1],[-1]])
 
-            # v1_weighted = tf.expand_dims(v1,2) * tf.expand_dims(tf.expand_dims(W, axis=0),axis=0)
-            # v2_weighted = tf.expand_dims(v2,2) * tf.expand_dims(tf.expand_dims(W, axis=0),axis=0)
+            v1_weighted = tf.expand_dims(v1,2) * tf.expand_dims(tf.expand_dims(W, axis=0),axis=0)
+            v2_weighted = tf.expand_dims(v2,2) * tf.expand_dims(tf.expand_dims(W, axis=0),axis=0)
 
-            v1_weighted = tf.einsum("btd,ld->btld", v1, W)
-            v2_weighted = tf.einsum("btd,ld->btld", v2, W)
+            # v1_weighted = tf.einsum("btd,ld->btld", v1, W)
+            # v2_weighted = tf.einsum("btd,ld->btld", v2, W)
 
 
-            similarity = tf.einsum("bild,bjld->bijl", v1_weighted, v2_weighted)
-            # similarity = tf.matmul(tf.transpose(v1_weighted,[0,2,1,3]), tf.transpose(v2_weighted, [0,2,3,1]))
-            # similarity = tf.transpose(similarity, [0,2,3,1])
+            # similarity = tf.einsum("bild,bjld->bijl", v1_weighted, v2_weighted)
+            similarity = tf.matmul(tf.transpose(v1_weighted,[0,2,1,3]), tf.transpose(v2_weighted, [0,2,3,1]))
+            similarity = tf.transpose(similarity, [0,2,3,1])
 
             v1_norm = tf.expand_dims(tf.norm(v1_weighted, ord=2,axis=-1),axis=-2)
             v2_norm = tf.expand_dims(tf.norm(v2_weighted, ord=2,axis=-1),axis=-3)

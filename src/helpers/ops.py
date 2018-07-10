@@ -1,5 +1,6 @@
 import tensorflow as tf
-from helpers.loader import EOS,PAD
+import numpy as np
+from helpers.loader import EOS,PAD,OOV
 
 def safe_log(x):
     EPSILON = tf.cast(tf.keras.backend.epsilon(), tf.float32)
@@ -44,8 +45,26 @@ def ids_to_string(rev_vocab, context_as_set=False):
     return _ids_to_string
 
 def id_tensor_to_string(ids, rev_vocab, context, context_as_set=False):
-
     return tf.py_func(ids_to_string(rev_vocab, context_as_set), [ids, context], tf.string)
+
+# This is v similar to lookup_vocab(), but works on tensors and doesnt use a context
+def string_to_ids(vocab):
+    def _string_to_ids(words):
+        ids =[]
+        for row in words.tolist():
+            ids_row=[]
+            for w in row:
+                w=w.decode()
+                if w in vocab.keys():
+                    ids_row.append(vocab[w])
+                else:
+                    ids_row.append(vocab[OOV])
+            ids.append(ids_row)
+        return np.asarray(ids, dtype=np.int32)
+    return _string_to_ids
+
+def string_tensor_to_id(words, vocab):
+    return tf.py_func(string_to_ids(vocab), [words], tf.int32)
 
 def byte_token_array_to_str(batch, lengths=None, is_array=True):
     if is_array and lengths is not None:
