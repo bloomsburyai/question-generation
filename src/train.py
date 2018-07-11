@@ -211,56 +211,59 @@ def main(_):
                     lm_score_moments.push(lm_score)
                     qa_score_moments.push(qa_f1s)
 
-                    # A variant of popart
-                    qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
-                    lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
+                    # print((e-start_e)*num_steps_train+i, flags.pg_burnin)
 
-                    lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
-                                                     simple_value=np.mean(lm_score))])
-                    summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
-                    qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
-                                                     simple_value=np.mean(qa_f1s))])
-                    summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
-                    lm_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm_white",
-                                                     simple_value=np.mean(lm_score_whitened))])
-                    summary_writer.add_summary(lm_white_summary, global_step=(e*num_steps_train+i))
-                    qa_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa_white",
-                                                     simple_value=np.mean(qa_score_whitened))])
-                    summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
+                    if ((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin:
+                        # A variant of popart
+                        qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
+                        lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
 
-                    # Build a combined batch - half ground truth for MLE, half generated for PG
-                    train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
+                        lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
+                                                         simple_value=np.mean(lm_score))])
+                        summary_writer.add_summary(lm_summary, global_step=(e*num_steps_train+i))
+                        qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
+                                                         simple_value=np.mean(qa_f1s))])
+                        summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
+                        lm_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm_white",
+                                                         simple_value=np.mean(lm_score_whitened))])
+                        summary_writer.add_summary(lm_white_summary, global_step=(e*num_steps_train+i))
+                        qa_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa_white",
+                                                         simple_value=np.mean(qa_score_whitened))])
+                        summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
 
-                    # print(qhat_ids)
-                    # print(qhat_lens)
-                    # print(train_batch_ext[2][2])
+                        # Build a combined batch - half ground truth for MLE, half generated for PG
+                        train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
 
-                    rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
-                        model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
-                        model.rl_lm_enabled: True,
-                        model.rl_qa_enabled: True,
-                        model.hide_answer_in_copy: True}
+                        # print(qhat_ids)
+                        # print(qhat_lens)
+                        # print(train_batch_ext[2][2])
 
-                    # perform a policy gradient step, but combine with a XE step by using appropriate rewards
-                    ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
-                    if i%FLAGS.eval_freq==0:
-                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
-                        res_offset = 4
-                    else:
-                        res_offset=0
-                    ops.extend([model.lm_loss, model.qa_loss])
-                    res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
-                        model.is_training:False,
-                        **rl_dict})
-                    summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
+                        rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
+                            model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
+                            model.rl_lm_enabled: True,
+                            model.rl_qa_enabled: True,
+                            model.hide_answer_in_copy: True}
 
-                    # Log only the first half of the PG related losses
-                    lm_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/lm",
-                                                     simple_value=np.mean(res[3+res_offset][:curr_batch_size]))])
-                    summary_writer.add_summary(lm_loss_summary, global_step=(e*num_steps_train+i))
-                    qa_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/qa",
-                                                     simple_value=np.mean(res[4+res_offset][:curr_batch_size]))])
-                    summary_writer.add_summary(qa_loss_summary, global_step=(e*num_steps_train+i))
+                        # perform a policy gradient step, but combine with a XE step by using appropriate rewards
+                        ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
+                        if i%FLAGS.eval_freq==0:
+                            ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                            res_offset = 4
+                        else:
+                            res_offset=0
+                        ops.extend([model.lm_loss, model.qa_loss])
+                        res= sess.run(ops, feed_dict={model.input_batch: train_batch_ext,
+                            model.is_training:False,
+                            **rl_dict})
+                        summary_writer.add_summary(res[1], global_step=(e*num_steps_train+i))
+
+                        # Log only the first half of the PG related losses
+                        lm_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/lm",
+                                                         simple_value=np.mean(res[3+res_offset][:curr_batch_size]))])
+                        summary_writer.add_summary(lm_loss_summary, global_step=(e*num_steps_train+i))
+                        qa_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/qa",
+                                                         simple_value=np.mean(res[4+res_offset][:curr_batch_size]))])
+                        summary_writer.add_summary(qa_loss_summary, global_step=(e*num_steps_train+i))
 
                 else:
                     # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
@@ -285,7 +288,7 @@ def main(_):
 
 
                 # Dump some output periodically
-                if i%FLAGS.eval_freq==0:
+                if i%FLAGS.eval_freq==0 and ((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin:
                     with open(FLAGS.log_dir+'out.htm', 'w', encoding='utf-8') as fp:
                         fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
                     gold_batch = res[6]

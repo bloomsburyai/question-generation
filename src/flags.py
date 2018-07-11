@@ -39,6 +39,8 @@ tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q usi
 
 tf.app.flags.DEFINE_float("length_penalty", 0.15, "TF beam search length penalty hparam")
 
+tf.app.flags.DEFINE_integer("pg_burnin", 100, "Num steps to burn in reward whitening before updating")
+
 tf.app.flags.DEFINE_float("lm_weight", 0.25, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
 tf.app.flags.DEFINE_float("qa_weight", 0.5, "Loss multiplier for QA in Maluuba model. Paper gives 1.0 alone or 0.5 joint")
 
