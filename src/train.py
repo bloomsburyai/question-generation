@@ -276,7 +276,7 @@ def main(_):
                     # Perform a normal optimizer step
                     ops = [model.optimizer, model.train_summary,model.q_hat_string]
                     if i%FLAGS.eval_freq==0:
-                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw])
+                        ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw, model.question_length])
                     res= sess.run(ops, feed_dict={model.input_batch: train_batch,
                         model.is_training:True,
                         **rl_dict})
@@ -288,12 +288,13 @@ def main(_):
                 if i%FLAGS.eval_freq==0:
                     with open(FLAGS.log_dir+'out.htm', 'w', encoding='utf-8') as fp:
                         fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
-
+                    gold_batch = res[6]
+                    gold_lens = res[7]
                     f1s=[]
                     bleus=[]
                     for b, pred in enumerate(res[2]):
-                        pred_str = tokens_to_string(pred)
-                        gold_str = tokens_to_string(res[6][b])
+                        pred_str = tokens_to_string(pred[:gold_lens[b]-1])
+                        gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                         f1s.append(metrics.f1(gold_str, pred_str))
                         bleus.append(metrics.bleu(gold_str, pred_str))
 
