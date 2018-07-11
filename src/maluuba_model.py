@@ -18,7 +18,7 @@ class MaluubaModel(Seq2SeqModel):
         self.lm_weight = lm_weight
         self.qa_weight = qa_weight
 
-        super().__init__(vocab, advanced_condition_encoding=True, training_mode=training_mode, use_embedding_loss=False)
+        super().__init__(vocab, advanced_condition_encoding=True, training_mode=training_mode, use_embedding_loss=use_embedding_loss)
         self.modify_seq2seq_model()
 
     def modify_seq2seq_model(self):
