@@ -422,17 +422,20 @@ class Seq2SeqModel(TFModel):
 
             if self.use_embedding_loss:
                 vocab_cap = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab)-1,axis=1),[1,FLAGS.max_copy_size+len(self.vocab)])
-                self.local_vocab_string = ops.id_tensor_to_string(tf.minimum(tf.tile(tf.expand_dims(tf.range(FLAGS.max_copy_size+len(self.vocab)),axis=0), [curr_batch_size,1]), vocab_cap), self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
-                self.local_vocab_to_extended = tf.one_hot(ops.string_tensor_to_id(self.local_vocab_string, self.glove_vocab), depth=len(self.glove_vocab), dtype=tf.float32) # batch x vocab x ext_vocab
+                with tf.device('/cpu:*'):
+                    self.local_vocab_string = ops.id_tensor_to_string(tf.minimum(tf.tile(tf.expand_dims(tf.range(FLAGS.max_copy_size+len(self.vocab)),axis=0), [curr_batch_size,1]), vocab_cap), self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+                    self.local_vocab_to_extended = ops.string_tensor_to_id(self.local_vocab_string, self.glove_vocab)
+                    self.local_embeddings = tf.reshape(tf.nn.embedding_lookup(self.extended_embeddings, self.local_vocab_to_extended), [curr_batch_size, FLAGS.max_copy_size+len(self.vocab),self.embedding_size])
 
-                self.q_gold_ids_extended = ops.string_tensor_to_id(self.question_raw, self.glove_vocab)
+                    self.q_gold_ids_extended = ops.string_tensor_to_id(self.question_raw, self.glove_vocab)
 
-                self.q_hat_extended = tf.matmul(self.q_hat, tf.stop_gradient(self.local_vocab_to_extended)) # batch x seq x ext_vocab
+                # self.q_hat_extended = tf.matmul(self.q_hat, tf.stop_gradient(self.local_vocab_to_extended)) # batch x seq x ext_vocab
 
                 self.q_gold_embedded_extended = tf.nn.embedding_lookup(self.extended_embeddings, self.q_gold_ids_extended)
 
-
-                self.q_hat_embedded_extended = tf.einsum("id,bti->btd",self.extended_embeddings, self.q_hat_extended)
+                print(self.local_vocab_to_extended)
+                print(self.local_embeddings)
+                self.q_hat_embedded_extended = tf.matmul(self.q_hat,self.local_embeddings)
                 # self.q_hat_embedded_extended = tf.matmul(self.extended_embeddings, tf.cast(self.q_hat_ids_extended, tf.int32), b_is_sparse=True)
 
                 self.similarity = tf.reduce_sum(self.q_hat_embedded_extended * tf.stop_gradient(self.q_gold_embedded_extended), axis=-1)/(1e-6+tf.norm(self.q_gold_embedded_extended, axis=-1)*tf.norm(self.q_hat_embedded_extended, axis=-1)) # batch x seq
