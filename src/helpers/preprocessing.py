@@ -52,7 +52,7 @@ def lookup_vocab(words, vocab, context=None, ans_tok_pos=None, do_tokenise=True,
             if context is not None and not context_as_set and w in decoded_context:
                 if decoded_context.count(w) > 1 and ans_tok_pos is not None:
                     # Multiple options, either pick the one that flows from previous, or pick the nearest to answer
-                    if len(ids) > 0 and ids[-1]>=len(vocab) and  decoded_context[ids[-1]-len(vocab)+1] == w:
+                    if len(ids) > 0 and ids[-1]>=len(vocab) and len(decoded_context)>=ids[-1]-len(vocab)+2 and decoded_context[ids[-1]-len(vocab)+1] == w:
                         copy_ix = ids[-1]-len(vocab)+1
                     else:
                         indices = [i for i, x in enumerate(decoded_context) if x == w]
