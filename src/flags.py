@@ -36,6 +36,7 @@ tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 tf.app.flags.DEFINE_boolean("context_as_set", False, "Convert context into a set of tokens rather than list for use by copy mech. Must use copy priority if this is enabled!!")
 tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q using copy priority")
+tf.app.flags.DEFINE_boolean("smart_copy", True, "Use smarter heuristics to determine copy location if there are multiple choices")
 
 tf.app.flags.DEFINE_float("length_penalty", 0.15, "TF beam search length penalty hparam")
 
