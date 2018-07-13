@@ -61,6 +61,7 @@ class MaluubaModel(Seq2SeqModel):
 
             # log the first half of the batch - this is the RL part
             self._train_summaries.append(tf.summary.scalar("train_loss/pg_loss_rl", tf.reduce_mean(pg_loss[:curr_batch_size_pg])))
+            self._train_summaries.append(tf.summary.scalar("train_loss/pg_loss_ml", tf.reduce_mean(pg_loss[curr_batch_size_pg:])))
 
             self.pg_loss=tf.reduce_mean(pg_loss,axis=[0])
 
