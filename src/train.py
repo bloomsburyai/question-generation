@@ -89,7 +89,7 @@ def main(_):
         train_data=train_data[:1000]
         num_dev_samples=100
     else:
-        num_dev_samples=1000
+        num_dev_samples=FLAGS.num_dev_samples
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
@@ -354,7 +354,7 @@ def main(_):
                 saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
             else:
                 print("NLL not improved ", mean_nll)
-                if FLAGS.model_type[:10] == "MALUUBA_RL":
+                if FLAGS.policy_gradient:
                     print("Saving anyway")
                     saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
 if __name__ == '__main__':
