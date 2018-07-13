@@ -28,12 +28,12 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-crop-set'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, True)[:1500]
+    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
     train_contexts_unfilt, _,_,_ = zip(*train_data)
     dev_contexts_unfilt, _,_,_ = zip(*dev_data)
@@ -53,7 +53,7 @@ def main(_):
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
 
-    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=False)
+    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
 
 
     # Create model
@@ -90,14 +90,17 @@ def main(_):
         #     sess.run(tf.global_variables_initializer())
         #     sess.run(model.glove_init_ops)
 
-        num_steps = len(dev_data)//FLAGS.batch_size
+        num_steps = FLAGS.num_eval_samples//FLAGS.batch_size
 
         # Initialise the dataset
+
+        # np.random.shuffle(dev_data)
         dev_data_source.initialise(dev_data)
 
         f1s=[]
         bleus=[]
         qa_scores=[]
+        qa_scores_gold=[]
         lm_scores=[]
         nlls=[]
 
@@ -127,20 +130,38 @@ def main(_):
 
                 # get QA score
                 qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(pred_batch, pred_lens))
+                gold_qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(dev_batch[1][0], dev_batch[1][2]))
 
-                gold_str=[]
-                pred_str=[]
+                # gold_str=[]
+                # pred_str=[]
 
 
-                gold_str = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
+                gold_ans = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
                 # pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
 
-                qa_scores.extend([metrics.f1(gold_str[b], qa_pred[b]) for b in range(curr_batch_size)])
+
+                qa_scores.extend([metrics.f1(gold_ans[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
+                qa_scores_gold.extend([metrics.f1(gold_ans[b].lower(), gold_qa_pred[b].lower()) for b in range(curr_batch_size)])
                 lm_scores.extend(lm.get_seq_perplexity(ops.byte_token_array_to_str(pred_batch, pred_lens)).tolist()) # lower perplexity is better
                 nlls.extend(nll.tolist())
 
                 if i==0:
+                    pred_str = tokens_to_string(pred_batch[0][:pred_lens[0]-1])
+                    gold_str = tokens_to_string(gold_batch[0][:gold_lens[0]-1])
+                    print(pred_str)
+                    print(gold_str)
+                    print(qa_pred[0])
+                    print(gold_qa_pred[0])
+                    print(gold_ans[0])
+                    print(qa_scores[0])
+                    print(qa_scores_gold[0])
+                    print(unfilt_ctxt_batch[0])
+                    print(dev_batch[3][0])
+                    print(dev_contexts_unfilt[dev_batch[3][0]])
+                    print(dev_batch[0][0][0])
+
+
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:

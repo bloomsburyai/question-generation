@@ -206,7 +206,7 @@ def main(_):
                     gold_str = byte_token_array_to_str(train_batch[2][0], train_batch[2][2], is_array=False)
                     # pred_str = byte_token_array_to_str([train_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
-                    qa_f1s.extend([metrics.f1(gold_str[b], qa_pred[b]) for b in range(curr_batch_size)])
+                    qa_f1s.extend([metrics.f1(gold_str[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
 
                     lm_score_moments.push(lm_score)
                     qa_score_moments.push(qa_f1s)
