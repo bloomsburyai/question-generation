@@ -247,7 +247,7 @@ def main(_):
                         # perform a policy gradient step, but combine with a XE step by using appropriate rewards
                         ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
                         if i%FLAGS.eval_freq==0:
-                            ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.q_gold])
+                            ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw, model.question_length])
                             res_offset = 4
                         else:
                             res_offset=0
