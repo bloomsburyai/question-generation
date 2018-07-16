@@ -28,7 +28,7 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
@@ -84,7 +84,7 @@ def main(_):
             exit('Checkpoint path doesnt exist! '+chkpt_path)
         summary_writer = tf.summary.FileWriter(FLAGS.log_dir+"eval/"+str(int(time.time())), sess.graph)
 
-        saver.restore(sess, chkpt_path+ '/model.checkpoint')
+        saver.restore(sess, tf.train.latest_checkpoint(chkpt_path))
         # print('Loading not implemented yet')
         # else:
         #     sess.run(tf.global_variables_initializer())

@@ -219,6 +219,13 @@ class Seq2SeqModel(TFModel):
                             num_units=self.decoder_units, memory=train_memory,
                             memory_sequence_length=train_memory_sequence_length, name='bahdanau_attn')
 
+            if FLAGS.separate_copy_mech:
+                train_copy_mechanism = copy_attention_wrapper.BahdanauAttention(
+                                num_units=self.decoder_units, memory=train_memory,
+                                memory_sequence_length=train_memory_sequence_length, name='bahdanau_attn_copy')
+            else:
+                train_copy_mechanism = train_attention_mechanism
+
             with tf.variable_scope('decoder_cell'):
                 train_decoder_cell = tf.contrib.rnn.DropoutWrapper(
                         cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
@@ -233,7 +240,7 @@ class Seq2SeqModel(TFModel):
                                                                 train_attention_mechanism,
                                                                 attention_layer_size=self.decoder_units / 2,
                                                                 alignment_history=False,
-                                                                copy_mechanism=train_attention_mechanism,
+                                                                copy_mechanism=train_copy_mechanism,
                                                                 output_attention=True,
                                                                 initial_cell_state=train_init_state, name='copy_attention_wrapper')
 
@@ -249,6 +256,13 @@ class Seq2SeqModel(TFModel):
                             num_units=self.decoder_units, memory=beam_memory,
                             memory_sequence_length=beam_memory_sequence_length, name='bahdanau_attn')
 
+            if FLAGS.separate_copy_mech:
+                beam_copy_mechanism = copy_attention_wrapper.BahdanauAttention(
+                                num_units=self.decoder_units, memory=beam_memory,
+                                memory_sequence_length=beam_memory_sequence_length, name='bahdanau_attn_copy')
+            else:
+                beam_copy_mechanism = beam_attention_mechanism
+
             with tf.variable_scope('decoder_cell', reuse=True):
                 beam_decoder_cell = tf.contrib.rnn.DropoutWrapper(
                         cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.decoder_units),
@@ -263,7 +277,7 @@ class Seq2SeqModel(TFModel):
                                                                 beam_attention_mechanism,
                                                                 attention_layer_size=self.decoder_units / 2,
                                                                 alignment_history=False,
-                                                                copy_mechanism=beam_attention_mechanism,
+                                                                copy_mechanism=beam_copy_mechanism,
                                                                 output_attention=True,
                                                                 initial_cell_state=beam_init_state, name='copy_attention_wrapper')
 
@@ -384,6 +398,8 @@ class Seq2SeqModel(TFModel):
 
             self.q_hat_beam_ids = beam_pred_ids
             self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
+            self.q_hat_full_beam_str = [ops.id_tensor_to_string(ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set) for ids in tf.unstack(beam_outputs.predicted_ids,2)]
+            self.q_hat_full_beam_lens = [len for len in tf.unstack(beam_out_lens,1)]
             self.q_hat_beam_lens = beam_out_lens[:,0]
             # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
             # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
@@ -433,14 +449,15 @@ class Seq2SeqModel(TFModel):
 
                 self.q_gold_embedded_extended = tf.nn.embedding_lookup(self.extended_embeddings, self.q_gold_ids_extended)
 
-                print(self.local_vocab_to_extended)
-                print(self.local_embeddings)
                 self.q_hat_embedded_extended = tf.matmul(self.q_hat,self.local_embeddings)
                 # self.q_hat_embedded_extended = tf.matmul(self.extended_embeddings, tf.cast(self.q_hat_ids_extended, tf.int32), b_is_sparse=True)
 
                 self.similarity = tf.reduce_sum(self.q_hat_embedded_extended * tf.stop_gradient(self.q_gold_embedded_extended), axis=-1)/(1e-6+tf.norm(self.q_gold_embedded_extended, axis=-1)*tf.norm(self.q_hat_embedded_extended, axis=-1)) # batch x seq
+                self.dist = tf.reduce_sum(tf.square(self.q_hat_embedded_extended - tf.stop_gradient(self.q_gold_embedded_extended)), axis=-1)
                 self._train_summaries.append(tf.summary.scalar("debug/similarities", tf.reduce_mean(tf.reduce_sum(self.similarity* self.target_weights,axis=1)/qlen_float)))
-                self.loss = 1/(1e-6+0.5+0.5*tf.reduce_mean(tf.reduce_sum(self.similarity * self.target_weights,axis=1)/qlen_float,axis=0))-1
+                self._train_summaries.append(tf.summary.scalar("debug/dist", tf.reduce_mean(tf.reduce_sum(self.dist* self.target_weights,axis=1)/qlen_float)))
+                self.loss=tf.reduce_mean(tf.reduce_sum(tf.abs(tf.acos(self.similarity)) * self.target_weights,axis=1)/qlen_float,axis=0)
+                # self.loss = tf.abs(tf.acos(self.similarity)
             else:
 
                 self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss

@@ -143,7 +143,7 @@ def main(_):
         num_steps_dev = num_dev_samples//FLAGS.batch_size
 
         if FLAGS.restore:
-            saver.restore(sess, restore_path+ '/model.checkpoint')
+            saver.restore(sess, tf.train.latest_checkpoint(restore_path))
             start_e=15#FLAGS.num_epochs
             print('Loaded model')
         else:
@@ -351,11 +351,11 @@ def main(_):
             if mean_nll < best_oos_nll:
                 print("New best NLL! ", mean_nll, " Saving...")
                 best_oos_nll = mean_nll
-                saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
+                saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e, max_to_keep=2, save_relative_paths=True)
             else:
                 print("NLL not improved ", mean_nll)
                 if FLAGS.policy_gradient:
                     print("Saving anyway")
-                    saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
+                    saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e, max_to_keep=2, save_relative_paths=True)
 if __name__ == '__main__':
     tf.app.run()
