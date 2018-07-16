@@ -90,7 +90,7 @@ def main(_):
         #     sess.run(tf.global_variables_initializer())
         #     sess.run(model.glove_init_ops)
 
-        num_steps = FLAGS.num_eval_samples//FLAGS.batch_size
+        num_steps = FLAGS.num_eval_samples//FLAGS.eval_batch_size
 
         # Initialise the dataset
 
@@ -111,7 +111,7 @@ def main(_):
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_beam,pred_beam_lens,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_full_beam_str, model.q_hat_full_beam_lens,model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
 
@@ -124,8 +124,6 @@ def main(_):
                     qpreds.append(pred_str)
                 ctxts.extend(unfilt_ctxt_batch)
                 answers.extend(ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2]))
-
-
 
 
                 # get QA score
@@ -151,15 +149,16 @@ def main(_):
                     gold_str = tokens_to_string(gold_batch[0][:gold_lens[0]-1])
                     print(pred_str)
                     print(gold_str)
-                    print(qa_pred[0])
-                    print(gold_qa_pred[0])
-                    print(gold_ans[0])
-                    print(qa_scores[0])
-                    print(qa_scores_gold[0])
-                    print(unfilt_ctxt_batch[0])
-                    print(dev_batch[3][0])
-                    print(dev_contexts_unfilt[dev_batch[3][0]])
-                    print(dev_batch[0][0][0])
+                    # print(qa_pred[0])
+                    # print(gold_qa_pred[0])
+                    # print(gold_ans[0])
+                    # print(qa_scores[0])
+                    # print(qa_scores_gold[0])
+                    # print(unfilt_ctxt_batch[0])
+                    # print(dev_batch[3][0])
+                    # print(dev_contexts_unfilt[dev_batch[3][0]])
+                    # print(dev_batch[0][0][0])
+                    print([tokens_to_string(pred_beam[i][0][:pred_beam_lens[i][0]-1]) for i in range(16)])
 
 
                     title=chkpt_path

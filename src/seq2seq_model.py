@@ -398,8 +398,9 @@ class Seq2SeqModel(TFModel):
 
             self.q_hat_beam_ids = beam_pred_ids
             self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
-            self.q_hat_full_beam_str = [ops.id_tensor_to_string(ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set) for ids in tf.unstack(beam_outputs.predicted_ids,2)]
-            self.q_hat_full_beam_lens = [len for len in tf.unstack(beam_out_lens,1)]
+
+            self.q_hat_full_beam_str = [ops.id_tensor_to_string(ids*tf.sequence_mask(beam_out_lens[:,i], tf.shape(beam_pred_ids)[1], dtype=tf.int32), self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set) for i,ids in enumerate(tf.unstack(beam_outputs.predicted_ids,axis=2))]
+            self.q_hat_full_beam_lens = [len for len in tf.unstack(beam_out_lens,axis=1)]
             self.q_hat_beam_lens = beam_out_lens[:,0]
             # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
             # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)

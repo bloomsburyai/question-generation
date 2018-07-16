@@ -128,7 +128,7 @@ def main(_):
     dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
 
     with model.graph.as_default():
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(max_to_keep=2, save_relative_paths=True)
 
 
     # change visible devices if using RL models
@@ -351,11 +351,11 @@ def main(_):
             if mean_nll < best_oos_nll:
                 print("New best NLL! ", mean_nll, " Saving...")
                 best_oos_nll = mean_nll
-                saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e, max_to_keep=2, save_relative_paths=True)
+                saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
             else:
                 print("NLL not improved ", mean_nll)
                 if FLAGS.policy_gradient:
                     print("Saving anyway")
-                    saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e, max_to_keep=2, save_relative_paths=True)
+                    saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
 if __name__ == '__main__':
     tf.app.run()
