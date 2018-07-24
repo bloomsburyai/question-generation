@@ -288,7 +288,7 @@ def main(_):
 
 
                 # Dump some output periodically
-                if i%FLAGS.eval_freq==0 and ()((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin or not FLAGS.policy_gradient):
+                if i%FLAGS.eval_freq==0 and (((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin or not FLAGS.policy_gradient):
                     with open(FLAGS.log_dir+'out.htm', 'w', encoding='utf-8') as fp:
                         fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
                     gold_batch = res[6]
