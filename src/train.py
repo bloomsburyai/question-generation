@@ -69,7 +69,7 @@ def main(_):
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
     # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
-    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-filt'
+    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-smart'
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)
