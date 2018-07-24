@@ -2,7 +2,7 @@
 /logs
 /models
 /qanet
-
+all_jobs.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

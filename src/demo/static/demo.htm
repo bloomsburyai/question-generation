@@ -50,13 +50,16 @@
   </head>
   <body>
     <div class="container">
-      <h1>AQ Demo</h1>
+      <h1>Question Generation Demo</h1>
 
       <form>
-        <button class="btn btn-primary" onclick="seedWithFootball(); return false;">Football</button>
-        <button class="btn btn-primary" onclick="seedWithSquad(); return false;">SQuAD</button>
-        <button class="btn btn-primary" onclick="seedWithSquad2(); return false;">SQuAD 2</button>
-        <button class="btn btn-primary" onclick="seedWithSquad3(); return false;">SQuAD 3</button>
+        <div class="form-group">
+          Load preset contexts:
+          <button class="btn btn-primary" onclick="seedWithFootball(); return false;">Football</button>
+          <button class="btn btn-primary" onclick="seedWithSquad(); return false;">SQuAD</button>
+          <button class="btn btn-primary" onclick="seedWithSquad2(); return false;">SQuAD 2</button>
+          <button class="btn btn-primary" onclick="seedWithSquad3(); return false;">SQuAD 3</button>
+        </div>
         <div class="form-group">
           <label for="context">Context</label>
           <textarea class="form-control" id="context" rows="15"></textarea>
@@ -65,10 +68,13 @@
           <label for="exampleInputEmail1">Answer</label>
           <input type="text" class="form-control" id="answer" placeholder="Enter answer text">
         </div>
-        <button class="btn btn-primary" onclick="getQ(); return false;">Submit</button>
+        <button class="btn btn-primary" onclick="getQ(); return false;">Generate</button>
+        <hr/>
+        <div class="form-group">
+          <p>Generated Question:</p>
+          <div id="response"></div>
       </form>
 
-      <div id="response"></div>
     </div>
 
 

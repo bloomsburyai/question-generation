@@ -232,12 +232,16 @@ def process_squad_context(vocab, context_as_set=False):
 
     return _process_squad_context
 
-def process_squad_question(vocab, context_as_set=False, copy_priority=False, smart_copy=True):
+def process_squad_question(vocab, max_copy_size, context_as_set=False, copy_priority=False, smart_copy=True, latent_switch=False):
     def _process_squad_question(question, context, ans_loc):
         ans_tok_pos=char_pos_to_word(context, tokenise(context), ans_loc)
         question_ids = lookup_vocab(question, vocab, context=context, ans_tok_pos=ans_tok_pos, append_eos=True, context_as_set=context_as_set, copy_priority=copy_priority, smart_copy=smart_copy)
         question_len = np.asarray(len(question_ids), dtype=np.int32)
-        return [tokenise(question,append_eos=True), question_ids, question_len]
+        if latent_switch:
+            question_oh = np.eye(len(vocab)+max_copy_size, dtype=np.float32)[question_ids]
+        else:
+            question_oh = np.eye(len(vocab)+max_copy_size, dtype=np.float32)[question_ids]
+        return [tokenise(question,append_eos=True), question_ids, question_oh, question_len]
     return _process_squad_question
 
 def process_squad_answer(vocab, context_as_set=False):

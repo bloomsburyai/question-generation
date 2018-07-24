@@ -13,45 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 squad =  loader.load_squad_triples('./data/',False,v2=False)#[9654:9655]
-
-
-
-
-from alignment.sequence import Sequence
-from alignment.vocabulary import Vocabulary
-from alignment.sequencealigner import SimpleScoring, GlobalSequenceAligner
-
-# Create sequences to be aligned.
-a = Sequence(preprocessing.tokenise(squad[0][0], asbytes=False))
-b = Sequence(preprocessing.tokenise(squad[0][1], asbytes=False))
-
-
-
-# Create a vocabulary and encode the sequences.
-v = Vocabulary()
-aEncoded = v.encodeSequence(a)
-bEncoded = v.encodeSequence(b)
-
-print(a)
-print(b)
-
-# Create a scoring and align the sequences using global aligner.
-scoring = SimpleScoring(2, -1)
-aligner = GlobalSequenceAligner(scoring, -2)
-score, encodeds = aligner.align(aEncoded, bEncoded, backtrace=True)
-
-# Iterate over optimal alignments and print them.
-for encoded in encodeds:
-    alignment = v.decodeSequenceAlignment(encoded)
-    print(encoded)
-    print(alignment)
-    print('Alignment score:', alignment.score)
-    print('Percent identity:', alignment.percentIdentity())
-
-
-exit()
-
-
+squad_dev =  loader.load_squad_triples('./data/',True,v2=False)#[9654:9655]
 
 
 glove_vocab = set(loader.get_glove_vocab('./data/', size=1e12, d=200).keys())
@@ -79,6 +41,9 @@ for i,triple in enumerate(squad):
     squad_vocab |= set(c_toks)
 end = time()
 print(end-start)
+
+print("richard in glove", ("richard" in glove_short))
+print("doctor in glove", ("doctor" in glove_short))
 # print(max_context_len," @ ",ix)
 # print(squad[ix])
 # print(debugstr)
@@ -86,17 +51,61 @@ print(end-start)
 # print(debugstr[max_pos:max_pos+10])
 # print(len(preprocessing.tokenise(debugstr, asbytes=False)))
 
-# print(len(squad_vocab))
-# print(len(glove_vocab))
-# print(len(squad_vocab-glove_vocab))
-#
-# print(squad_count.most_common(20))
-# print(squad_count.most_common()[-20:])
-#
-# _,top_n=zip(*squad_count.most_common(2000))
+print(len(squad_vocab))
+print(len(glove_vocab))
+print(len(squad_vocab-glove_vocab))
+
+print(squad_count.most_common(20))
+print(squad_count.most_common()[-20:])
+
+_,top_n=zip(*squad_count.most_common(2000))
+
+# plt.title('Frequency of words in SQuAD questions')
+# plt.xlabel('Rank')
+# plt.ylabel('Frequency')
 # plt.bar([x for x in range(2000)], [y for y in top_n], 1 ,log=True)
 # # plt.bar([x for x in range(2000)], [squad_count[y] for y in glove_short], 1 ,log=True)
+# plt.savefig("/users/Tom/Dropbox/msc-ml/project-report/figures/squad_freq.pdf", format="pdf")
 # plt.show()
+
+q_words=["who","when","what","why","how many","which","where","other"]
+counts = {k:0 for k in q_words}
+counts_dev = {k:0 for k in q_words}
+
+for i,triple in enumerate(squad):
+    qgold = triple[1]
+
+    triggered = False
+    for q in q_words:
+        if q != "other" and q in qgold.lower():
+            counts[q] += 1
+            triggered=True
+    if not triggered:
+        counts["other"] += 1
+for i,triple in enumerate(squad_dev):
+    qgold = triple[1]
+
+    triggered = False
+    for q in q_words:
+        if q != "other" and q in qgold.lower():
+            counts_dev[q] += 1
+            triggered=True
+    if not triggered:
+        counts_dev["other"] += 1
+
+plt.title('Distribution of "wh" words in SQuAD questions')
+# plt.xlabel('Interrogative')
+plt.ylabel('Fraction')
+
+bar_width=0.3
+
+# plt.bar([x for x in range(len(q_words))], [np.mean(scores[q]) for q in q_words], tick_label=q_words)
+plt.bar([x for x in range(len(q_words))], [counts[q]/len(squad) for q in q_words], tick_label=q_words, width=bar_width, label="SQuAD training set")
+plt.bar([x+bar_width for x in range(len(q_words))], [counts_dev[q]/len(squad_dev) for q in q_words], width=bar_width, label="SQuAD dev set")
+plt.legend()
+plt.savefig("/users/Tom/Dropbox/msc-ml/project-report/figures/squad_wh_count.pdf", format="pdf")
+
+plt.show()
 
 
 # min_pos = 99999999

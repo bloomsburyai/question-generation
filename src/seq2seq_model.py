@@ -51,6 +51,7 @@ class Seq2SeqModel(TFModel):
         self.context_length  = tf.placeholder(tf.int32, [None])     # size(source)
         self.context_vocab_size  = tf.placeholder(tf.int32, [None])     # size(source_vocab)
         self.question_ids = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
+        self.question_onehot = tf.placeholder(tf.float32, [None, None, None])  # target vectors of unknown size
         self.question_length  = tf.placeholder(tf.int32, [None])     # size(source)
         self.answer_ids  = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
         self.answer_length  = tf.placeholder(tf.int32, [None])
@@ -61,7 +62,7 @@ class Seq2SeqModel(TFModel):
 
 
         self.context_in = (self.context_raw, self.context_ids, self.context_copy_ids, self.context_length, self.context_vocab_size)
-        self.question_in = (self.question_raw, self.question_ids, self.question_length)
+        self.question_in = (self.question_raw, self.question_ids, self.question_onehot, self.question_length)
         self.answer_in = (self.answer_raw, self.answer_ids, self.answer_length, self.answer_locs)
         self.input_batch = (self.context_in, self.question_in, self.answer_in, self.original_ix)
 
@@ -70,10 +71,10 @@ class Seq2SeqModel(TFModel):
         with tf.variable_scope('input_pipeline'):
             # build teacher output - coerce to vocab and pad with SOS/EOS
             # also build output for loss - one hot over vocab+context
-            self.question_onehot = tf.one_hot(self.question_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
+            # self.question_onehot = tf.one_hot(self.question_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
             # self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
-            self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
-            self.question_teach_oh = tf.one_hot(self.question_teach, depth=len(self.vocab)+FLAGS.max_copy_size)
+
+            self.question_teach_oh = tf.concat([tf.one_hot(tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), depth=len(self.vocab)+FLAGS.max_copy_size), self.question_onehot[:,:-1,:]], axis=1)
             # Embed c,q,a
 
 
@@ -95,7 +96,7 @@ class Seq2SeqModel(TFModel):
             self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
             self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
-            self.question_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_teach)
+            # self.question_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_teach)
             # self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
             self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
@@ -383,7 +384,7 @@ class Seq2SeqModel(TFModel):
         # self.context_length = debug_tensor(self.context_length, "ctxt len", summarize=None)
 
         # because we've done a few logs of softmaxes, there can be some precision problems that lead to non zero probability outside of the valid vocab, fix it here:
-        self.max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_ids)[1]])
+        self.max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_onehot)[1]])
         output_mask = tf.sequence_mask(self.max_vocab_size, FLAGS.max_copy_size+len(self.vocab), dtype=tf.float32)
         # self.q_hat = self.q_hat*output_mask
 
@@ -422,8 +423,13 @@ class Seq2SeqModel(TFModel):
 
             logits = ops.safe_log(self.q_hat)
 
-            self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels=self.question_ids, logits=logits)
+            # if the switch variable is fully latent, this gets a bit fiddly - we have to sum probabilities over all correct tokens, *then* take CE loss
+            # otherwise the built in fn is fine (and almost certainly faster)
+            if FLAGS.latent_switch:
+                self.crossent =-1*ops.safe_log(tf.reduce_sum(self.q_hat*self.question_onehot, axis=2))
+            else:
+                self.crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                    labels=self.question_ids, logits=logits)
             qlen_float = tf.cast(self.question_length, tf.float32)
             self.xe_loss = tf.reduce_mean(tf.reduce_sum(self.crossent * self.target_weights,axis=1)/qlen_float,axis=0)
             self.nll = tf.reduce_sum(self.crossent * self.target_weights,axis=1)
@@ -453,7 +459,7 @@ class Seq2SeqModel(TFModel):
                 self.q_hat_embedded_extended = tf.matmul(self.q_hat,self.local_embeddings)
                 # self.q_hat_embedded_extended = tf.matmul(self.extended_embeddings, tf.cast(self.q_hat_ids_extended, tf.int32), b_is_sparse=True)
 
-                self.similarity = tf.reduce_sum(self.q_hat_embedded_extended * tf.stop_gradient(self.q_gold_embedded_extended), axis=-1)/(1e-6+tf.norm(self.q_gold_embedded_extended, axis=-1)*tf.norm(self.q_hat_embedded_extended, axis=-1)) # batch x seq
+                self.similarity = tf.reduce_sum(self.q_hat_embedded_extended * tf.stop_gradient(self.q_gold_embedded_extended), axis=-1)/(1e-5+tf.norm(self.q_gold_embedded_extended, axis=-1)*tf.norm(self.q_hat_embedded_extended, axis=-1)) # batch x seq
                 self.dist = tf.reduce_sum(tf.square(self.q_hat_embedded_extended - tf.stop_gradient(self.q_gold_embedded_extended)), axis=-1)
                 self._train_summaries.append(tf.summary.scalar("debug/similarities", tf.reduce_mean(tf.reduce_sum(self.similarity* self.target_weights,axis=1)/qlen_float)))
                 self._train_summaries.append(tf.summary.scalar("debug/dist", tf.reduce_mean(tf.reduce_sum(self.dist* self.target_weights,axis=1)/qlen_float)))
@@ -489,4 +495,5 @@ class Seq2SeqModel(TFModel):
             self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
                 zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 
-        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)
+        # self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)
+        self.accuracy = tf.reduce_mean(tf.cast(tf.reduce_sum(self.question_onehot  * tf.contrib.seq2seq.hardmax(self.q_hat), axis=-1),tf.float32)*self.target_weights)
