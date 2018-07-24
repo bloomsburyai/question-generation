@@ -197,7 +197,7 @@ def main(_):
                     unfilt_ctxt_batch = [train_contexts_unfilt[ix] for ix in train_batch[3]]
 
                     qa_pred = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(qhat_str, qhat_lens))
-                    qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(train_batch[1][0], train_batch[1][2]))
+                    qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(train_batch[1][0], train_batch[1][3]))
 
                     gold_str=[]
                     # pred_str=[]
@@ -288,7 +288,7 @@ def main(_):
 
 
                 # Dump some output periodically
-                if i%FLAGS.eval_freq==0 and ((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin:
+                if i%FLAGS.eval_freq==0 and ()((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin or not FLAGS.policy_gradient):
                     with open(FLAGS.log_dir+'out.htm', 'w', encoding='utf-8') as fp:
                         fp.write(output_pretty(res[2].tolist(), res[3], res[4], res[5], e, i))
                     gold_batch = res[6]
