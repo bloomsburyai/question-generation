@@ -35,7 +35,7 @@ def main(_):
 
     # load dataset
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+    dev_data = loader.load_squad_triples(FLAGS.data_path, FLAGS.eval_on_dev)
 
     train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,_,dev_a_pos_unfilt = zip(*dev_data)
