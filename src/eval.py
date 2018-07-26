@@ -4,8 +4,8 @@ import os,time, json, datetime
 model_type = "MALUUBA"
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
-mem_limit=0.5
+# os.environ["CUDA_VISIBLE_DEVICES"]="2"
+# mem_limit=0.5
 
 import tensorflow as tf
 import numpy as np
