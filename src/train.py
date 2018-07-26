@@ -48,6 +48,13 @@ def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str, pred_q_lens):
                     new_id_batch = [q+[0 for k in range(max_len-len(q))] for q in new_id_batch]
                     new_subbatch.append(np.asarray(new_id_batch))
                 elif i==1 and j==2:
+                    # create a valid padded batch
+                    d=np.shape(y)[2]
+                    new_oh_batch=np.eye(d)[pred_q_ids.tolist()]+y.tolist()
+                    max_len = max([len(q) for q in new_id_batch])
+                    new_id_batch = [q+np.zeros(max_len-len(q),d).tolist() for q in new_id_batch]
+                    new_subbatch.append(np.asarray(new_id_batch))
+                elif i==1 and j==3:
                     new_subbatch.append(np.asarray(pred_q_lens.tolist()+y.tolist()))
                 else:
                     new_subbatch.append(np.asarray(y.tolist()+y.tolist())) # just duplicate
@@ -70,6 +77,9 @@ def main(_):
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
     # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
     restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-smart'
+
+    print("Run ID is ", run_id)
+    print("Model type is ", FLAGS.model_type)
 
     if not os.path.exists(chkpt_path):
         os.makedirs(chkpt_path)

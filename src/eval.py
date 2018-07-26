@@ -28,6 +28,8 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 def main(_):
+
+    model_type=FLAGS.model_type
     chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
@@ -35,8 +37,8 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
-    train_contexts_unfilt, _,_,_ = zip(*train_data)
-    dev_contexts_unfilt, _,_,_ = zip(*dev_data)
+    train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
+    dev_contexts_unfilt, _,_,dev_a_pos_unfilt = zip(*dev_data)
 
     if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
@@ -57,9 +59,9 @@ def main(_):
 
 
     # Create model
-    if model_type == "SEQ2SEQ":
+    if model_type[:7] == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, training_mode=True)
-    elif model_type == "MALUUBA":
+    elif model_type[:7] == "MALUUBA":
         # TEMP - no need to spin up the LM or QA model at eval time
         FLAGS.qa_weight = 0
         FLAGS.lm_weight = 0
@@ -108,6 +110,7 @@ def main(_):
         qpreds=[]
         ctxts=[]
         answers=[]
+        ans_positions=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
@@ -124,6 +127,7 @@ def main(_):
                     qpreds.append(pred_str)
                 ctxts.extend(unfilt_ctxt_batch)
                 answers.extend(ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2]))
+                ans_positions.extend([dev_a_pos_unfilt[ix] for ix in dev_batch[3]])
 
 
                 # get QA score
@@ -158,7 +162,7 @@ def main(_):
                     # print(dev_batch[3][0])
                     # print(dev_contexts_unfilt[dev_batch[3][0]])
                     # print(dev_batch[0][0][0])
-                    print([tokens_to_string(pred_beam[i][0][:pred_beam_lens[i][0]-1]) for i in range(16)])
+                    # print([tokens_to_string(pred_beam[i][0][:pred_beam_lens[i][0]-1]) for i in range(16)])
 
 
                     title=chkpt_path
@@ -166,7 +170,7 @@ def main(_):
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
                         fp.write(out_str)
 
-        res = list(zip(qpreds,qgolds,ctxts,answers))
+        res = list(zip(qpreds,qgolds,ctxts,answers,ans_positions))
         # print(res)
         with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w') as fp:
             json.dump(res, fp)
