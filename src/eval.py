@@ -167,12 +167,12 @@ def main(_):
 
                     title=chkpt_path
                     out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
-                    with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w') as fp:
+                    with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w', encoding='utf-8') as fp:
                         fp.write(out_str)
 
         res = list(zip(qpreds,qgolds,ctxts,answers,ans_positions))
         # print(res)
-        with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w') as fp:
+        with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w', encoding='utf-8') as fp:
             json.dump(res, fp)
 
         print("F1: ", np.mean(f1s))
