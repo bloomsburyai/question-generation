@@ -50,10 +50,10 @@ def duplicate_batch_and_inject(batch, pred_q_ids, pred_q_str, pred_q_lens):
                 elif i==1 and j==2:
                     # create a valid padded batch
                     d=np.shape(y)[2]
-                    new_oh_batch=np.eye(d)[pred_q_ids.tolist()]+y.tolist()
-                    max_len = max([len(q) for q in new_id_batch])
-                    new_id_batch = [q+np.zeros(max_len-len(q),d).tolist() for q in new_id_batch]
-                    new_subbatch.append(np.asarray(new_id_batch))
+                    new_oh_batch=np.eye(d)[pred_q_ids.tolist()].tolist()+y.tolist()
+                    max_len = max([len(q) for q in new_oh_batch])
+                    new_oh_batch = [q+np.zeros(max_len-len(q),d).tolist() for q in new_oh_batch]
+                    new_subbatch.append(np.asarray(new_oh_batch))
                 elif i==1 and j==3:
                     new_subbatch.append(np.asarray(pred_q_lens.tolist()+y.tolist()))
                 else:
