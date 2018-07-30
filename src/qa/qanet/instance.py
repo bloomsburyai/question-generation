@@ -30,8 +30,6 @@ class QANetInstance():
         with open(config.char_dictionary, "r") as fh:
             self.char_dictionary = json.load(fh)
 
-        config = tf.app.flags.FLAGS
-
         self.model = Model(config, None, word_mat, char_mat, trainable=False, demo = True)
 
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')

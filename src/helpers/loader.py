@@ -13,7 +13,7 @@ PAD='<PAD>'
 OOV='<OOV>'
 
 def load_squad_dataset(path, dev=False, v2=False):
-    expected_version = '2.0' if v2 else '1.1'
+    expected_version = 'v2.0' if v2 else '1.1'
     if v2:
         filename = 'train-v2.0.json' if not dev else 'dev-v2.0.json'
     else:
