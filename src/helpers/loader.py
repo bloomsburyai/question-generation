@@ -225,7 +225,7 @@ def load_multiline_aligned(path_src, path_tgt, limit_length=32, vocab_size=1000)
 
 def load_glove(path, d=200, variant='6B'):
     glove = {}
-    with open(path+'glove.'+variant+'/glove.'+variant+'.'+str(d)+'d.txt') as fp:
+    with open(path+'glove.'+variant+'/glove.'+variant+'.'+str(d)+'d.txt', 'r+', encoding='utf-8') as fp:
         entries = fp.readlines()
     for row in entries:
         cols = row.strip().split(' ')
