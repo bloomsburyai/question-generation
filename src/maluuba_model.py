@@ -85,7 +85,7 @@ class MaluubaModel(Seq2SeqModel):
                     gradients, 5)
 
                 # Optimization
-                lr = FLAGS.learning_rate if not FLAGS.lr_schedule else tf.minimum(1.0, tf.cast(self.step, tf.float32)*0.005)*FLAGS.learning_rate
+                lr = FLAGS.learning_rate if not FLAGS.lr_schedule else tf.minimum(1.0, tf.cast(self.step, tf.float32)*0.001)*FLAGS.learning_rate
                 self.pg_optimizer = tf.train.AdamOptimizer(lr).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 

@@ -271,7 +271,7 @@ def main(_):
                             model.rl_lm_enabled: True,
                             model.rl_qa_enabled: True,
                             model.rl_disc_enabled: FLAGS.disc_weight > 0,
-                            model.step: (e-start_e)*num_steps_train+i,
+                            model.step: (e-start_e)*num_steps_train+i-FLAGS.pg_burnin,
                             model.hide_answer_in_copy: True}
 
                         # perform a policy gradient step, but combine with a XE step by using appropriate rewards
