@@ -267,10 +267,10 @@ def main(_):
 
                         rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                             model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
-                            model.disc_score: np.asarray(((disc_scores-0.5)*2*(1 if FLAGS.disc_objective else 0)).tolist()+[0 for b in range(curr_batch_size)]),
+                            model.disc_score: np.asarray(((disc_scores-0.5)*2*FLAGS.disc_weight).tolist()+[0 for b in range(curr_batch_size)]),
                             model.rl_lm_enabled: True,
                             model.rl_qa_enabled: True,
-                            model.rl_disc_enabled: FLAGS.disc_objective,
+                            model.rl_disc_enabled: FLAGS.disc_weight > 0,
                             model.hide_answer_in_copy: True}
 
                         # perform a policy gradient step, but combine with a XE step by using appropriate rewards
