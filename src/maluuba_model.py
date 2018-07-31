@@ -39,8 +39,10 @@ class MaluubaModel(Seq2SeqModel):
 
             self.lm_score = tf.placeholder(tf.float32, [None], "lm_score")
             self.qa_score = tf.placeholder(tf.float32, [None],"qa_score")
+            self.disc_score = tf.placeholder(tf.float32, [None],"disc_score")
             self.rl_lm_enabled = tf.placeholder_with_default(False,(), "rl_lm_enabled")
             self.rl_qa_enabled = tf.placeholder_with_default(False,(), "rl_qa_enabled")
+            self.rl_disc_enabled = tf.placeholder_with_default(False,(), "rl_disc_enabled")
 
             with tf.variable_scope('rl_rewards'):
                 # NOTE: This isnt obvious! If we feed in the generated Qs as the gold with a reward,
@@ -50,11 +52,13 @@ class MaluubaModel(Seq2SeqModel):
 
                 self.lm_loss = -1.0*self.lm_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32)
                 self.qa_loss = -1.0*self.qa_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32)
+                self.disc_loss = -1.0*self.disc_score * tf.reduce_sum(tf.reduce_sum(safe_log(self.q_hat) * mask, axis=[2])* self.target_weights,axis=1)/tf.cast(self.question_length, tf.float32)
 
 
 
             pg_loss = tf.cond(self.rl_lm_enabled, lambda: self.lm_loss, lambda: tf.constant([0.0])) + \
-                tf.cond(self.rl_qa_enabled, lambda: self.qa_loss, lambda: tf.constant([0.0]))
+                tf.cond(self.rl_qa_enabled, lambda: self.qa_loss, lambda: tf.constant([0.0])) + \
+                tf.cond(self.rl_disc_enabled, lambda: self.disc_loss, lambda: tf.constant([0.0]))
 
 
             curr_batch_size_pg = tf.shape(self.answer_ids)[0]//2

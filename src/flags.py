@@ -41,12 +41,18 @@ tf.app.flags.DEFINE_boolean("smart_copy", True, "Use smarter heuristics to deter
 tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of weights for the copy mech and attention mech")
 
 
+
+
 tf.app.flags.DEFINE_float("length_penalty", 0.15, "TF beam search length penalty hparam")
 
 tf.app.flags.DEFINE_integer("pg_burnin", 100, "Num steps to burn in reward whitening before updating")
+tf.app.flags.DEFINE_boolean("pg_dropout", False, "Use dropout when generating the examples for policy gradient")
 
 tf.app.flags.DEFINE_float("lm_weight", 0.25, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
 tf.app.flags.DEFINE_float("qa_weight", 0.5, "Loss multiplier for QA in Maluuba model. Paper gives 1.0 alone or 0.5 joint")
+
+tf.app.flags.DEFINE_boolean("disc_objective", False, "Use the discriminator as an RL objective")
+tf.app.flags.DEFINE_boolean("disc_train", False, "Jointly train the discriminator along with the generator")
 
 # QA - MPCM hparams
 tf.app.flags.DEFINE_integer("qa_vocab_size", 20000, "QA system vocab size")

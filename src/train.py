@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
 from maluuba_model import MaluubaModel
+from discriminator.instance import DiscriminatorInstance
 
 from datasources.squad_streamer import SquadStreamer
 
@@ -77,6 +78,7 @@ def main(_):
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
     # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
     restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-smart'
+    disc_path = FLAGS.model_dir+'saved/discriminator-trained'
 
     print("Run ID is ", run_id)
     print("Model type is ", FLAGS.model_type)
@@ -88,8 +90,8 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
-    train_contexts_unfilt, _,_,_ = zip(*train_data)
-    dev_contexts_unfilt, _,_,_ = zip(*dev_data)
+    train_contexts_unfilt, _,ans_text_unfilt,ans_pos_unfilt = zip(*train_data)
+    dev_contexts_unfilt, _,dev_ans_text_unfilt,dev_ans_pos_unfilt = zip(*dev_data)
 
     if FLAGS.filter_window_size >-1:
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
@@ -130,6 +132,8 @@ def main(_):
         # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
+        discriminator = DiscriminatorInstance()
+        discriminator.load_from_chkpt(disc_path)
     else:
         exit("Unrecognised model type: "+FLAGS.model_type)
 
@@ -138,7 +142,7 @@ def main(_):
     dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
 
     with model.graph.as_default():
-        saver = tf.train.Saver(max_to_keep=2, save_relative_paths=True)
+        saver = tf.train.Saver(max_to_keep=1, save_relative_paths=True)
 
 
     # change visible devices if using RL models
@@ -193,34 +197,43 @@ def main(_):
                     # do a fwd pass first, get the score, then do another pass and optimize
                     qhat_str,qhat_ids, qhat_lens= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids, model.q_hat_beam_lens],
                         feed_dict={model.input_batch: train_batch,
-                        model.is_training:False,
+                        model.is_training: FLAGS.pg_dropout,
                         model.hide_answer_in_copy: True})
-
-                    # Get reward values
-                    lm_score = (-1*model.lm.get_seq_perplexity(byte_token_array_to_str(qhat_str, qhat_lens))).tolist() # lower perplexity is better
 
                     # The output is as long as the max allowed len - remove the pointless extra padding
                     qhat_ids = qhat_ids[:,:np.max(qhat_lens)]
                     qhat_str = qhat_str[:,:np.max(qhat_lens)]
 
+                    pred_str = byte_token_array_to_str(qhat_str, qhat_lens)
+                    gold_q_str = byte_token_array_to_str(train_batch[1][0], train_batch[1][3])
+
+                    # Get reward values
+                    lm_score = (-1*model.lm.get_seq_perplexity(pred_str)).tolist() # lower perplexity is better
+
+
+
+
                     # retrieve the uncropped context for QA evaluation
                     unfilt_ctxt_batch = [train_contexts_unfilt[ix] for ix in train_batch[3]]
+                    ans_text_batch = [ans_text_unfilt[ix] for ix in train_batch[3]]
+                    ans_pos_batch = [ans_pos_unfilt[ix] for ix in train_batch[3]]
 
-                    qa_pred = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(qhat_str, qhat_lens))
-                    qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, byte_token_array_to_str(train_batch[1][0], train_batch[1][3]))
+                    qa_pred = model.qa.get_ans(unfilt_ctxt_batch, pred_str)
+                    qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, gold_q_str)
 
-                    gold_str=[]
+                    # gold_str=[]
                     # pred_str=[]
                     qa_f1s = []
+                    gold_ans_str = byte_token_array_to_str(train_batch[2][0], train_batch[2][2], is_array=False)
 
-                    gold_str = byte_token_array_to_str(train_batch[2][0], train_batch[2][2], is_array=False)
-                    # pred_str = byte_token_array_to_str([train_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
-                    qa_f1s.extend([metrics.f1(gold_str[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
+                    qa_f1s.extend([metrics.f1(gold_ans_str[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
 
                     lm_score_moments.push(lm_score)
                     qa_score_moments.push(qa_f1s)
 
+                    disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
+                    # print(disc_scores)
                     # print((e-start_e)*num_steps_train+i, flags.pg_burnin)
 
                     if ((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin:
@@ -234,6 +247,10 @@ def main(_):
                         qa_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa",
                                                          simple_value=np.mean(qa_f1s))])
                         summary_writer.add_summary(qa_summary, global_step=(e*num_steps_train+i))
+                        disc_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/disc",
+                                                         simple_value=np.mean(disc_scores))])
+                        summary_writer.add_summary(disc_summary, global_step=(e*num_steps_train+i))
+
                         lm_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm_white",
                                                          simple_value=np.mean(lm_score_whitened))])
                         summary_writer.add_summary(lm_white_summary, global_step=(e*num_steps_train+i))
@@ -250,8 +267,10 @@ def main(_):
 
                         rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                             model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
+                            model.disc_score: np.asarray(((disc_scores-0.5)*2*(1 if FLAGS.disc_objective else 0)).tolist()+[0 for b in range(curr_batch_size)]),
                             model.rl_lm_enabled: True,
                             model.rl_qa_enabled: True,
+                            model.rl_disc_enabled: FLAGS.disc_objective,
                             model.hide_answer_in_copy: True}
 
                         # perform a policy gradient step, but combine with a XE step by using appropriate rewards
@@ -274,6 +293,13 @@ def main(_):
                         qa_loss_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss/qa",
                                                          simple_value=np.mean(res[4+res_offset][:curr_batch_size]))])
                         summary_writer.add_summary(qa_loss_summary, global_step=(e*num_steps_train+i))
+
+                        # TODO: more principled scheduling here than alternating steps
+                        if FLAGS.disc_train:
+                            ixs = np.round(np.random.binomial(1,0.5,curr_batch_size))
+                            qbatch = [pred_str[ix].replace("</Sent>","").replace("<PAD>","") if ixs[ix] < 0.5 else gold_q_str[ix] for ix in range(curr_batch_size)]
+
+                            loss = discriminator.train_step(unfilt_ctxt_batch, qbatch, ans_text_batch, ans_pos_batch, ixs, step=(e*num_steps_train+i) )
 
                 else:
                     # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
