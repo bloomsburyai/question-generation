@@ -11,6 +11,7 @@ tf.app.flags.DEFINE_boolean("policy_gradient", False, "Train using policy gradie
 tf.app.flags.DEFINE_boolean("glove_vocab", False, "Use glove to determine the top n words? Set false to use corpus")
 tf.app.flags.DEFINE_boolean("embedding_loss", False, "Use a loss based on similarity between embeddings instead of XE")
 tf.app.flags.DEFINE_boolean("latent_switch", False, "When encoding the gold questions, use a many-hot representation to allow for full freedom in the switch variable")
+tf.app.flags.DEFINE_boolean("lr_schedule", False, "Adjust LR according to a (hard coded) schedule")
 
 tf.app.flags.DEFINE_integer("eval_freq", 100, "Evaluate the model after this many steps")
 tf.app.flags.DEFINE_integer("num_epochs", 30, "Train the model for this many epochs")

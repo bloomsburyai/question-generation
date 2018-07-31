@@ -43,6 +43,7 @@ class MaluubaModel(Seq2SeqModel):
             self.rl_lm_enabled = tf.placeholder_with_default(False,(), "rl_lm_enabled")
             self.rl_qa_enabled = tf.placeholder_with_default(False,(), "rl_qa_enabled")
             self.rl_disc_enabled = tf.placeholder_with_default(False,(), "rl_disc_enabled")
+            self.step = tf.placeholder(tf.int32, (), "step")
 
             with tf.variable_scope('rl_rewards'):
                 # NOTE: This isnt obvious! If we feed in the generated Qs as the gold with a reward,
@@ -84,7 +85,8 @@ class MaluubaModel(Seq2SeqModel):
                     gradients, 5)
 
                 # Optimization
-                self.pg_optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+                lr = FLAGS.learning_rate if not FLAGS.lr_schedule else tf.minimum(1.0, tf.cast(self.step, tf.float32)*0.005)*FLAGS.learning_rate
+                self.pg_optimizer = tf.train.AdamOptimizer(lr).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 
             total_params()

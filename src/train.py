@@ -271,13 +271,14 @@ def main(_):
                             model.rl_lm_enabled: True,
                             model.rl_qa_enabled: True,
                             model.rl_disc_enabled: FLAGS.disc_weight > 0,
+                            model.step: (e-start_e)*num_steps_train+i,
                             model.hide_answer_in_copy: True}
 
                         # perform a policy gradient step, but combine with a XE step by using appropriate rewards
                         ops = [model.pg_optimizer, model.train_summary,model.q_hat_string]
                         if i%FLAGS.eval_freq==0:
                             ops.extend([ model.q_hat_ids, model.question_ids, model.copy_prob, model.question_raw, model.question_length])
-                            res_offset = 4
+                            res_offset = 5
                         else:
                             res_offset=0
                         ops.extend([model.lm_loss, model.qa_loss])
