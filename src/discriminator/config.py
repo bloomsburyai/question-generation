@@ -87,7 +87,7 @@ flags.DEFINE_integer("disc_glove_dim", 300, "Embedding dimension for Glove")
 flags.DEFINE_integer("disc_char_dim", 64, "Embedding dimension for char")
 
 flags.DEFINE_integer("disc_para_limit", 900, "Limit length for paragraph")
-flags.DEFINE_integer("disc_ques_limit", 80, "Limit length for question - NOTE QANet uses a different tokenizer so this can exceed the max generated len")
+flags.DEFINE_integer("disc_ques_limit", 110, "Limit length for question - NOTE QANet uses a different tokenizer so this can exceed the max generated len")
 flags.DEFINE_integer("disc_ans_limit", 30, "Limit length for answers")
 flags.DEFINE_integer("disc_test_para_limit", 1000, "Limit length for paragraph in test file")
 flags.DEFINE_integer("disc_test_ques_limit", 150, "Limit length for question in test file")
