@@ -107,15 +107,15 @@ def main(_):
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
 
     if FLAGS.restore:
-        with open(restore_path+'/vocab.json') as f:
+        with open(restore_path+'/vocab.json', encoding="utf-8") as f:
             vocab = json.load(f)
     elif FLAGS.glove_vocab:
         vocab = loader.get_glove_vocab(FLAGS.data_path, size=FLAGS.vocab_size, d=FLAGS.embedding_size)
-        with open(chkpt_path+'/vocab.json', 'w') as outfile:
+        with open(chkpt_path+'/vocab.json', 'w', encoding="utf-8") as outfile:
             json.dump(vocab, outfile)
     else:
         vocab = loader.get_vocab(train_contexts+train_qs, FLAGS.vocab_size)
-        with open(chkpt_path+'/vocab.json', 'w') as outfile:
+        with open(chkpt_path+'/vocab.json', 'w', encoding="utf-8") as outfile:
             json.dump(vocab, outfile)
 
 
