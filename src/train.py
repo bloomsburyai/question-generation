@@ -184,6 +184,7 @@ def main(_):
 
         lm_score_moments = online_moments.OnlineMoment()
         qa_score_moments = online_moments.OnlineMoment()
+        disc_score_moments = online_moments.OnlineMoment()
 
         for e in range(start_e,start_e+FLAGS.num_epochs):
             # Train for one epoch
@@ -229,10 +230,13 @@ def main(_):
 
                     qa_f1s.extend([metrics.f1(gold_ans_str[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
 
+                    disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
+
                     lm_score_moments.push(lm_score)
                     qa_score_moments.push(qa_f1s)
+                    disc_score_moments.push(disc_scores)
 
-                    disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
+
                     # print(disc_scores)
                     # print((e-start_e)*num_steps_train+i, flags.pg_burnin)
 
@@ -240,6 +244,7 @@ def main(_):
                         # A variant of popart
                         qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
                         lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
+                        disc_score_whitened = (disc_scores-disc_score_moments.mean)/np.sqrt(disc_score_moments.variance+1e-6)
 
                         lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
                                                          simple_value=np.mean(lm_score))])
@@ -257,6 +262,9 @@ def main(_):
                         qa_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/qa_white",
                                                          simple_value=np.mean(qa_score_whitened))])
                         summary_writer.add_summary(qa_white_summary, global_step=(e*num_steps_train+i))
+                        disc_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/disc_white",
+                                                         simple_value=np.mean(disc_score_whitened))])
+                        summary_writer.add_summary(disc_white_summary, global_step=(e*num_steps_train+i))
 
                         # Build a combined batch - half ground truth for MLE, half generated for PG
                         train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
@@ -267,7 +275,7 @@ def main(_):
 
                         rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
                             model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
-                            model.disc_score: np.asarray(((disc_scores-0.5)*2*FLAGS.disc_weight).tolist()+[0 for b in range(curr_batch_size)]),
+                            model.disc_score: np.asarray((disc_score_whitened*FLAGS.disc_weight).tolist()+[0 for b in range(curr_batch_size)]),
                             model.rl_lm_enabled: True,
                             model.rl_qa_enabled: True,
                             model.rl_disc_enabled: FLAGS.disc_weight > 0,

@@ -44,7 +44,7 @@ tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of 
 
 
 
-tf.app.flags.DEFINE_float("length_penalty", 0.15, "TF beam search length penalty hparam")
+tf.app.flags.DEFINE_float("length_penalty", 0.1, "TF beam search length penalty hparam")
 
 tf.app.flags.DEFINE_integer("pg_burnin", 100, "Num steps to burn in reward whitening before updating")
 tf.app.flags.DEFINE_boolean("pg_dropout", False, "Use dropout when generating the examples for policy gradient")
