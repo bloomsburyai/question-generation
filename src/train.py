@@ -303,12 +303,12 @@ def main(_):
                                                          simple_value=np.mean(res[4+res_offset][:curr_batch_size]))])
                         summary_writer.add_summary(qa_loss_summary, global_step=(e*num_steps_train+i))
 
-                        # TODO: more principled scheduling here than alternating steps
-                        if FLAGS.disc_train:
-                            ixs = np.round(np.random.binomial(1,0.5,curr_batch_size))
-                            qbatch = [pred_str[ix].replace("</Sent>","").replace("<PAD>","") if ixs[ix] < 0.5 else gold_q_str[ix] for ix in range(curr_batch_size)]
+                    # TODO: more principled scheduling here than alternating steps
+                    if FLAGS.disc_train:
+                        ixs = np.round(np.random.binomial(1,0.5,curr_batch_size))
+                        qbatch = [pred_str[ix].replace("</Sent>","").replace("<PAD>","") if ixs[ix] < 0.5 else gold_q_str[ix] for ix in range(curr_batch_size)]
 
-                            loss = discriminator.train_step(unfilt_ctxt_batch, qbatch, ans_text_batch, ans_pos_batch, ixs, step=(e*num_steps_train+i) )
+                        loss = discriminator.train_step(unfilt_ctxt_batch, qbatch, ans_text_batch, ans_pos_batch, ixs, step=(e*num_steps_train+i) )
 
                 else:
                     # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
