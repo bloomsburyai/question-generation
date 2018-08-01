@@ -102,10 +102,15 @@ def load_multiline(path, limit_length=32, vocab_size=5000):
     return id_arr, vocab
 
 def get_vocab(corpus, vocab_size=2000):
+    def tokenise(text):
+        sents = [s for s in sent_tokenize(text)]
+        tokens = [tok.lower() for sent in sents for tok in TreebankWordTokenizer().tokenize(sent)]
+        return tokens
     vocab = {PAD:0,OOV:1, SOS:2, EOS:3}
     word_count = defaultdict(float)
     for l in corpus:
-        for w in l.lower().split():
+        # for w in l.lower().split():
+        for w in tokenise(l):
             word_count[w] +=1
     vocab_list = sorted(word_count, key=word_count.__getitem__,reverse=True)[:min(vocab_size,len(word_count))]
     for w in vocab_list:

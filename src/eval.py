@@ -35,20 +35,20 @@ def main(_):
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
-    train_data = loader.load_squad_triples(FLAGS.data_path, False)
+    # train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, FLAGS.eval_on_dev)
 
-    train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
+    # train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,_,dev_a_pos_unfilt = zip(*dev_data)
 
     if FLAGS.filter_window_size >-1:
-        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+        # train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
         dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
 
 
-    print('Loaded SQuAD with ',len(train_data),' triples')
+    # print('Loaded SQuAD with ',len(train_data),' triples')
     print('Loaded SQuAD dev set with ',len(dev_data),' triples')
-    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    # train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
     dev_contexts, dev_qs, dev_as, dev_a_pos = zip(*dev_data)
 
 
@@ -172,6 +172,13 @@ def main(_):
                         fp.write(out_str)
 
         res = list(zip(qpreds,qgolds,ctxts,answers,ans_positions))
+        metric_dict={
+            'f1':np.mean(f1s),
+            'bleu':np.mean(bleus),
+            'qa':np.mean(qa_scores),
+            'lm':np.mean(lm_scores),
+            'nll':np.mean(nlls)
+            }
         # print(res)
         with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w', encoding='utf-8') as fp:
             json.dump(res, fp)

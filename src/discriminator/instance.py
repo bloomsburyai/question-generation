@@ -7,7 +7,6 @@ import numpy as np
 import discriminator.config
 from discriminator.model import Model
 from discriminator.prepro import convert_to_features, word_tokenize
-from helpers.preprocessing import tokenise
 import helpers.loader as loader
 import flags
 

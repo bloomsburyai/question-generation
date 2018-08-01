@@ -77,7 +77,7 @@ def main(_):
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
     # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
-    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-smart'
+    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-latent'
     disc_path = FLAGS.model_dir+'saved/discriminator-trained'
 
     print("Run ID is ", run_id)
@@ -114,7 +114,7 @@ def main(_):
         with open(chkpt_path+'/vocab.json', 'w') as outfile:
             json.dump(vocab, outfile)
     else:
-        vocab = loader.get_vocab(train_contexts, FLAGS.vocab_size)
+        vocab = loader.get_vocab(train_contexts+train_qs, FLAGS.vocab_size)
         with open(chkpt_path+'/vocab.json', 'w') as outfile:
             json.dump(vocab, outfile)
 
@@ -232,9 +232,10 @@ def main(_):
 
                     disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
 
-                    lm_score_moments.push(lm_score)
-                    qa_score_moments.push(qa_f1s)
-                    disc_score_moments.push(disc_scores)
+                    if ((e-start_e)*num_steps_train+i) > FLAGS.pg_burnin//2:
+                        lm_score_moments.push(lm_score)
+                        qa_score_moments.push(qa_f1s)
+                        disc_score_moments.push(disc_scores)
 
 
                     # print(disc_scores)
@@ -306,7 +307,7 @@ def main(_):
                     # TODO: more principled scheduling here than alternating steps
                     if FLAGS.disc_train:
                         ixs = np.round(np.random.binomial(1,0.5,curr_batch_size))
-                        qbatch = [pred_str[ix].replace("</Sent>","").replace("<PAD>","") if ixs[ix] < 0.5 else gold_q_str[ix] for ix in range(curr_batch_size)]
+                        qbatch = [pred_str[ix].replace(" </Sent>","").replace(" <PAD>","") if ixs[ix] < 0.5 else gold_q_str[ix].replace(" </Sent>","").replace(" <PAD>","") for ix in range(curr_batch_size)]
 
                         loss = discriminator.train_step(unfilt_ctxt_batch, qbatch, ans_text_batch, ans_pos_batch, ixs, step=(e*num_steps_train+i) )
 
@@ -315,8 +316,10 @@ def main(_):
                     if FLAGS.model_type[:7] == "MALUUBA" and not FLAGS.policy_gradient:
                         rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
                             model.qa_score: [0 for b in range(curr_batch_size)],
+                            model.disc_score: [0 for b in range(curr_batch_size)],
                             model.rl_lm_enabled: False,
                             model.rl_qa_enabled: False,
+                            model.rl_disc_enabled: False,
                             model.hide_answer_in_copy: False}
                     else:
                         rl_dict={}

@@ -55,9 +55,9 @@ def main(_):
 
 
             # +qpred[ix].replace("</Sent>","").replace("<PAD>","")
-            qbatch = [qpred[ix].replace("</Sent>","").replace("<PAD>","") if ixs[ix] < 0.5 else qgold[ix] for ix in range(FLAGS.batch_size)]
+            qbatch = [qpred[ix].replace(" </Sent>","").replace(" <PAD>","") if ixs[ix] < 0.5 else qgold[ix] for ix in range(FLAGS.batch_size)]
             # qbatch = ["fake " if ixs[ix] < 0.5 else "real " for ix in range(FLAGS.batch_size)]
-
+            # print(qbatch, ixs)
             loss = disc.train_step(ctxt, qbatch, ans_text, ans_pos, ixs, (e*num_steps_train+i))
 
         dev_acc=[]
