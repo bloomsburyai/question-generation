@@ -30,7 +30,8 @@ FLAGS = tf.app.flags.FLAGS
 def main(_):
 
     model_type=FLAGS.model_type
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
+    # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-latent'
     # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
 
     # load dataset
@@ -60,12 +61,12 @@ def main(_):
 
     # Create model
     if model_type[:7] == "SEQ2SEQ":
-        model = Seq2SeqModel(vocab, training_mode=True)
+        model = Seq2SeqModel(vocab, training_mode=False)
     elif model_type[:7] == "MALUUBA":
         # TEMP - no need to spin up the LM or QA model at eval time
         FLAGS.qa_weight = 0
         FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
+        model = MaluubaModel(vocab, training_mode=False, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight)
     else:
         exit("Unrecognised model type: "+model_type)
 
