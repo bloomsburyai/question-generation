@@ -59,7 +59,7 @@ def main(_):
         with open(restore_path+'/vocab.json') as f:
             vocab = json.load(f)
     else:
-        vocab = loader.get_vocab(train_contexts, tf.app.flags.FLAGS.qa_vocab_size)
+        vocab = loader.get_vocab(train_contexts+train_qs, tf.app.flags.FLAGS.qa_vocab_size)
         with open(chkpt_path+'/vocab.json', 'w') as outfile:
             json.dump(vocab, outfile)
 
