@@ -15,6 +15,10 @@ mem_limit=1
 
 # This provides a somewhat normalised interface to a pre-trained QANet model - some tweaks have been made to get it to play nicely when other models are spun up
 class DiscriminatorInstance():
+    def __init__(self, trainable=False):
+        self.trainable = trainable
+        if trainable:
+            self.summary_writer = tf.summary.FileWriter(config.log_dir+'disc/'+self.run_id, self.model.graph)
     def load_from_chkpt(self, path=None):
 
         config = tf.app.flags.FLAGS
@@ -31,7 +35,7 @@ class DiscriminatorInstance():
             self.char_dictionary = json.load(fh)
 
 
-        self.model = Model(config, None, word_mat, char_mat, trainable=True, demo = True, opt=False)
+        self.model = Model(config, None, word_mat, char_mat, trainable=self.trainable, demo = True, opt=False)
 
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
@@ -50,7 +54,7 @@ class DiscriminatorInstance():
                 os.makedirs(config.model_dir+'disc/'+self.run_id)
                 self.sess.run(tf.global_variables_initializer())
 
-            self.summary_writer = tf.summary.FileWriter(config.log_dir+'disc/'+self.run_id, self.model.graph)
+
 
     def save_to_chkpt(self, path, step):
         self.saver.save(self.sess, path+'disc/'+self.run_id+'/model.checkpoint', global_step=step)
@@ -132,6 +136,8 @@ class DiscriminatorInstance():
         return nll[:length]
 
     def train_step(self, contexts, questions, ans_text, ans_pos, gold_labels, step):
+        if not self.trainable:
+            exit('train_step called on non-trainable discriminator!')
         config = tf.app.flags.FLAGS
 
         length = len(contexts)

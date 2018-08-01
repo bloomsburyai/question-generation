@@ -93,15 +93,17 @@ def main(_):
     train_contexts_unfilt, _,ans_text_unfilt,ans_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,dev_ans_text_unfilt,dev_ans_pos_unfilt = zip(*dev_data)
 
-    if FLAGS.filter_window_size >-1:
-        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
-        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
-
     if FLAGS.testing:
         train_data=train_data[:1000]
         num_dev_samples=100
     else:
         num_dev_samples=FLAGS.num_dev_samples
+
+    if FLAGS.filter_window_size >-1:
+        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+
+    
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
@@ -132,7 +134,7 @@ def main(_):
         # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
-        discriminator = DiscriminatorInstance()
+        discriminator = DiscriminatorInstance(trainable=FLAGS.policy_gradient)
         discriminator.load_from_chkpt(disc_path)
     else:
         exit("Unrecognised model type: "+FLAGS.model_type)
