@@ -35,7 +35,7 @@ def main(_):
             negative_data.append( (ctxt, qpred, ans_text, ans_pos) )
 
     if FLAGS.disc_trainonsquad is True:
-        squad_v2 = loader.load_squad_triples(FLAGS.data_path, False, v2=True)
+        squad_v2 = loader.load_squad_triples(FLAGS.data_path, FLAGS.disc_dev_set, v2=True)
         for res in squad_v2:
             ctxt,q,ans_text,ans_pos,label =res
             if label is True:
@@ -45,7 +45,9 @@ def main(_):
 
     num_instances = min(len(negative_data), len(positive_data))
 
-    disc = DiscriminatorInstance(trainable=True, log_slug=FLAGS.disc_modelslug)
+
+    disc = DiscriminatorInstance(path=('./models/saved/qanet/' if FLAGS.disc_init_qanet is True else None), trainable=True, log_slug=FLAGS.disc_modelslug, force_init=FLAGS.disc_init_qanet)
+
     # disc.load_from_chkpt() # this loads the embeddings etc
 
     train_samples = math.floor(0.8*num_instances)

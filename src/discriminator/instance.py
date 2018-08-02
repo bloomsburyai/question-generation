@@ -15,14 +15,15 @@ mem_limit=1
 
 # This provides a somewhat normalised interface to a pre-trained QANet model - some tweaks have been made to get it to play nicely when other models are spun up
 class DiscriminatorInstance():
-    def __init__(self, trainable=False, path=None, log_slug=None):
+    def __init__(self, trainable=False, path=None, log_slug=None, force_init=False):
         config = tf.app.flags.FLAGS
         self.run_id = str(int(time.time())) + ("-"+log_slug if log_slug is not None else "")
         self.trainable = trainable
-        self.load_from_chkpt(path)
+        self.load_from_chkpt(path, force_init)
         if trainable:
             self.summary_writer = tf.summary.FileWriter(config.log_dir+'disc/'+self.run_id, self.model.graph)
-    def load_from_chkpt(self, path=None):
+
+    def load_from_chkpt(self, path=None, force_init=False):
 
         config = tf.app.flags.FLAGS
         with open(config.disc_word_emb_file, "r") as fh:
@@ -45,7 +46,17 @@ class DiscriminatorInstance():
 
         with self.model.graph.as_default():
             self.saver = tf.train.Saver(max_to_keep=1, save_relative_paths=True)
-            if path is not None:
+            if force_init and path is not None:
+                chkpt_path = tf.train.latest_checkpoint(path)
+                print("Loading discriminator from ", chkpt_path)
+                
+                restore_vars= [v for v in tf.trainable_variables() if v.name[:13] != 'Output_Layer/']
+                self.sess.run(tf.global_variables_initializer())
+                saver = tf.train.Saver(restore_vars)
+                saver.restore(self.sess, chkpt_path)
+            elif path is not None:
+
+
                 chkpt_path = tf.train.latest_checkpoint(path)
                 print("Loading discriminator from ", chkpt_path)
                 self.saver.restore(self.sess, chkpt_path)

@@ -110,8 +110,11 @@ class Model(object):
 
 
 
-            c_emb = tf.concat([c_emb, self.in_answer_feature, ch_emb], axis=2)
-            q_emb = tf.concat([q_emb, tf.zeros([N, QL, 1]), qh_emb], axis=2)
+            # c_emb = tf.concat([c_emb, self.in_answer_feature, ch_emb], axis=2)
+            # q_emb = tf.concat([q_emb, tf.zeros([N, QL, 1]), qh_emb], axis=2)
+
+            c_emb = tf.concat([c_emb, ch_emb], axis=2)
+            q_emb = tf.concat([q_emb, qh_emb], axis=2)
 
             c_emb = highway(c_emb, size = d, scope = "highway", dropout = self.dropout, reuse = None)
             q_emb = highway(q_emb, size = d, scope = "highway", dropout = self.dropout, reuse = True)

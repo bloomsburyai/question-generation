@@ -83,7 +83,8 @@ flags.DEFINE_string("disc_char_dictionary", char_dictionary, "Character dictiona
 flags.DEFINE_boolean("disc_trainongenerated", True, "Train on generated Qs")
 flags.DEFINE_boolean("disc_trainonsquad", False, "Train on squad v2")
 flags.DEFINE_string("disc_modelslug", "MALUUBA_CROP_GLOVE_SMART_train", "Model ID slug to use for pre-generated Qs")
-
+flags.DEFINE_boolean("disc_dev_set", False, "Use dev set")
+flags.DEFINE_boolean("disc_init_qanet", False, "Init weights using trained qanet instance")
 
 flags.DEFINE_integer("disc_glove_char_size", 94, "Corpus size for Glove")
 flags.DEFINE_integer("disc_glove_word_size", int(2.2e6), "Corpus size for Glove")
