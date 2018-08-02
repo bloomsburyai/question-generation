@@ -1,7 +1,7 @@
 import os,time,json
 
 # CUDA config
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+# os.environ["CUDA_VISIBLE_DEVICES"]="3"
 mem_limit=0.5
 
 import tensorflow as tf

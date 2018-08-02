@@ -80,6 +80,10 @@ flags.DEFINE_string("disc_answer_file", answer_file, "Out file for answer")
 flags.DEFINE_string("disc_word_dictionary", word_dictionary, "Word dictionary")
 flags.DEFINE_string("disc_char_dictionary", char_dictionary, "Character dictionary")
 
+flags.DEFINE_boolean("disc_trainongenerated", True, "Train on generated Qs")
+flags.DEFINE_boolean("disc_trainonsquad", False, "Train on squad v2")
+flags.DEFINE_string("disc_modelslug", "MALUUBA_CROP_GLOVE_SMART_train", "Model ID slug to use for pre-generated Qs")
+
 
 flags.DEFINE_integer("disc_glove_char_size", 94, "Corpus size for Glove")
 flags.DEFINE_integer("disc_glove_word_size", int(2.2e6), "Corpus size for Glove")
@@ -101,7 +105,8 @@ flags.DEFINE_boolean("disc_is_bucket", False, "build bucket batch iterator or no
 # flags.DEFINE_integer("disc_bucket_range", [40, 401, 40], "the range of bucket")
 
 # flags.DEFINE_integer("disc_batch_size", 32, "Batch size")
-flags.DEFINE_integer("disc_num_steps", 60000, "Number of steps")
+# flags.DEFINE_integer("disc_num_steps", 60000, "Number of steps")
+flags.DEFINE_integer("disc_num_epochs", 20, "Number of steps")
 flags.DEFINE_integer("disc_checkpoint", 1000, "checkpoint to save and evaluate the model")
 flags.DEFINE_integer("disc_period", 100, "period to save batch loss")
 flags.DEFINE_integer("disc_val_num_batches", 150, "Number of batches to evaluate the model")

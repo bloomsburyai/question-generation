@@ -11,6 +11,28 @@
     <title>AQ Demo</title>
 
     <script type="text/javascript">
+    function ping()
+    {
+      query = "/api/ping"
+      $.ajax({
+        url: query,
+        cache: false
+      })
+        .done(function( html ) {
+          if(html=='ack')
+          {
+            $( "#connection-indicator" ).attr('class', 'good');
+          }
+          else {
+            $( "#connection-indicator" ).attr('class', 'bad');
+          }
+
+        })
+        .fail(function(){
+          $( "#connection-indicator" ).attr('class', 'bad');
+        });
+      setTimeout(ping, 10000);
+    }
     function getQ()
     {
       query = "/api/generate?context=" +$('#context').val()+ "&answer="+$('#answer').val()
@@ -47,18 +69,51 @@
     }
 
     </script>
+    <style type="text/css">
+    #connection-indicator-wrapper
+    {
+      float: right;
+      padding: 5px;
+      /* width: 300px; */
+      font-size: 14px;: middle;
+    }
+    #connection-indicator
+    {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      background-color: yellow;
+    }
+    #connection-indicator.good
+    {
+      background-color: green;
+    }
+    #connection-indicator.bad
+    {
+      background-color: red;
+    }
+    </style>
   </head>
   <body>
     <div class="container">
-      <h1>Question Generation Demo</h1>
 
-      <form>
+      <h1>Question Generation Demo
+        <div id="connection-indicator-wrapper">
+          Connection Status:
+          <div id="connection-indicator">
+            &nbsp;
+          </div>
+        </div>
+      </h1>
+
+      <form id="qgen-form" onsubmit="alert('submit'); return false;">
         <div class="form-group">
           Load preset contexts:
-          <button class="btn btn-primary" onclick="seedWithFootball(); return false;">Football</button>
-          <button class="btn btn-primary" onclick="seedWithSquad(); return false;">SQuAD</button>
-          <button class="btn btn-primary" onclick="seedWithSquad2(); return false;">SQuAD 2</button>
-          <button class="btn btn-primary" onclick="seedWithSquad3(); return false;">SQuAD 3</button>
+          <button class="btn btn-primary" onclick="seedWithFootball(); return false;" type="button">Football</button>
+          <button class="btn btn-primary" onclick="seedWithSquad(); return false;" type="button">SQuAD</button>
+          <button class="btn btn-primary" onclick="seedWithSquad2(); return false;" type="button">SQuAD 2</button>
+          <button class="btn btn-primary" onclick="seedWithSquad3(); return false;" type="button">SQuAD 3</button>
         </div>
         <div class="form-group">
           <label for="context">Context</label>
@@ -67,8 +122,11 @@
         <div class="form-group">
           <label for="exampleInputEmail1">Answer</label>
           <input type="text" class="form-control" id="answer" placeholder="Enter answer text">
+          <small class="text-muted">
+            This is case sensitive, and must exist within the context. If it appears multiple times, the first occurence will be used.
+          </small>
         </div>
-        <button class="btn btn-primary" onclick="getQ(); return false;">Generate</button>
+        <button class="btn btn-primary" onclick="getQ(); return false;" type="submit">Generate</button>
         <hr/>
         <div class="form-group">
           <p>Generated Question:</p>
@@ -86,6 +144,14 @@
 
 
     <script>
+    // Set up an event listener for the contact form.
+    $("#qgen-form").submit(function(event) {
+        // Stop the browser from submitting the form.
+        event.preventDefault();
+
+        // TODO
+    });
+    ping();
     seedWithFootball();
     </script>
   </body>

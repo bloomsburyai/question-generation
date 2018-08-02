@@ -15,8 +15,11 @@ mem_limit=1
 
 # This provides a somewhat normalised interface to a pre-trained QANet model - some tweaks have been made to get it to play nicely when other models are spun up
 class DiscriminatorInstance():
-    def __init__(self, trainable=False):
+    def __init__(self, trainable=False, path=None, log_slug=None):
+        config = tf.app.flags.FLAGS
+        self.run_id = str(int(time.time())) + ("-"+log_slug if log_slug is not None else "")
         self.trainable = trainable
+        self.load_from_chkpt(path)
         if trainable:
             self.summary_writer = tf.summary.FileWriter(config.log_dir+'disc/'+self.run_id, self.model.graph)
     def load_from_chkpt(self, path=None):
@@ -42,7 +45,6 @@ class DiscriminatorInstance():
 
         with self.model.graph.as_default():
             self.saver = tf.train.Saver(max_to_keep=1, save_relative_paths=True)
-            self.run_id = str(int(time.time()))
             if path is not None:
                 chkpt_path = tf.train.latest_checkpoint(path)
                 print("Loading discriminator from ", chkpt_path)
@@ -152,50 +154,11 @@ class DiscriminatorInstance():
               'answer_index2:0': ans_end,
               'gold_class:0': gold_labels,
               self.model.dropout: config.disc_dropout}
-        # fd_infer = {'context:0': c,
-        #       'question:0': q,
-        #       'context_char:0': ch,
-        #       'question_char:0': qh,
-        #       'answer_index1:0': ans_start,
-        #       'answer_index2:0': ans_end,
-        #       'gold_class:0': gold_labels,
-        #       self.model.dropout: 0}
-        #
-        # feats = self.prepro(contexts[:length//2],questions[:length//2],ans_text[:length//2],ans_pos[:length//2])
-        # c,ch,q,qh,ans_start,ans_end = zip(*feats)
-        # fda = {'context:0': c,
-        #       'question:0': q,
-        #       'context_char:0': ch,
-        #       'question_char:0': qh,
-        #       'answer_index1:0': ans_start,
-        #       'answer_index2:0': ans_end,
-        #       'gold_class:0': gold_labels[:length//2],
-        #       self.model.dropout: 0}
-        #
-        # feats = self.prepro(contexts[length//2:],questions[length//2:],ans_text[length//2:],ans_pos[length//2:])
-        # c,ch,q,qh,ans_start,ans_end = zip(*feats)
-        # fdb = {'context:0': c,
-        #       'question:0': q,
-        #       'context_char:0': ch,
-        #       'question_char:0': qh,
-        #       'answer_index1:0': ans_start,
-        #       'answer_index2:0': ans_end,
-        #       'gold_class:0': gold_labels[length//2:],
-        #       self.model.dropout: 0}
-
-        # probs,pred,eq, gold = self.sess.run([self.model.probs, self.model.pred, self.model.equality, self.model.gold_class], feed_dict = fd_infer)
-        # probsa = self.sess.run(self.model.probs, feed_dict = fda)
-        # iaf = self.sess.run(self.model.in_answer_feature, feed_dict = fd)
 
         _,summ,loss = self.sess.run([self.model.train_op, self.model.train_summary, self.model.loss], feed_dict = fd)
 
         # if step % 25 ==0:
-        #     print(np.sum(iaf, axis=1), ans_end,ans_start)
-        #     print(probs)
-        #     print(probsa, probsb)
-        #     print(pred, gold)
-        #     print(eq)
-        #     print(gold_labels, pred, np.round(pred), questions)
+        #     print(gold_labels, questions)
 
         self.summary_writer.add_summary(summ, global_step=step)
 

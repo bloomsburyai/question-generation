@@ -17,6 +17,8 @@ mem_limit=0.9
 class AQInstance():
     def __init__(self, vocab):
         self.model = Seq2SeqModel(vocab, training_mode=False)
+        with self.model.graph.as_default():
+            self.model.ping = tf.constant("ack")
         # self.model = MaluubaModel(vocab, training_mode=False)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit,allow_growth = True,visible_device_list='0')
         self.sess = tf.Session(graph=self.model.graph, config=tf.ConfigProto(gpu_options=gpu_options,allow_soft_placement=True))
@@ -37,9 +39,10 @@ class AQInstance():
         q_str = " ".join([w.decode().replace('>','&gt;').replace('<','&lt;') for w in q[0][:q_len[0]-1]])
         return q_str
 
-    def testing(self):
-        return "working!" + self.chkpt_path
+    def ping(self):
+        return self.sess.run(self.model.ping)
 
+model_list = ['qgen-s2s-filt1']
 
 from flask import Flask, current_app, request, redirect
 
@@ -62,6 +65,14 @@ def get_q():
         return q
     else:
         return "Couldnt find ans in context!"
+
+@app.route("/api/ping")
+def ping():
+    return app.generator.ping()
+
+@app.route("/api/model_list")
+def model_list():
+    return json.dumps(model_list)
 
 def init():
     print('Spinning up AQ demo app')

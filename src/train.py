@@ -77,7 +77,7 @@ def main(_):
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
     # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
-    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-latent'
+    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
     disc_path = FLAGS.model_dir+'saved/discriminator-trained'
 
     print("Run ID is ", run_id)
@@ -103,7 +103,7 @@ def main(_):
         train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
         dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
 
-    
+
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
@@ -134,8 +134,7 @@ def main(_):
         # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
-        discriminator = DiscriminatorInstance(trainable=FLAGS.policy_gradient)
-        discriminator.load_from_chkpt(disc_path)
+        discriminator = DiscriminatorInstance(trainable=FLAGS.policy_gradient, path=disc_path)
     else:
         exit("Unrecognised model type: "+FLAGS.model_type)
 

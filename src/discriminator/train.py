@@ -15,47 +15,64 @@ def main(_):
 
     FLAGS = tf.app.flags.FLAGS
 
-    with open('./logs'+'/out_eval_MALUUBA_CROP_GLOVE_SMART_train.json') as f:
+    with open('./logs'+'/out_eval_'+ FLAGS.disc_modelslug +'.json') as f:
         results = json.load(f)
 
     # results=results[:32]
 
-    squad_dev = loader.load_squad_triples(FLAGS.data_path, False, v2=True)
+    squad_v2 = loader.load_squad_triples(FLAGS.data_path, False, v2=True)
 
     # dev_ctxts, dev_qs,dev_ans,dev_ans_pos, dev_correct = zip(*squad_dev)
 
-    num_train = math.floor(len(results)*0.8)
-    train_data=results[:num_train]
-    dev_data=results[num_train:]
+    positive_data=[]
+    negative_data=[]
+
+    if FLAGS.disc_trainongenerated is True:
+        for res in results:
+            qpred,qgold,ctxt,ans_text,ans_pos =res
+            positive_data.append( (ctxt, qgold, ans_text, ans_pos) )
+            negative_data.append( (ctxt, qpred, ans_text, ans_pos) )
+
+    if FLAGS.disc_trainonsquad is True:
+        for res in squad_v2:
+            ctxt,q,ans_text,ans_pos,label =res
+            if label is True:
+                positive_data.append( (ctxt.lower(), q.lower(), ans_text.lower(), ans_pos) )
+            else:
+                negative_data.append( (ctxt.lower(), q.lower(), ans_text.lower(), ans_pos) )
+
+    num_instances = min(len(negative_data), len(positive_data))
+
+    disc = DiscriminatorInstance(trainable=True, log_slug=FLAGS.disc_modelslug)
+    # disc.load_from_chkpt() # this loads the embeddings etc
 
 
-    disc = DiscriminatorInstance()
-    disc.load_from_chkpt() # this loads the embeddings etc
-
-
-    num_steps_train = len(train_data)//FLAGS.batch_size
-    num_steps_dev = len(dev_data)//FLAGS.batch_size
+    num_steps_train = math.floor(0.8*num_instances)//FLAGS.batch_size
+    num_steps_dev = math.floor(0.2*num_instances)//FLAGS.batch_size
     num_steps_squad = num_steps_dev
 
     best_oos_nll=1e6
 
-    for e in range(FLAGS.num_epochs):
-        np.random.shuffle(train_data)
+    for e in range(FLAGS.disc_num_epochs):
+        np.random.shuffle(positive_data)
+        np.random.shuffle(negative_data)
         # Train for one epoch
         for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
-            batch = train_data[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
-            qpred,qgold,ctxt,ans_text,ans_pos = zip(*batch)
+            ixs = np.round(np.random.binomial(1,0.5,FLAGS.batch_size))
+            # batch = train_data[i*FLAGS.batch_size:(i+1)*FLAGS.batch_size]
+            batch = [negative_data[i*FLAGS.batch_size+j] if ix < 0.5 else positive_data[i*FLAGS.batch_size+j] for j,ix in enumerate(ixs.tolist())]
+            ctxt,qbatch,ans_text,ans_pos = zip(*batch)
 
             # print(ans_text)
             # print(ans_pos)
             # print(ctxt)
             # exit()
 
-            ixs = np.round(np.random.binomial(1,0.5,FLAGS.batch_size))
+
 
 
             # +qpred[ix].replace("</Sent>","").replace("<PAD>","")
-            qbatch = [qpred[ix].replace(" </Sent>","").replace(" <PAD>","") if ixs[ix] < 0.5 else qgold[ix] for ix in range(FLAGS.batch_size)]
+            qbatch = [q.replace(" </Sent>","").replace(" <PAD>","") for q in qbatch]
             # qbatch = ["fake " if ixs[ix] < 0.5 else "real " for ix in range(FLAGS.batch_size)]
             # print(qbatch, ixs)
             loss = disc.train_step(ctxt, qbatch, ans_text, ans_pos, ixs, (e*num_steps_train+i))
