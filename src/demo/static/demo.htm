@@ -5,95 +5,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
 
     <title>AQ Demo</title>
 
-    <script type="text/javascript">
-    function ping()
-    {
-      query = "/api/ping"
-      $.ajax({
-        url: query,
-        cache: false
-      })
-        .done(function( html ) {
-          if(html=='ack')
-          {
-            $( "#connection-indicator" ).attr('class', 'good');
-          }
-          else {
-            $( "#connection-indicator" ).attr('class', 'bad');
-          }
-
-        })
-        .fail(function(){
-          $( "#connection-indicator" ).attr('class', 'bad');
-        });
-      setTimeout(ping, 10000);
-    }
-    function getQ()
-    {
-      query = "/api/generate?context=" +$('#context').val()+ "&answer="+$('#answer').val()
-      $.ajax({
-        url: query,
-        cache: false
-      })
-        .done(function( html ) {
-          $( "#response" ).html("<p><pre>"+html+"</pre></p>");
-        });
-    }
-    function seed(c,a)
-    {
-      $('#context').val(c);
-      $('#answer').val(a);
-    }
-    function seedWithFootball()
-    {
-      ctxt = "Harry Kane's stoppage-time winner ensured England started their World Cup campaign with victory after Tunisia threatened to snatch a point in Volgograd. Kane scored his second goal of the game with a clever header as Gareth Southgate's side recorded England's first win in the opening game of a major tournament since they beat Paraguay in the 2006 World Cup. England's captain gave them the reward they deserved for a brilliant start by turning in the opener in the 11th minute after Tunisia keeper Mouez Hassen, who went off injured in the first half, clawed out John Stones' header. England ran Tunisia ragged in that spell but were punished for missing a host of chances when Ferjani Sassi equalised from the penalty spot against the run of play after Kyle Walker was penalised for an elbow on Fakhreddine Ben Youssef. Tunisia dug in to frustrate England in the second half but Kane was the match-winner with a late header from Harry Maguire's flick, justice being done after referee Wilmar Roldan and the video assistant referee (VAR) had failed to spot him being wrestled to the ground twice in the penalty area. England play Panama, who lost 3-0 to Belgium earlier on Monday, in their next Group G game on Sunday, which kicks off at 13:00 BST and will be shown live on the BBC."
-      ans = "Kyle Walker"
-      seed(ctxt,ans)
-    }
-    function seedWithSquad()
-    {
-      seed('Various princes of the Holy Land arrived in Limassol at the same time, in particular Guy de Lusignan. All declared their support for Richard provided that he support Guy against his rival Conrad of Montferrat. The local barons abandoned Isaac, who considered making peace with Richard, joining him on the crusade, and offering his daughter in marriage to the person named by Richard. But Isaac changed his mind and tried to escape. Richard then proceeded to conquer the whole island, his troops being led by Guy de Lusignan. Isaac surrendered and was confined with silver chains, because Richard had promised that he would not place him in irons. By 1 June, Richard had conquered the whole island. His exploit was well publicized and contributed to his reputation; he also derived significant financial gains from the conquest of the island. Richard left for Acre on 5 June, with his allies. Before his departure, he named two of his Norman generals, Richard de Camville and Robert de Thornham, as governors of Cyprus.', 'Guy de Lusignan')
-    }
-    function seedWithSquad2()
-    {
-      seed('This in turn led to the establishment of the right-wing dictatorship of the Estado Novo under António de Oliveira Salazar in 1933. Portugal was one of only five European countries to remain neutral in World War II. From the 1940s to the 1960s, Portugal was a founding member of NATO, OECD and the European Free Trade Association (EFTA). Gradually, new economic development projects and relocation of mainland Portuguese citizens into the overseas provinces in Africa were initiated, with Angola and Mozambique, as the largest and richest overseas territories, being the main targets of those initiatives. These actions were used to affirm Portugal\'s status as a transcontinental nation and not as a colonial empire', 'António de Oliveira Salazar');
-    }
-    function seedWithSquad3()
-    {
-      seed('with 4:51 left in regulation , carolina got the ball on their own 24-yard line with a chance to mount a game-winning drive , and soon faced 3rd-and-9 . on the next play , miller stripped the ball away from newton , and after several players dove for it , it took a long bounce backwards and was recovered by ward , who returned it five yards to the panthers 4-yard line . although several players dove into the pile to attempt to recover it , newton did not and his lack of aggression later earned him heavy criticism . meanwhile , denver \'s offense was kept out of the end zone for three plays , but a holding penalty on cornerback josh norman gave the broncos a new set of downs . then anderson scored on a 2-yard touchdown run and manning completed a pass to bennie fowler for a 2-point conversion , giving denver a 24–10 lead with 3:08 left and essentially putting the game away . carolina had two more drives , but failed to get a first down on each one .','miller')
-    }
-
-    </script>
-    <style type="text/css">
-    #connection-indicator-wrapper
-    {
-      float: right;
-      padding: 5px;
-      /* width: 300px; */
-      font-size: 14px;: middle;
-    }
-    #connection-indicator
-    {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border-radius: 10px;
-      background-color: yellow;
-    }
-    #connection-indicator.good
-    {
-      background-color: green;
-    }
-    #connection-indicator.bad
-    {
-      background-color: red;
-    }
-    </style>
   </head>
   <body>
     <div class="container">
@@ -107,17 +21,20 @@
         </div>
       </h1>
 
-      <form id="qgen-form" onsubmit="alert('submit'); return false;">
+      <p>An interactive demo of <a href="https://github.com/bloogram/question-generation">Tom Hosking's MSc project</a> on question generation, in collaboration with <a href="http://bloomsbury.ai/">Bloomsbury AI</a>. Enter some text in the box, select a word(s) within the text, and click generate to get a question with that answer. Currently using model <span id="model-slug"></span></p>
+
+      <form id="qgen-form" onsubmit="return false;">
         <div class="form-group">
-          Load preset contexts:
-          <button class="btn btn-primary" onclick="seedWithFootball(); return false;" type="button">Football</button>
+          Load preset document:
+          <button class="btn btn-primary" onclick="seedWithFootball(); return false;" type="button">World Cup 2018</button>
           <button class="btn btn-primary" onclick="seedWithSquad(); return false;" type="button">SQuAD</button>
           <button class="btn btn-primary" onclick="seedWithSquad2(); return false;" type="button">SQuAD 2</button>
           <button class="btn btn-primary" onclick="seedWithSquad3(); return false;" type="button">SQuAD 3</button>
         </div>
         <div class="form-group">
-          <label for="context">Context</label>
-          <textarea class="form-control" id="context" rows="15"></textarea>
+          <label for="context">Document</label>
+          <textarea class="form-control" id="context" rows="10"></textarea>
+
         </div>
         <div class="form-group">
           <label for="exampleInputEmail1">Answer</label>
@@ -130,10 +47,15 @@
         <hr/>
         <div class="form-group">
           <p>Generated Question:</p>
-          <div id="response"></div>
+          <div id="response-spinner" class="spinner d-none">
+            <div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>
+          </div>
+          <div id="response"><p>Click the "Generate" button to get a question!</p></div>
       </form>
 
     </div>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
 
 
     <!-- Optional JavaScript -->
@@ -142,6 +64,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
 
+    <link rel="stylesheet" href="/static/spinner.css" />
+    <link rel="stylesheet" href="/static/qgen.css" />
+
+    <script type="text/javascript" src="/static/qgen.js"></script>
 
     <script>
     // Set up an event listener for the contact form.
@@ -153,6 +79,7 @@
     });
     ping();
     seedWithFootball();
+    getCurrentModelSlug();
     </script>
   </body>
 </html>

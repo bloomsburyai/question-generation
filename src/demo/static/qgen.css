@@ -1,0 +1,28 @@
+#connection-indicator-wrapper
+{
+  float: right;
+  padding: 5px;
+  /* width: 300px; */
+  font-size: 14px;: middle;
+}
+#connection-indicator
+{
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: yellow;
+}
+#connection-indicator.good
+{
+  background-color: green;
+}
+#connection-indicator.bad
+{
+  background-color: red;
+}
+#response
+{
+  border:1px dotted #000;
+  padding: 5px;
+}

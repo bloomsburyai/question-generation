@@ -18,7 +18,8 @@ mem_limit=0.9
 
 class AQInstance():
     def __init__(self, vocab):
-        self.model = Seq2SeqModel(vocab, training_mode=False)
+        # self.model = Seq2SeqModel(vocab, training_mode=False)
+        self.model = MaluubaModel(vocab, training_mode=False)
         with self.model.graph.as_default():
             self.model.ping = tf.constant("ack")
         # self.model = MaluubaModel(vocab, training_mode=False)
@@ -44,7 +45,8 @@ class AQInstance():
     def ping(self):
         return self.sess.run(self.model.ping)
 
-model_list = ['qgen-s2s-filt1']
+model_slug_list = ['qgen-s2s-filt1']
+model_slug_curr = model_slug_list[0]
 
 from flask import Flask, current_app, request, redirect
 
@@ -73,8 +75,12 @@ def ping():
     return app.generator.ping()
 
 @app.route("/api/model_list")
-def model_list():
+def model_slug():
     return json.dumps(model_list)
+
+@app.route("/api/model_current")
+def model_list():
+    return model_slug_curr
 
 def init():
     print('Spinning up AQ demo app')
@@ -84,9 +90,9 @@ def init():
     if "WEB" in os.environ:
         FLAGS.data_path = '/home/tomhosking/webapps/qgen/qgen/data/'
         FLAGS.log_dir = 'home/tomhosking/webapps/qgen/qgen/logs/'
-        chkpt_path = '/home/tomhosking/webapps/qgen/qgen/models/saved/qgen-s2s-filt1'
+        chkpt_path = '/home/tomhosking/webapps/qgen/qgen/models/saved/' + model_slug_curr
     else:
-        chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-filt1'
+        chkpt_path = FLAGS.model_dir+'saved/' + model_slug_curr
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
     app.generator = AQInstance(vocab=vocab)
