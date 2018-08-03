@@ -1,5 +1,7 @@
-import sys
+import sys,os
 sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
+sys.path.insert(0, "/home/tomhosking/webapps/qgen/qgen/src/")
+
 
 import tensorflow as tf
 import numpy as np
@@ -78,7 +80,13 @@ def init():
     print('Spinning up AQ demo app')
 
     # chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-shortlist'
-    chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-filt1'
+
+    if os.environ['WEB']:
+        FLAGS.data_path = '/home/tomhosking/webapps/qgen/qgen/data/'
+        FLAGS.log_dir = 'home/tomhosking/webapps/qgen/qgen/logs/'
+        chkpt_path = '/home/tomhosking/webapps/qgen/qgen/models/saved/qgen-s2s-filt1'
+    else:
+        chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-filt1'
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
     app.generator = AQInstance(vocab=vocab)
@@ -87,4 +95,4 @@ def init():
 if __name__ == '__main__':
     init()
     with app.app_context():
-        app.run(host='0.0.0.0')
+        app.run(port=14045)
