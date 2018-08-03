@@ -130,7 +130,7 @@ def main(_):
         if not FLAGS.policy_gradient:
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, training_mode=True, lm_weight=FLAGS.lm_weight, qa_weight=FLAGS.qa_weight, use_embedding_loss=FLAGS.embedding_loss)
+        model = MaluubaModel(vocab, training_mode=True, use_embedding_loss=FLAGS.embedding_loss)
         # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab

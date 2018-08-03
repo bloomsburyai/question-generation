@@ -1,6 +1,7 @@
 import sys,json,math
 sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
 sys.path.insert(0, "/cs/student/msc/ml/2017/thosking/dev/msc-project/src/")
+sys.path.insert(0, "/home/thosking/msc-project/src/")
 
 import tensorflow as tf
 import numpy as np
@@ -74,13 +75,13 @@ def main(_):
             batch = [negative_data_train[i*FLAGS.batch_size+j] if ix < 0.5 else positive_data_train[i*FLAGS.batch_size+j] for j,ix in enumerate(ixs.tolist())]
             ctxt,qbatch,ans_text,ans_pos = zip(*batch)
 
-            if "" in ans_text:
-                print(ixs)
-                print(qbatch)
-                print(ans_text)
-                print(ans_pos)
-                print(ctxt)
-                exit()
+
+            # print(ixs)
+            # print(qbatch)
+            # print(ans_text)
+            # print(ans_pos)
+            # print(ctxt)
+            # exit()
 
 
 
