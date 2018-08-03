@@ -81,7 +81,7 @@ def init():
 
     # chkpt_path = FLAGS.model_dir+'saved/qgen-s2s-shortlist'
 
-    if os.environ['WEB']:
+    if "WEB" in os.environ:
         FLAGS.data_path = '/home/tomhosking/webapps/qgen/qgen/data/'
         FLAGS.log_dir = 'home/tomhosking/webapps/qgen/qgen/logs/'
         chkpt_path = '/home/tomhosking/webapps/qgen/qgen/models/saved/qgen-s2s-filt1'
