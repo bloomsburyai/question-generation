@@ -1,7 +1,7 @@
 import os,time, json, datetime
 
 # model_type = "SEQ2SEQ"
-model_type = "MALUUBA"
+# model_type = "MALUUBA"
 
 # CUDA config
 # os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -22,6 +22,7 @@ from datasources.squad_streamer import SquadStreamer
 from langmodel.lm import LstmLmInstance
 from qa.mpcm import MpcmQaInstance
 from qa.qanet.instance import QANetInstance
+from discriminator.instance import DiscriminatorInstance
 
 import flags
 
@@ -30,9 +31,10 @@ FLAGS = tf.app.flags.FLAGS
 def main(_):
 
     model_type=FLAGS.model_type
-    # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-latent'
-    # chkpt_path = FLAGS.model_dir+'qgen/SEQ2SEQ/'+'1528886861'
+    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
+    # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-latent'
+    disc_path = FLAGS.model_dir+'saved/discriminator-trained'
+    # chkpt_path = FLAGS.model_dir+'qgen/'+ model_type+'/'+FLAGS.eval_model_id
 
     # load dataset
     # train_data = loader.load_squad_triples(FLAGS.data_path, False)
@@ -73,19 +75,22 @@ def main(_):
     with model.graph.as_default():
         saver = tf.train.Saver()
 
-    lm = LstmLmInstance()
-    # qa = MpcmQaInstance()
-    qa = QANetInstance()
+    if FLAGS.eval_metrics:
+        lm = LstmLmInstance()
+        # qa = MpcmQaInstance()
+        qa = QANetInstance()
 
-    lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
-    # qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
-    qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet')
+        lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
+        # qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+        qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet')
+
+        discriminator = DiscriminatorInstance(trainable=False, path=disc_path)
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=mem_limit)
     with tf.Session(graph=model.graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         if not os.path.exists(chkpt_path):
             exit('Checkpoint path doesnt exist! '+chkpt_path)
-        summary_writer = tf.summary.FileWriter(FLAGS.log_dir+"eval/"+str(int(time.time())), sess.graph)
+        # summary_writer = tf.summary.FileWriter(FLAGS.log_dir+"eval/"+str(int(time.time())), sess.graph)
 
         saver.restore(sess, tf.train.latest_checkpoint(chkpt_path))
         # print('Loading not implemented yet')
@@ -106,6 +111,7 @@ def main(_):
         qa_scores_gold=[]
         lm_scores=[]
         nlls=[]
+        disc_scores=[]
 
         qgolds=[]
         qpreds=[]
@@ -118,9 +124,12 @@ def main(_):
                 pred_batch,pred_beam,pred_beam_lens,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_full_beam_str, model.q_hat_full_beam_lens,model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
+                # a_text_batch = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
+                unfilt_apos_batch = [dev_a_pos_unfilt[ix] for ix in dev_batch[3]]
 
+                pred_q_batch = ops.byte_token_array_to_str(pred_batch, pred_lens)
                 for b, pred in enumerate(pred_batch):
-                    pred_str = tokens_to_string(pred[:pred_lens[b]-1])
+                    pred_str = pred_q_batch[b]
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
@@ -132,8 +141,6 @@ def main(_):
 
 
                 # get QA score
-                qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(pred_batch, pred_lens))
-                gold_qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(dev_batch[1][0], dev_batch[1][3]))
 
                 # gold_str=[]
                 # pred_str=[]
@@ -142,11 +149,14 @@ def main(_):
                 gold_ans = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
                 # pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
 
+                if FLAGS.eval_metrics:
+                    qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(pred_batch, pred_lens))
+                    gold_qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(dev_batch[1][0], dev_batch[1][3]))
 
-
-                qa_scores.extend([metrics.f1(gold_ans[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
-                qa_scores_gold.extend([metrics.f1(gold_ans[b].lower(), gold_qa_pred[b].lower()) for b in range(curr_batch_size)])
-                lm_scores.extend(lm.get_seq_perplexity(ops.byte_token_array_to_str(pred_batch, pred_lens)).tolist()) # lower perplexity is better
+                    disc_scores.extend(discriminator.get_pred(unfilt_ctxt_batch, pred_q_batch, gold_ans, unfilt_apos_batch).tolist())
+                    qa_scores.extend([metrics.f1(gold_ans[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
+                    qa_scores_gold.extend([metrics.f1(gold_ans[b].lower(), gold_qa_pred[b].lower()) for b in range(curr_batch_size)])
+                    lm_scores.extend(lm.get_seq_perplexity(pred_q_batch).tolist()) # lower perplexity is better
                 nlls.extend(nll.tolist())
 
                 if i==0:
@@ -175,19 +185,25 @@ def main(_):
         metric_dict={
             'f1':np.mean(f1s),
             'bleu':np.mean(bleus),
-            'qa':np.mean(qa_scores),
-            'lm':np.mean(lm_scores),
             'nll':np.mean(nlls)
             }
+        if FLAGS.eval_metrics:
+            metric_dict+={
+            'qa':np.mean(qa_scores),
+            'lm':np.mean(lm_scores),
+            'disc': np.mean(disc_score)}
         # print(res)
-        with open(FLAGS.log_dir+'out_eval_'+model_type+'.json', 'w', encoding='utf-8') as fp:
-            json.dump(res, fp)
+        with open(FLAGS.log_dir+'out_eval_'+model_type+("_train" if not FLAGS.eval_on_dev else "")+'.json', 'w', encoding='utf-8') as fp:
+            json.dump({"metrics":metric_dict, "results": res}, fp)
+
 
         print("F1: ", np.mean(f1s))
         print("BLEU: ", np.mean(bleus))
-        print("QA: ", np.mean(qa_scores))
-        print("LM: ", np.mean(lm_scores))
         print("NLL: ", np.mean(nlls))
+        if FLAGS.eval_metrics:
+            print("QA: ", np.mean(qa_scores))
+            print("LM: ", np.mean(lm_scores))
+            print("Disc: ", np.mean(disc_scores))
 
 if __name__ == '__main__':
     tf.app.run()
