@@ -65,8 +65,8 @@ def main(_):
     best_oos_nll=1e6
 
     for e in range(FLAGS.disc_num_epochs):
-        np.random.shuffle(positive_data)
-        np.random.shuffle(negative_data)
+        np.random.shuffle(positive_data_train)
+        np.random.shuffle(negative_data_train)
         # Train for one epoch
         for i in tqdm(range(num_steps_train), desc='Epoch '+str(e)):
             ixs = np.round(np.random.binomial(1,0.5,FLAGS.batch_size))
@@ -74,10 +74,13 @@ def main(_):
             batch = [negative_data_train[i*FLAGS.batch_size+j] if ix < 0.5 else positive_data_train[i*FLAGS.batch_size+j] for j,ix in enumerate(ixs.tolist())]
             ctxt,qbatch,ans_text,ans_pos = zip(*batch)
 
-            # print(ans_text)
-            # print(ans_pos)
-            # print(ctxt)
-            # exit()
+            if "" in ans_text:
+                print(ixs)
+                print(qbatch)
+                print(ans_text)
+                print(ans_pos)
+                print(ctxt)
+                exit()
 
 
 
