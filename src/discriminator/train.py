@@ -28,7 +28,7 @@ def main(_):
     negative_data=[]
 
     if FLAGS.disc_trainongenerated is True:
-        with open('./logs'+'/out_eval_'+ FLAGS.disc_modelslug +'.json') as f:
+        with open(FLAGS.log_dir+'out_eval_'+ FLAGS.disc_modelslug +'.json') as f:
             results = json.load(f)
         # for res in results:
         #     qpred,qgold,ctxt,ans_text,ans_pos =res
@@ -48,7 +48,7 @@ def main(_):
     num_instances = min(len(negative_data), len(positive_data))
 
 
-    disc = DiscriminatorInstance(path=('./models/saved/qanet/' if FLAGS.disc_init_qanet is True else None), trainable=True, log_slug=FLAGS.disc_modelslug+("_SQUAD" if FLAGS.disc_trainonsquad else "")+("_QAINIT" if FLAGS.disc_init_qanet else ""), force_init=FLAGS.disc_init_qanet)
+    disc = DiscriminatorInstance(path=(FLAGS.model_dir+'saved/qanet/' if FLAGS.disc_init_qanet is True else None), trainable=True, log_slug=FLAGS.disc_modelslug+("_SQUAD" if FLAGS.disc_trainonsquad else "")+("_QAINIT" if FLAGS.disc_init_qanet else ""), force_init=FLAGS.disc_init_qanet)
 
     # disc.load_from_chkpt() # this loads the embeddings etc
 
@@ -98,7 +98,7 @@ def main(_):
         for i in tqdm(range(num_steps_dev), desc='Epoch '+str(e) + " dev"):
 
             ixs = np.round(np.random.binomial(1,0.5,FLAGS.batch_size))
-            batch = [negative_data_train[i*FLAGS.batch_size+j] if ix < 0.5 else positive_data_train[i*FLAGS.batch_size+j] for j,ix in enumerate(ixs.tolist())]
+            batch = [negative_data_dev[i*FLAGS.batch_size+j] if ix < 0.5 else positive_data_dev[i*FLAGS.batch_size+j] for j,ix in enumerate(ixs.tolist())]
             ctxt,qbatch,ans_text,ans_pos = zip(*batch)
 
             qbatch = [q.replace(" </Sent>","").replace(" <PAD>","") for q in qbatch]
