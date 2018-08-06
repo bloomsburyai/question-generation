@@ -134,7 +134,8 @@ def main(_):
         # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
-        discriminator = DiscriminatorInstance(trainable=FLAGS.policy_gradient, path=disc_path)
+        if FLAGS.policy_gradient:
+            discriminator = DiscriminatorInstance(trainable=FLAGS.policy_gradient, path=disc_path)
     else:
         exit("Unrecognised model type: "+FLAGS.model_type)
 
