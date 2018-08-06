@@ -1,5 +1,6 @@
 import sys,json,time,os
 sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
+sys.path.insert(0, "/cs/student/msc/ml/2017/thosking/dev/msc-project/src/")
 
 import tensorflow as tf
 import numpy as np
@@ -177,6 +178,7 @@ class DiscriminatorInstance():
 
 
 def main(_):
+
     from tqdm import tqdm
 
     squad = loader.load_squad_triples(path="./data/", dev=True, v2=True, as_dict=True)
@@ -187,7 +189,7 @@ def main(_):
     answers= ["green","1985","5891"]
     ans_pos = [contexts[ix].find(ans) for ix,ans in enumerate(answers)]
 
-    disc = DiscriminatorInstance(path="./models/disc/1533307366-SQUAD-QANETINIT/")
+    disc = DiscriminatorInstance(path="./models/saved/1533307366-SQUAD-QANETINIT/")
 
     output={}
     for id,candidates in tqdm(ans_preds.items()):
@@ -202,7 +204,7 @@ def main(_):
         pred_score = scores[cand_ix]
         output[id] = pred_ans if pred_score > 0.5 else ""
 
-    with open("./logs/squad2_dev_filtered.json") as fh:
+    with open("./logs/squad2_dev_filtered.json","w") as fh:
         json.dump(output, fh)
 
 
