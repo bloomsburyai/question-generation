@@ -30,10 +30,11 @@ def main(_):
     if FLAGS.disc_trainongenerated is True:
         with open('./logs'+'/out_eval_'+ FLAGS.disc_modelslug +'.json') as f:
             results = json.load(f)
-        for res in results:
-            qpred,qgold,ctxt,ans_text,ans_pos =res
-            positive_data.append( (ctxt, qgold, ans_text, ans_pos) )
-            negative_data.append( (ctxt, qpred, ans_text, ans_pos) )
+        # for res in results:
+        #     qpred,qgold,ctxt,ans_text,ans_pos =res
+        for res in results['results']:
+            positive_data.append( (res['c'], res['q_gold'], res['a_text'], res['a_pos']) )
+            negative_data.append( (res['c'], res['q_pred'], res['a_text'], res['a_pos']) )
 
     if FLAGS.disc_trainonsquad is True:
         squad_v2 = loader.load_squad_triples(FLAGS.data_path, FLAGS.disc_dev_set, v2=True)

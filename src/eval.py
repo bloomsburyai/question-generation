@@ -118,25 +118,22 @@ def main(_):
         ctxts=[]
         answers=[]
         ans_positions=[]
+
+        metric_individuals=[]
+        res=[]
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
                 pred_batch,pred_beam,pred_beam_lens,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_full_beam_str, model.q_hat_full_beam_lens,model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
-                # a_text_batch = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
+                a_text_batch = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
                 unfilt_apos_batch = [dev_a_pos_unfilt[ix] for ix in dev_batch[3]]
 
                 pred_q_batch = ops.byte_token_array_to_str(pred_batch, pred_lens)
-                for b, pred in enumerate(pred_batch):
-                    pred_str = pred_q_batch[b]
-                    gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
-                    f1s.append(metrics.f1(gold_str, pred_str))
-                    bleus.append(metrics.bleu(gold_str, pred_str))
-                    qgolds.append(gold_str)
-                    qpreds.append(pred_str)
+
                 ctxts.extend(unfilt_ctxt_batch)
-                answers.extend(ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2]))
+                answers.extend(a_text_batch)
                 ans_positions.extend([dev_a_pos_unfilt[ix] for ix in dev_batch[3]])
 
 
@@ -148,32 +145,54 @@ def main(_):
 
                 gold_ans = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
                 # pred_str = ops.byte_token_array_to_str([dev_batch[0][0][b][qa_pred[b][0]:qa_pred[b][1]] for b in range(curr_batch_size)], is_array=False)
+                nlls.extend(nll.tolist())
 
                 if FLAGS.eval_metrics:
                     qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(pred_batch, pred_lens))
                     gold_qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(dev_batch[1][0], dev_batch[1][3]))
 
-                    disc_scores.extend(discriminator.get_pred(unfilt_ctxt_batch, pred_q_batch, gold_ans, unfilt_apos_batch).tolist())
-                    qa_scores.extend([metrics.f1(gold_ans[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
-                    qa_scores_gold.extend([metrics.f1(gold_ans[b].lower(), gold_qa_pred[b].lower()) for b in range(curr_batch_size)])
-                    lm_scores.extend(lm.get_seq_perplexity(pred_q_batch).tolist()) # lower perplexity is better
-                nlls.extend(nll.tolist())
+                    qa_score_batch = [metrics.f1(gold_ans[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)]
+                    qa_score_gold_batch = [metrics.f1(gold_ans[b].lower(), gold_qa_pred[b].lower()) for b in range(curr_batch_size)]
+                    lm_score_batch = lm.get_seq_perplexity(pred_q_batch).tolist()
+                    disc_score_batch = discriminator.get_pred(unfilt_ctxt_batch, pred_q_batch, gold_ans, unfilt_apos_batch).tolist()
 
+                for b, pred in enumerate(pred_batch):
+                    pred_str = pred_q_batch[b]
+                    gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
+                    f1s.append(metrics.f1(gold_str, pred_str))
+                    bleus.append(metrics.bleu(gold_str, pred_str))
+                    qgolds.append(gold_str)
+                    qpreds.append(pred_str)
+
+
+
+                    this_metric_dict={
+                        'f1':f1s[-1],
+                        'bleu': bleus[-1],
+                        'nll': nlls[-1]
+                        }
+                    if FLAGS.eval_metrics:
+                        this_metric_dict+={
+                        'qa': qa_score_batch[b],
+                        'lm': lm_score_batch[b],
+                        'disc': disc_score_batch[b]}
+                    metric_individuals.append(this_metric_dict)
+
+                    res.append({
+                        'c':unfilt_ctxt_batch[b],
+                        'q_pred': pred_str,
+                        'q_gold': gold_str,
+                        'a_pos': unfilt_apos_batch[b],
+                        'a_text': a_text_batch[b],
+                        'metrics': this_metric_dict
+                    })
+
+                # Quick output
                 if i==0:
                     pred_str = tokens_to_string(pred_batch[0][:pred_lens[0]-1])
                     gold_str = tokens_to_string(gold_batch[0][:gold_lens[0]-1])
                     print(pred_str)
                     print(gold_str)
-                    # print(qa_pred[0])
-                    # print(gold_qa_pred[0])
-                    # print(gold_ans[0])
-                    # print(qa_scores[0])
-                    # print(qa_scores_gold[0])
-                    # print(unfilt_ctxt_batch[0])
-                    # print(dev_batch[3][0])
-                    # print(dev_contexts_unfilt[dev_batch[3][0]])
-                    # print(dev_batch[0][0][0])
-                    # print([tokens_to_string(pred_beam[i][0][:pred_beam_lens[i][0]-1]) for i in range(16)])
 
 
                     title=chkpt_path
@@ -181,7 +200,7 @@ def main(_):
                     with open(FLAGS.log_dir+'out_eval_'+model_type+'.htm', 'w', encoding='utf-8') as fp:
                         fp.write(out_str)
 
-        res = list(zip(qpreds,qgolds,ctxts,answers,ans_positions))
+        # res = list(zip(qpreds,qgolds,ctxts,answers,ans_positions,metric_individuals))
         metric_dict={
             'f1':np.mean(f1s),
             'bleu':np.mean(bleus),
