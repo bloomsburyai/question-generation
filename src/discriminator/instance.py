@@ -189,7 +189,7 @@ def main(_):
     answers= ["green","1985","5891"]
     ans_pos = [contexts[ix].find(ans) for ix,ans in enumerate(answers)]
 
-    disc = DiscriminatorInstance(path="./models/saved/1533307366-SQUAD-QANETINIT/")
+    disc = DiscriminatorInstance(path="./models/disc/1533307366-SQUAD-QANETINIT/")
 
     output={}
     for id,candidates in tqdm(ans_preds.items()):
