@@ -49,7 +49,7 @@ class DiscriminatorInstance():
             if force_init and path is not None:
                 chkpt_path = tf.train.latest_checkpoint(path)
                 print("Loading discriminator from ", chkpt_path)
-                
+
                 restore_vars= [v for v in tf.trainable_variables() if v.name[:13] != 'Output_Layer/']
                 self.sess.run(tf.global_variables_initializer())
                 saver = tf.train.Saver(restore_vars)
@@ -177,18 +177,34 @@ class DiscriminatorInstance():
 
 
 def main(_):
-    questions = ["What colour is the car?","When was the car made?","Where was the date?", "What was the dog called?","Who was the oldest cat?"]
+    from tqdm import tqdm
+
+    squad = loader.load_squad_triples(path="./data/", dev=True, v2=True, as_dict=True)
+    with open("./data/squad2_dev_official_output_fixed.json") as dataset_file:
+        ans_preds = json.load(dataset_file)
+    questions = ["What colour is the car?","When was the car made?","When was the car made?"]
     contexts=["The car is green, and was built in 1985. This sentence should make it less likely to return the date, when asked about a cat. The oldest cat was called creme puff and lived for many years!" for i in range(len(questions))]
+    answers= ["green","1985","5891"]
+    ans_pos = [contexts[ix].find(ans) for ix,ans in enumerate(answers)]
 
-    qa = QANetInstance()
-    qa.load_from_chkpt("./models/saved/qanet/")
+    disc = DiscriminatorInstance(path="./models/disc/1533307366-SQUAD-QANETINIT/")
 
-    spans = qa.get_ans(contexts, questions)
+    output={}
+    for id,candidates in tqdm(ans_preds.items()):
+        ctxt, q, ans_gold, ans_gold_pos, label_gold = squad[id]
 
-    print(contexts[0])
-    for i, q in enumerate(questions):
+        scores=[]
+        for candidate in candidates:
+            scores.append( disc.get_pred([ctxt], [q], [candidate['text']], [candidate['answer_start']]).tolist()[0] )
+        cand_ix = np.argmax(scores)
 
-        print(q, "->", spans[i])
+        pred_ans = candidates[cand_ix]['text']
+        pred_score = scores[cand_ix]
+        output[id] = pred_ans if pred_score > 0.5 else ""
+
+    with open("./logs/squad2_dev_filtered.json") as fh:
+        json.dump(output, fh)
+
 
 if __name__ == "__main__":
     tf.app.run()
