@@ -48,7 +48,7 @@ def main(_):
     num_instances = min(len(negative_data), len(positive_data))
 
 
-    disc = DiscriminatorInstance(path=('./models/saved/qanet/' if FLAGS.disc_init_qanet is True else None), trainable=True, log_slug=FLAGS.disc_modelslug, force_init=FLAGS.disc_init_qanet)
+    disc = DiscriminatorInstance(path=('./models/saved/qanet/' if FLAGS.disc_init_qanet is True else None), trainable=True, log_slug=FLAGS.disc_modelslug+("_SQUAD" if FLAGS.disc_trainonsquad else "")+("_QAINIT" if FLAGS.disc_init_qanet else ""), force_init=FLAGS.disc_init_qanet)
 
     # disc.load_from_chkpt() # this loads the embeddings etc
 
