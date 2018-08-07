@@ -207,7 +207,7 @@ def main(_):
                     qhat_ids = qhat_ids[:,:np.max(qhat_lens)]
                     qhat_str = qhat_str[:,:np.max(qhat_lens)]
 
-                    pred_str = byte_token_array_to_str(qhat_str, qhat_lens)
+                    pred_str = byte_token_array_to_str(qhat_str, qhat_lens-1)
                     gold_q_str = byte_token_array_to_str(train_batch[1][0], train_batch[1][3])
 
                     # Get reward values
