@@ -32,9 +32,9 @@ def main(_):
 
     model_type=FLAGS.model_type
     # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
-    # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-latent'
+    chkpt_path = FLAGS.model_dir+'qgen-saved/MALUUBA-CROP-LATENT/1533247183'
     disc_path = FLAGS.model_dir+'saved/discriminator-trained-latent'
-    chkpt_path = FLAGS.model_dir+'qgen/'+ model_type+'/'+FLAGS.eval_model_id
+    # chkpt_path = FLAGS.model_dir+'qgen/'+ model_type+'/'+FLAGS.eval_model_id
 
     # load dataset
     # train_data = loader.load_squad_triples(FLAGS.data_path, False)
@@ -130,7 +130,8 @@ def main(_):
                 a_text_batch = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
                 unfilt_apos_batch = [dev_a_pos_unfilt[ix] for ix in dev_batch[3]]
 
-                pred_q_batch = ops.byte_token_array_to_str(pred_batch, pred_lens)
+                # subtract 1 to remove the "end sent token"
+                pred_q_batch = ops.byte_token_array_to_str(pred_batch, pred_lens-1)
 
                 ctxts.extend(unfilt_ctxt_batch)
                 answers.extend(a_text_batch)
@@ -157,7 +158,7 @@ def main(_):
                     disc_score_batch = discriminator.get_pred(unfilt_ctxt_batch, pred_q_batch, gold_ans, unfilt_apos_batch).tolist()
 
                 for b, pred in enumerate(pred_batch):
-                    pred_str = pred_q_batch[b]
+                    pred_str = pred_q_batch[b].replace(' </Sent>',"").replace(" <PAD>","")
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
@@ -172,7 +173,8 @@ def main(_):
                         'nll': nlls[-1]
                         }
                     if FLAGS.eval_metrics:
-                        this_metric_dict+={
+                        this_metric_dict={
+                        **this_metric_dict,
                         'qa': qa_score_batch[b],
                         'lm': lm_score_batch[b],
                         'disc': disc_score_batch[b]}
@@ -191,7 +193,8 @@ def main(_):
                 if i==0:
                     pred_str = tokens_to_string(pred_batch[0][:pred_lens[0]-1])
                     gold_str = tokens_to_string(gold_batch[0][:gold_lens[0]-1])
-                    print(pred_str)
+                    # print(pred_str)
+                    print(qpreds[0])
                     print(gold_str)
 
 
@@ -207,7 +210,7 @@ def main(_):
             'nll':np.mean(nlls)
             }
         if FLAGS.eval_metrics:
-            metric_dict+={
+            metric_dict={**metric_dict,
             'qa':np.mean(qa_scores),
             'lm':np.mean(lm_scores),
             'disc': np.mean(disc_score)}

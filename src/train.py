@@ -375,7 +375,7 @@ def main(_):
                 nlls.extend(nll.tolist())
                 # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                 for b, pred in enumerate(pred_batch):
-                    pred_str = tokens_to_string(pred[:pred_lens[b]-1])
+                    pred_str = tokens_to_string(pred[:pred_lens[b]-1]).replace(' </Sent>',"").replace(" <PAD>","")
                     gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                     f1s.append(metrics.f1(gold_str, pred_str))
                     bleus.append(metrics.bleu(gold_str, pred_str))
