@@ -76,9 +76,9 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
-    # restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA_FILT'+'/'+'1529573713'
-    restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
-    disc_path = FLAGS.model_dir+'saved/discriminator-trained'
+    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA-CROP-LATENT'+'/'+'1533247183'
+    # restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
+    disc_path = FLAGS.model_dir+'saved/discriminator-trained-latent'
 
     print("Run ID is ", run_id)
     print("Model type is ", FLAGS.model_type)

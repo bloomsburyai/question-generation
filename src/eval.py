@@ -31,10 +31,10 @@ FLAGS = tf.app.flags.FLAGS
 def main(_):
 
     model_type=FLAGS.model_type
-    chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
+    # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
     # chkpt_path = FLAGS.model_dir+'saved/qgen-maluuba-latent'
-    disc_path = FLAGS.model_dir+'saved/discriminator-trained'
-    # chkpt_path = FLAGS.model_dir+'qgen/'+ model_type+'/'+FLAGS.eval_model_id
+    disc_path = FLAGS.model_dir+'saved/discriminator-trained-latent'
+    chkpt_path = FLAGS.model_dir+'qgen/'+ model_type+'/'+FLAGS.eval_model_id
 
     # load dataset
     # train_data = loader.load_squad_triples(FLAGS.data_path, False)
