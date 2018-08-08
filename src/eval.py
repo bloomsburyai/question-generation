@@ -178,6 +178,9 @@ def main(_):
                         'qa': qa_score_batch[b],
                         'lm': lm_score_batch[b],
                         'disc': disc_score_batch[b]}
+                        qa_scores.extend(qa_score_batch)
+                        lm_scores.extend(lm_score_batch)
+                        disc_scores.extend(disc_score_batch)
                     metric_individuals.append(this_metric_dict)
 
                     res.append({
@@ -213,7 +216,7 @@ def main(_):
             metric_dict={**metric_dict,
             'qa':np.mean(qa_scores),
             'lm':np.mean(lm_scores),
-            'disc': np.mean(disc_score)}
+            'disc': np.mean(disc_scores)}
         # print(res)
         with open(FLAGS.log_dir+'out_eval_'+model_type+("_train" if not FLAGS.eval_on_dev else "")+'.json', 'w', encoding='utf-8') as fp:
             json.dump({"metrics":metric_dict, "results": res}, fp)
