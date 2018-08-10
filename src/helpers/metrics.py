@@ -4,7 +4,7 @@ from collections import Counter
 
 
 def bleu(gold, prediction):
-    return compute_bleu([[gold.split()]], [prediction.split()])[0]
+    return compute_bleu([[gold.split()]], [prediction.split()], smooth=False)[0]
 
 
 def f1(gold, prediction):

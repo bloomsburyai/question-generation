@@ -276,7 +276,7 @@ def main(_):
                         # print(qhat_lens)
                         # print(train_batch_ext[2][2])
 
-                        rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[1 for b in range(curr_batch_size)]),
+                        rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[FLAGS.pg_ml_weight for b in range(curr_batch_size)]),
                             model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
                             model.disc_score: np.asarray((disc_score_whitened*FLAGS.disc_weight).tolist()+[0 for b in range(curr_batch_size)]),
                             model.rl_lm_enabled: True,
