@@ -58,7 +58,7 @@ def main(_):
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
 
-    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=True)
+    dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=False)
 
 
     # Create model
