@@ -407,6 +407,6 @@ def main(_):
                 if FLAGS.policy_gradient:
                     print("Saving anyway")
                     saver.save(sess, chkpt_path+'/model.checkpoint', global_step=e)
-                    disc.save_to_chkpt(FLAGS.model_dir, e)
+                    discriminator.save_to_chkpt(FLAGS.model_dir, e)
 if __name__ == '__main__':
     tf.app.run()

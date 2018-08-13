@@ -1,10 +1,12 @@
 from helpers.bleu import compute_bleu
+from helpers.preprocessing import tokenise
 
 from collections import Counter
 
 
-def bleu(gold, prediction):
-    return compute_bleu([[gold.split()]], [prediction.split()], smooth=False)[0]
+def bleu(gold, prediction, order=4):
+    # return compute_bleu([[gold.split()]], [prediction.split()], smooth=True, max_order=order)[0]
+    return compute_bleu([[tokenise(gold,asbytes=False)]], [tokenise(prediction,asbytes=False)], smooth=False, max_order=order)[0]
 
 
 def f1(gold, prediction):

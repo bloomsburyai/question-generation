@@ -11,7 +11,7 @@ import itertools
 
 
 
-with open('./logs'+'/out_eval_MALUUBA-CROP-SMART-SET_train.json') as f:
+with open('./logs'+'/out_eval_MALUUBA-CROP-LATENT_train.json') as f:
     results = json.load(f)['results']
 
 # q_words=["who","when","what","why","how many","which","where","other"]
@@ -40,7 +40,6 @@ for i,res in enumerate(results):
             word_pred[i]=q
 
         if q != "other" and q in qgold.lower():
-            scores[q].append(metrics.bleu(qgold, qpred))
             counts[q] += 1
             word_gold[i]=q
             triggered=True
@@ -75,21 +74,22 @@ for i,res in enumerate(results):
 # exit()
 
 # ************* Score violin plot
-plt.violinplot(gold_pred_bleu, points=60, widths=0.7, showmeans=True,
-                      showextrema=True, showmedians=False, bw_method=0.5)
-plt.title('Distribution of BLEU scores')
-plt.ylabel('BLEU')
-plt.show()
-exit()
+# plt.violinplot(gold_pred_bleu, points=60, widths=0.7, showmeans=True,
+#                       showextrema=True, showmedians=False, bw_method=0.5)
+# plt.title('Distribution of BLEU scores')
+# plt.ylabel('BLEU')
+# plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/bleu_violin.pdf", format="pdf")
+# plt.show()
+# exit()
 
 
 # ************ Dist of interrogatives
-plt.title('Distribution of "wh" words in SQuAD questions')
+plt.title('BLEU scores by question type')
 plt.xlabel('Interrogative')
-plt.ylabel('Count')
+plt.ylabel('BLEU')
 
-# plt.bar([x for x in range(len(q_words))], [np.mean(scores[q]) for q in q_words], tick_label=q_words)
-plt.bar([x for x in range(len(q_words))], [counts[q] for q in q_words], tick_label=q_words)
-# plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/squad_wh_count.pdf", format="pdf")
+plt.bar([x for x in range(len(q_words))], [np.mean(scores[q]) for q in q_words], tick_label=q_words)
+# plt.bar([x for x in range(len(q_words))], [counts[q] for q in q_words], tick_label=q_words)
+plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/bleu_by_q_mcroplatent.pdf", format="pdf")
 
 plt.show()

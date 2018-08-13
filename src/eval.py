@@ -20,7 +20,7 @@ from seq2seq_model import Seq2SeqModel
 from maluuba_model import MaluubaModel
 from datasources.squad_streamer import SquadStreamer
 from langmodel.lm import LstmLmInstance
-from qa.mpcm import MpcmQaInstance
+# from qa.mpcm import MpcmQaInstance
 from qa.qanet.instance import QANetInstance
 from discriminator.instance import DiscriminatorInstance
 

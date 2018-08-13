@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+
+    <title>AQ Annotator</title>
+
+    <script type="text/ecmascript">
+    function score1()
+    {
+      score(1);
+    }
+    function score2()
+    {
+      score(2);
+    }
+    function score3()
+    {
+      score(3);
+    }
+
+    function bindKeys()
+    {
+      $(document).bind('keydown', '1', score1);
+      $(document).bind('keydown', '2', score2);
+      $(document).bind('keydown', '3', score3);
+    }
+    function unBindKeys()
+    {
+      $(document).unbind('keydown');
+    }
+    function score(val)
+    {
+      $('#score_buttons').hide()
+      unBindKeys();
+      query = "/api/save_score?model_id=" + $('#model_id').html() + '&qid='+$('#qid').html()+'&score='+val+"&q="+$('#question').html()
+      $.ajax({
+        url: query,
+        cache: false
+      })
+        .done(function( data ) {
+          getQ();
+
+        })
+        .fail(function(e){
+          $( "#question" ).html("<p>There was an error saving the score :(</p>");
+
+        });
+    }
+    function getQ()
+    {
+      query = "/api/get_q"
+      $('#score_buttons').hide();
+      unBindKeys();
+      $.ajax({
+        dataType: "json",
+        url: query,
+        cache: false
+      })
+        .done(function( data ) {
+          $( "#question" ).html(data['q_pred']);
+          $( "#context" ).html(data['c']);
+          $( "#answer" ).html(data['a_text']);
+          $( "#model_id" ).html(data['model_id']);
+          $( "#qid" ).html(data['qid']);
+          $( "#ip_count" ).html(data['ip_count']);
+          bindKeys();
+          $('#score_buttons').show()
+        })
+        .fail(function(){
+          $( "#question" ).html("<p>There was an error generating a question :(</p>");
+
+        });
+    }
+    </script>
+
+  </head>
+  <body>
+    <div class="container">
+
+      <h1>Question Generation Annotator
+      </h1>
+
+      <form id="annotate-form" onsubmit="return false;">
+        <div class="form-group" style="display:none">
+          <div id="qid"></div>
+          <div id="model_id"></div>
+        </div>
+        <div class="form-group">
+          <p><span class="badge badge-secondary">Document</span><br/> <span id="context"></span></p>
+        </div>
+        <div class="form-group">
+          <p><span class="badge badge-secondary">Answer</span> <span id="answer"></span></p>
+        </div>
+        <div class="form-group">
+          <p><span class="badge badge-secondary">Question</span> <span id="question"></span></p>
+        </div>
+
+        <div id="score_buttons">
+          <button class="btn btn-danger" onclick="score(1); return false;" type="submit">1</button>
+          <button class="btn btn-warning" onclick="score(2); return false;" type="submit">2</button>
+          <button class="btn btn-success" onclick="score(3); return false;" type="submit">3</button>
+        </div>
+      </form>
+
+      <hr/>
+      <div>
+        <p><strong>Instructions:</strong></p>
+        <p>Please read the document above, and then grade the <strong>question</strong> according to how well it fits with the document and answer</p>
+        <p><strong>Score guidance:</strong></p>
+        <p><strong>3 - good</strong> The question is meaningful and matches the sentence and answer very well</p>
+        <p><strong>2 - borderline</strong> The question matches the sentence and answer, more or less</p>
+        <p><strong>1 - bad</strong> The question either does not make sense or matches the sentence and answer</p>
+        <p><small>Thanks for helping! You've graded <span id="ip_count"></span> questions</small></p>
+      </div>
+
+
+    </div>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+
+    <script src="/static/jquery.hotkeys.js"></script>
+    <script>
+    // Set up an event listener for the contact form.
+    $("#annotate-form").submit(function(event) {
+        // Stop the browser from submitting the form.
+        event.preventDefault();
+
+        // TODO
+    });
+    // bindKeys();
+    getQ();
+    </script>
+  </body>
+</html>

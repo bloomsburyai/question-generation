@@ -180,32 +180,97 @@ class DiscriminatorInstance():
 def main(_):
 
     from tqdm import tqdm
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from sklearn.metrics import confusion_matrix
+    import itertools
+    from sklearn.metrics import roc_curve, auc
 
     squad = loader.load_squad_triples(path="./data/", dev=True, v2=True, as_dict=True)
-    with open("./data/squad2_dev_official_output_fixed.json") as dataset_file:
-        ans_preds = json.load(dataset_file)
-    questions = ["What colour is the car?","When was the car made?","When was the car made?"]
-    contexts=["The car is green, and was built in 1985. This sentence should make it less likely to return the date, when asked about a cat. The oldest cat was called creme puff and lived for many years!" for i in range(len(questions))]
-    answers= ["green","1985","5891"]
-    ans_pos = [contexts[ix].find(ans) for ix,ans in enumerate(answers)]
+    # with open("./data/squad2_dev_official_output_fixed.json") as dataset_file:
+    #     ans_preds = json.load(dataset_file)
+    with open("./results/out_eval_MALUUBA-CROP-LATENT.json") as dataset_file:
+        results = json.load(dataset_file)['results']
 
-    disc = DiscriminatorInstance(path="./models/disc/1533568270-SQUAD-QANETINIT/")
 
-    output={}
-    for id,candidates in tqdm(ans_preds.items()):
-        ctxt, q, ans_gold, ans_gold_pos, label_gold = squad[id]
 
-        scores=[]
-        for candidate in candidates:
-            scores.append( disc.get_pred([ctxt], [q], [candidate['text']], [candidate['answer_start']]).tolist()[0] )
-        cand_ix = np.argmax(scores)
 
-        pred_ans = candidates[cand_ix]['text']
-        pred_score = scores[cand_ix]
-        output[id] = pred_ans if pred_score > 0.5 else ""
+    disc = DiscriminatorInstance(path="./models/saved/discriminator-trained-latent")
+    # disc = DiscriminatorInstance(path="./models/disc/1533307366-SQUAD-QANETINIT")
 
-    with open("./logs/squad2_dev_filtered.json","w") as fh:
-        json.dump(output, fh)
+    # output={}
+    # for id,candidates in tqdm(ans_preds.items()):
+    #     ctxt, q, ans_gold, ans_gold_pos, label_gold = squad[id]
+    #
+    #     scores=[]
+    #     for candidate in candidates:
+    #         scores.append( disc.get_pred([ctxt], [q], [candidate['text']], [candidate['answer_start']]).tolist()[0] )
+    #     cand_ix = np.argmax(scores)
+    #
+    #     pred_ans = candidates[cand_ix]['text']
+    #     pred_score = scores[cand_ix]
+    #     output[id] = pred_ans if pred_score > 0.5 else ""
+    #
+    # with open("./logs/squad2_dev_filtered.json","w") as fh:
+    #     json.dump(output, fh)
+
+    gold_labels=[]
+    pred_labels=[]
+    scores=[]
+
+    for res in tqdm(results[:1000]):
+        # print(res['q_gold'], res['q_pred'])
+        gold_score = disc.get_pred([res['c']], [res['q_gold']],[res['a_text']],[res['a_pos']])
+        pred_score = disc.get_pred([res['c']], [res['q_pred']],[res['a_text']],[res['a_pos']])
+
+        gold_labels.append(1)
+        gold_labels.append(0)
+        pred_labels.append(np.round(gold_score[0]))
+        pred_labels.append(np.round(pred_score[0]))
+        scores.append(gold_score[0])
+        scores.append(pred_score[0])
+
+
+    # oh_labels =np.eye(2)[gold_labels]
+    ### disc conf mat
+    # cm = confusion_matrix(gold_labels, pred_labels)
+    # mat = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    # print(mat)
+    # plt.imshow(mat, cmap=plt.cm.Blues)
+    # plt.colorbar()
+    # tick_marks = np.arange(2)
+    # plt.xticks(tick_marks, [0,1], rotation=45)
+    # plt.yticks(tick_marks, [0,1])
+    # fmt = '.2f'
+    # thresh = mat.max() / 2.
+    # for i, j in itertools.product(range(mat.shape[0]), range(mat.shape[1])):
+    #     plt.text(j, i, format(mat[i, j], fmt),
+    #              horizontalalignment="center",
+    #              color="white" if mat[i, j] > thresh else "black")
+    #
+    # # plt.tight_layout()
+    # plt.ylabel('Actual Source')
+    # plt.xlabel('Predicted source')
+    # # plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/confusion_maluuba_crop_smart_set.pdf", format="pdf")
+    # plt.show()
+    # # exit()
+
+    ### disc Roc curves
+    fpr, tpr, _ = roc_curve(gold_labels, scores)
+    roc_auc = auc(fpr, tpr)
+    plt.figure()
+    lw = 2
+    plt.plot(fpr, tpr, color='darkorange',
+             lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+    plt.show()
+    exit()
 
 
 if __name__ == "__main__":
