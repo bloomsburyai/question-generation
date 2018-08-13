@@ -40,7 +40,7 @@ def main(_):
         squad_v2 = loader.load_squad_triples(FLAGS.data_path, FLAGS.disc_dev_set, v2=True)
         for res in squad_v2:
             ctxt,q,ans_text,ans_pos,label =res
-            if label is True:
+            if label is False: # label is "is_unanswerable"
                 positive_data.append( (ctxt.lower(), q.lower(), ans_text.lower(), ans_pos) )
             else:
                 negative_data.append( (ctxt.lower(), q.lower(), ans_text.lower(), ans_pos) )
