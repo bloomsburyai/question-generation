@@ -32,6 +32,8 @@ import sys
 from helpers.misc_utils import debug_tensor, debug_shape
 from helpers.ops import safe_log
 
+FLAGS = tf.app.flags.FLAGS
+
 
 class CopyLayer(base.Layer):
     """Densely-connected layer class.
@@ -202,6 +204,10 @@ class CopyLayer(base.Layer):
         switch_h2 = tf.layers.dropout(tf.layers.dense(switch_h1, self.switch_units, activation=tf.nn.tanh, kernel_initializer=tf.glorot_uniform_initializer()), rate=0.3, training=self.training_mode)
         self.switch = tf.layers.dense(switch_h2, 1, activation=tf.sigmoid, kernel_initializer=tf.glorot_uniform_initializer())
         # switch = debug_shape(switch, "switch")
+        if FLAGS.disable_copy:
+            self.switch = 0
+        elif FLAGS.disable_shortlist:
+            self.switch = 1
 
 
         if self.output_mask is not None:

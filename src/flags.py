@@ -41,6 +41,8 @@ tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q usi
 tf.app.flags.DEFINE_boolean("smart_copy", True, "Use smarter heuristics to determine copy location if there are multiple choices")
 tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of weights for the copy mech and attention mech")
 
+tf.app.flags.DEFINE_boolean("disable_copy", False, "Prevent the model from generating using the copy vocab")
+tf.app.flags.DEFINE_boolean("disable_shortlist", False, "Prevent the model from generating using the shortlist vocab")
 
 
 
@@ -77,5 +79,6 @@ tf.app.flags.DEFINE_integer("beam_width", 32, "Beam width for decoding")
 tf.app.flags.DEFINE_integer("num_dev_samples", 5000, "How many examples to use for OOS evaluations")
 tf.app.flags.DEFINE_integer("num_eval_samples", 5000, "How many examples to use for evaluations")
 tf.app.flags.DEFINE_boolean("eval_on_dev", True, "Should the eval script use the dev set?")
+tf.app.flags.DEFINE_boolean("eval_on_test", False, "Should the eval script use the test set?")
 tf.app.flags.DEFINE_string("eval_model_id", "", "Run ID of the saved model to be evaluated")
 tf.app.flags.DEFINE_boolean("eval_metrics", True, "Calculate metrics when evaling - disable to speed up results generation")

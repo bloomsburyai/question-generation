@@ -38,7 +38,7 @@ def main(_):
 
     # load dataset
     # train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, FLAGS.eval_on_dev)
+    dev_data = loader.load_squad_triples(FLAGS.data_path, dev=FLAGS.eval_on_dev, test=FLAGS.eval_on_test)
 
     # train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,_,dev_a_pos_unfilt = zip(*dev_data)
@@ -218,7 +218,7 @@ def main(_):
             'lm':np.mean(lm_scores),
             'disc': np.mean(disc_scores)}
         # print(res)
-        with open(FLAGS.log_dir+'out_eval_'+model_type+("_train" if not FLAGS.eval_on_dev else "")+'.json', 'w', encoding='utf-8') as fp:
+        with open(FLAGS.log_dir+'out_eval_'+model_type+("_test" if FLAGS.eval_on_test else "")+("_train" if (not FLAGS.eval_on_dev and not FLAGS.eval_on_test) else "")+'.json', 'w', encoding='utf-8') as fp:
             json.dump({"metrics":metric_dict, "results": res}, fp)
 
 
