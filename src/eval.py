@@ -209,7 +209,7 @@ def main(_):
         # res = list(zip(qpreds,qgolds,ctxts,answers,ans_positions,metric_individuals))
         metric_dict={
             'f1':np.mean(f1s),
-            'bleu':np.mean(bleus),
+            'bleu': metrics.bleu_corpus(qgolds, qpreds),
             'nll':np.mean(nlls)
             }
         if FLAGS.eval_metrics:
@@ -223,7 +223,7 @@ def main(_):
 
 
         print("F1: ", np.mean(f1s))
-        print("BLEU: ", np.mean(bleus))
+        print("BLEU: ", metrics.bleu_corpus(qgolds, qpreds))
         print("NLL: ", np.mean(nlls))
         if FLAGS.eval_metrics:
             print("QA: ", np.mean(qa_scores))
