@@ -60,6 +60,7 @@ def main(_):
     lm_scores=[]
     nlls=[]
     disc_scores=[]
+    sowe_similarities=[]
 
     qgolds=[]
     qpreds=[]
@@ -105,12 +106,19 @@ def main(_):
         qgolds.append(gold_str)
         qpreds.append(pred_str)
 
+        # calc cosine similarity between sums of word embeddings
+        pred_sowe = np.sum(np.asarray([glove_embeddings[w] if w in glove_embeddings.keys() else np.zeros((FLAGS.embedding_size,)) for w in preprocessing.tokenise(pred_str ,asbytes=False)]) ,axis=0)
+        gold_sowe = np.sum(np.asarray([glove_embeddings[w] if w in glove_embeddings.keys() else np.zeros((FLAGS.embedding_size,)) for w in preprocessing.tokenise(gold_str ,asbytes=False)]) ,axis=0)
+        this_similarity = np.inner(pred_sowe, gold_sowe)/np.linalg.norm(pred_sowe, ord=2)/np.linalg.norm(gold_sowe, ord=2)
+
+        sowe_similarities.append(this_similarity)
 
 
         this_metric_dict={
             'f1':f1s[-1],
             'bleu': bleus[-1],
-            'nll': 0
+            'nll': 0,
+            'sowe': sowe_similarities[-1]
             }
         if FLAGS.eval_metrics:
             this_metric_dict={
@@ -136,7 +144,8 @@ def main(_):
     metric_dict={
         'f1':np.mean(f1s),
         'bleu':np.mean(bleus),
-        'nll':0
+        'nll':0,
+        'sowe': np.mean(sowe_similarities)
         }
     if FLAGS.eval_metrics:
         metric_dict={**metric_dict,
@@ -151,6 +160,7 @@ def main(_):
     print("F1: ", np.mean(f1s))
     print("BLEU: ", np.mean(bleus))
     print("NLL: ", 0)
+    print("SOWE: ", np.mean(sowe_similarities))
     if FLAGS.eval_metrics:
         print("QA: ", np.mean(qa_scores))
         print("LM: ", np.mean(lm_scores))
