@@ -8,6 +8,7 @@ import json
 
 import helpers.loader as loader
 import helpers.metrics as metrics
+import helpers.preprocessing as preprocessing
 import tensorflow as tf
 
 import flags
