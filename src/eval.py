@@ -237,6 +237,7 @@ def main(_):
         print("F1: ", np.mean(f1s))
         print("BLEU: ", metrics.bleu_corpus(qgolds, qpreds))
         print("NLL: ", np.mean(nlls))
+        print("SOWE: ", np.mean(sowe_similarities))
         if FLAGS.eval_metrics:
             print("QA: ", np.mean(qa_scores))
             print("LM: ", np.mean(lm_scores))
