@@ -42,6 +42,8 @@ def main(_):
 
     disc_path = FLAGS.model_dir+'saved/discriminator-trained-latent'
 
+    glove_embeddings = loader.load_glove(FLAGS.data_path)
+
 
     if FLAGS.eval_metrics:
         lm = LstmLmInstance()
