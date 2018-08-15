@@ -60,6 +60,8 @@ def main(_):
 
     dev_data_source = SquadStreamer(vocab, FLAGS.eval_batch_size, 1, shuffle=False)
 
+    glove_embeddings = loader.load_glove(FLAGS.data_path)
+
 
     # Create model
     if model_type[:7] == "SEQ2SEQ":
@@ -112,6 +114,7 @@ def main(_):
         lm_scores=[]
         nlls=[]
         disc_scores=[]
+        sowe_similarities=[]
 
         qgolds=[]
         qpreds=[]
@@ -131,7 +134,7 @@ def main(_):
                 unfilt_apos_batch = [dev_a_pos_unfilt[ix] for ix in dev_batch[3]]
 
                 # subtract 1 to remove the "end sent token"
-                pred_q_batch = ops.byte_token_array_to_str(pred_batch, pred_lens-1)
+                pred_q_batch = [q.replace(' </Sent>',"").replace(" <PAD>","") for q in ops.byte_token_array_to_str(pred_batch, pred_lens-1)]
 
                 ctxts.extend(unfilt_ctxt_batch)
                 answers.extend(a_text_batch)
@@ -165,12 +168,20 @@ def main(_):
                     qgolds.append(gold_str)
                     qpreds.append(pred_str)
 
+                    # calc cosine similarity between sums of word embeddings
+                    pred_sowe = np.sum(np.asarray([glove_embeddings[w] if w in glove_embeddings.keys() else np.zeros((FLAGS.embedding_size,)) for w in preprocessing.tokenise(pred_str ,asbytes=False)]) ,axis=0)
+                    gold_sowe = np.sum(np.asarray([glove_embeddings[w] if w in glove_embeddings.keys() else np.zeros((FLAGS.embedding_size,)) for w in preprocessing.tokenise(gold_str ,asbytes=False)]) ,axis=0)
+                    this_similarity = np.inner(pred_sowe, gold_sowe)/np.linalg.norm(pred_sowe, ord=2)/np.linalg.norm(gold_sowe, ord=2)
+
+                    sowe_similarities.append(this_similarity)
+
 
 
                     this_metric_dict={
                         'f1':f1s[-1],
                         'bleu': bleus[-1],
-                        'nll': nlls[-1]
+                        'nll': nlls[-1],
+                        'sowe': sowe_similarities[-1]
                         }
                     if FLAGS.eval_metrics:
                         this_metric_dict={
@@ -210,7 +221,8 @@ def main(_):
         metric_dict={
             'f1':np.mean(f1s),
             'bleu': metrics.bleu_corpus(qgolds, qpreds),
-            'nll':np.mean(nlls)
+            'nll':np.mean(nlls),
+            'sowe': np.mean(sowe_similarities)
             }
         if FLAGS.eval_metrics:
             metric_dict={**metric_dict,

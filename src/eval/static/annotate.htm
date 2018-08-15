@@ -6,37 +6,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
 
-    <title>AQ Annotator</title>
+    <title>AQ Scoring</title>
 
     <script type="text/ecmascript">
-    function score1()
-    {
-      score(1);
-    }
-    function score2()
-    {
-      score(2);
-    }
-    function score3()
-    {
-      score(3);
-    }
+    // function scoreA1()
+    // {
+    //   score('A1');
+    // }
+    // function scoreA2()
+    // {
+    //   score('A2');
+    // }
+    // function scoreB1()
+    // {
+    //   score('B1');
+    // }
+    // function scoreB2()
+    // {
+    //   score('B2');
+    // }
 
     function bindKeys()
     {
-      $(document).bind('keydown', '1', score1);
-      $(document).bind('keydown', '2', score2);
-      $(document).bind('keydown', '3', score3);
+      // $(document).bind('keydown', 'w', scoreA1);
+      // $(document).bind('keydown', 'q', scoreA2);
+      // $(document).bind('keydown', 's', scoreB1);
+      // $(document).bind('keydown', 'a', scoreB2);
     }
     function unBindKeys()
     {
       $(document).unbind('keydown');
     }
-    function score(val)
+    function score()
     {
       $('#score_buttons').hide()
+
+      $('#loading-spinner').show();
       unBindKeys();
-      query = "/api/save_score?model_id=" + $('#model_id').html() + '&qid='+$('#qid').html()+'&score='+val+"&q="+$('#question').html()
+      fluency = $('input[name=fluency]:checked').val();
+      relevance = $('input[name=relevance]:checked').val();
+      if($('#scorer_name').val() == "")
+      {
+        alert('Please enter your name before scoring!')
+        $('#score_buttons').show()
+
+        $('#loading-spinner').hide();
+        return false;
+      }
+      if(fluency == null || relevance == null)
+      {
+        alert('You must grade the question before submitting!')
+        $('#score_buttons').show()
+
+        $('#loading-spinner').hide();
+        return false;
+      }
+      $('input[name=fluency]').prop("checked", false).parent().removeClass('active');
+      $('input[name=relevance]').prop("checked", false).parent().removeClass('active');
+      query = "/api/save_score?model_id=" + $('#model_id').html() + '&qid='+$('#qid').html()+'&fluency='+fluency+'&relevance='+relevance+"&q="+encodeURIComponent($('#question').text())+"&scorer_name="+encodeURIComponent($('#scorer_name').val())
       $.ajax({
         url: query,
         cache: false
@@ -46,6 +73,7 @@
 
         })
         .fail(function(e){
+          $('#loading-spinner').hide();
           $( "#question" ).html("<p>There was an error saving the score :(</p>");
 
         });
@@ -54,6 +82,7 @@
     {
       query = "/api/get_q"
       $('#score_buttons').hide();
+      $('#loading-spinner').show();
       unBindKeys();
       $.ajax({
         dataType: "json",
@@ -69,26 +98,42 @@
           $( "#ip_count" ).html(data['ip_count']);
           bindKeys();
           $('#score_buttons').show()
+
+          $('#loading-spinner').hide();
         })
         .fail(function(){
+          $('#loading-spinner').hide();
           $( "#question" ).html("<p>There was an error generating a question :(</p>");
 
         });
     }
     </script>
+    <style type="text/css">
+    .btn-group .active
+    {
+        background: red;
+    }
+    </style>
 
   </head>
   <body>
     <div class="container">
 
-      <h1>Question Generation Annotator
+      <h1>Question Generation Scoring
       </h1>
 
-      <form id="annotate-form" onsubmit="return false;">
+      <div class="form-group">
+        <label for="scorer_name">Your Name</label>
+        <input type="text" class="form-control" id="scorer_name" placeholder="Please enter your name here before you start scoring">
+
+      </div>
+      <div class="card">
+      <form id="annotate-form" onsubmit="return false;" class="card-body">
         <div class="form-group" style="display:none">
           <div id="qid"></div>
           <div id="model_id"></div>
         </div>
+
         <div class="form-group">
           <p><span class="badge badge-secondary">Document</span><br/> <span id="context"></span></p>
         </div>
@@ -99,22 +144,96 @@
           <p><span class="badge badge-secondary">Question</span> <span id="question"></span></p>
         </div>
 
-        <div id="score_buttons">
-          <button class="btn btn-danger" onclick="score(1); return false;" type="submit">1</button>
-          <button class="btn btn-warning" onclick="score(2); return false;" type="submit">2</button>
-          <button class="btn btn-success" onclick="score(3); return false;" type="submit">3</button>
+        <div id="score_buttons" style="display:none;">
+          <hr/>
+          <div class="form-group">
+            Fluency
+            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="fluency" id="fluency1" autocomplete="off" value="1"> 1
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="fluency" id="option2" autocomplete="off" value="2"> 2
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="fluency" id="option3" autocomplete="off" value="3"> 3
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="fluency" id="option3" autocomplete="off" value="4"> 4
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="fluency" id="option3" autocomplete="off" value="5"> 5
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Relevance </label>
+            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="relevance" id="relevance1" autocomplete="off" value="1"> 1
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="relevance" id="option2" autocomplete="off" value="2"> 2
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="relevance" id="option3" autocomplete="off" value="3"> 3
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="relevance" id="option3" autocomplete="off" value="4"> 4
+              </label>
+              <label class="btn btn-outline-primary">
+                <input type="radio" name="relevance" id="option3" autocomplete="off" value="5"> 5
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" onclick="score(); return false;">Submit</button>
+
+        </div>
+        <div id="loading-spinner" class="spinner">
+          <div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>
         </div>
       </form>
-
-      <hr/>
-      <div>
+    </div>
+    <br/><br/>
+      <div class="card alert-light">
         <p><strong>Instructions:</strong></p>
-        <p>Please read the document above, and then grade the <strong>question</strong> according to how well it fits with the document and answer</p>
-        <p><strong>Score guidance:</strong></p>
-        <p><strong>3 - good</strong> The question is meaningful and matches the sentence and answer very well</p>
-        <p><strong>2 - borderline</strong> The question matches the sentence and answer, more or less</p>
-        <p><strong>1 - bad</strong> The question either does not make sense or matches the sentence and answer</p>
-        <p><small>Thanks for helping! You've graded <span id="ip_count"></span> questions</small></p>
+        <p>First, enter your name! Then, please read the document above, and then grade the <strong>question</strong> according to how well it fits with the document and answer (relevance) and how good the quality of the English is (fluency).</p>
+        <p><small>Thanks for helping! <span id="ip_count"></span> questions scored so far</small></p>
+        <hr/>
+        <!-- <p><strong>Score guidance:</strong></p>
+        <p><strong>3 - good</strong> The question is meaningful and matches the document and answer very well</p>
+        <p><strong>2 - borderline</strong> The question mostly makes sense, but isn't good English or isn't consistent with the answer</p>
+        <p><strong>1 - bad</strong> The question either does not make sense or does not match the document and answer</p> -->
+        <div class="alert alert-info">
+          <p><strong>Example:</strong></p>
+          <p><span class="badge badge-secondary">Document</span><br/> Since its invention in 1269, the 'Phags-pa script, a unified script for spelling Mongolian, Tibetan, and Chinese languages, was preserved in the court until the end of the dynasty.</p>
+          <p><span class="badge badge-secondary">Answer</span> 1269</p>
+          <p><span class="badge badge-secondary">Question</span> when was the 'phags-pa script preserved ?</p>
+          <p><strong>Correct score: Fluent but not relevant</strong> Although the question is well formed English, the script was invented in 1269, not preserved then. So the question isn't matched to the answer.</p>
+        </div>
+        <div class="alert alert-info">
+          <p><strong>Example:</strong></p>
+          <p><span class="badge badge-secondary">Document</span><br/> The IPCC Fourth Assessment Report (AR4) published in 2007 featured a graph showing 12 proxy based temperature reconstructions, including the three highlighted in the 2001 Third Assessment Report (TAR); Mann, Bradley & Hughes 1999 as before, Jones et al. 1998 and Briffa 2000 had both been calibrated by newer studies.</p>
+          <p><span class="badge badge-secondary">Answer</span> 2001</p>
+          <p><span class="badge badge-secondary">Question</span> in what year was the third assessment report published ?</p>
+          <p><strong>Correct score: Fluent and relevant</strong> This question is good English and is consistent with the document and answer.</p>
+        </div>
+        <div class="alert alert-info">
+          <p><strong>Example:</strong></p>
+          <p><span class="badge badge-secondary">Document</span><br/> In 1898, Tesla demonstrated a radio-controlled boat—which he dubbed "teleautomaton"—to the public during an electrical exhibition at Madison Square Garden.</p>
+          <p><span class="badge badge-secondary">Answer</span> an electrical exhibition</p>
+          <p><span class="badge badge-secondary">Question</span> what kind of exhibition did tesla ?</p>
+          <p><strong>Correct score: Relevant but not fluent</strong> This question is missing a verb and is poor English, but with a minor adjustment would lead to the answer given.</p>
+        </div>
+        <div class="alert alert-info">
+          <p><strong>Example:</strong></p>
+          <p><span class="badge badge-secondary">Document</span><br/> The measurement is technically difficult owing to the low signal-to-noise ratio and the physical structure of vegetation; but it has been proposed as a possible method of monitoring the carbon cycle from satellites on a global scale.</p>
+          <p><span class="badge badge-secondary">Answer</span> carbon cycle</p>
+          <p><span class="badge badge-secondary">Question</span> what is a possible method of ?</p>
+          <p><strong>Correct score: Neither relevant nor fluent</strong> This question is missing a verb and is poor English, and even with adjustment would not be relevant to the answer.</p>
+        </div>
       </div>
 
 
@@ -128,7 +247,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
-
+    <link rel="stylesheet" href="/static/spinner.css" />
     <script src="/static/jquery.hotkeys.js"></script>
     <script>
     // Set up an event listener for the contact form.

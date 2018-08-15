@@ -168,7 +168,7 @@ class Model(object):
 
             outer = tf.matmul(tf.expand_dims(tf.nn.softmax(logits1), axis=2),
                               tf.expand_dims(tf.nn.softmax(logits2), axis=1))
-            outer = tf.matrix_band_part(outer, 0, config.ans_limit)
+            outer = tf.matrix_band_part(outer, 0, -1)
             self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
             self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
             losses = tf.nn.sparse_softmax_cross_entropy_with_logits(

@@ -27,7 +27,6 @@ class Seq2SeqModel(TFModel):
     def __init__(self, vocab, advanced_condition_encoding=False, training_mode=False, use_embedding_loss=False):
         self.vocab=vocab
         self.rev_vocab = {v:k for k,v in self.vocab.items()}
-        # self.batch_size = batch_size
 
         self.training_mode = training_mode
         self.use_embedding_loss = use_embedding_loss
@@ -41,7 +40,6 @@ class Seq2SeqModel(TFModel):
 
     def build_model(self):
 
-        # self.build_data_pipeline(self.batch_size)
         with tf.device('/cpu:*'):
             self.context_raw = tf.placeholder(tf.string, [None, None])  # source vectors of unknown size
             self.question_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
@@ -71,11 +69,8 @@ class Seq2SeqModel(TFModel):
         with tf.variable_scope('input_pipeline'):
             # build teacher output - coerce to vocab and pad with SOS/EOS
             # also build output for loss - one hot over vocab+context
-            # self.question_onehot = tf.one_hot(self.question_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
-            # self.question_coerced = tf.where(tf.greater_equal(self.question_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.question_ids)), self.question_ids)
 
             self.question_teach_oh = tf.concat([tf.one_hot(tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), depth=len(self.vocab)+FLAGS.max_copy_size), self.question_onehot[:,:-1,:]], axis=1)
-            # Embed c,q,a
 
 
             # init embeddings
@@ -95,9 +90,6 @@ class Seq2SeqModel(TFModel):
             # First, coerce them to the shortlist vocab. Then embed
             self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
             self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
-
-            # self.question_teach_embedded = tf.nn.embedding_lookup(self.embeddings, self.question_teach)
-            # self.question_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.question_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
 
             self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
             self.answer_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.answer_coerced), rate=FLAGS.dropout_rate, training=self.is_training) # batch x seq x embed
@@ -146,8 +138,9 @@ class Seq2SeqModel(TFModel):
 
             # This is super involved! Even though we have the right indices we have to do a LOT of massaging to get them in the right shape
             seq_length = tf.reduce_max(self.answer_length)
-            # self.indices = tf.concat([[tf.range(self.answer_pos[i], self.answer_pos[i]+tf.reduce_max(self.answer_length)) for i in range(self.batch_size)]], axis=1)
+
             self.indices = self.answer_locs
+
             # cap the indices to be valid
             self.indices = tf.minimum(self.indices, tf.tile(tf.expand_dims(self.context_length-1,axis=1),[1,tf.reduce_max(self.answer_length)]))
 
@@ -180,9 +173,8 @@ class Seq2SeqModel(TFModel):
                 a_encoder_cell_fwd, a_encoder_cell_bwd, self.full_condition_encoding,
                 sequence_length=self.answer_length, dtype=tf.float32)
 
-            # self.a_encoder_final_state = tf.concat([a_encoder_state_parts[0][0].c, a_encoder_state_parts[1][0].c], axis=1) # batch x 2*a_encoder_units
+            # This is actually wrong! It should take last element of the fwd RNN, and first element of the bwd RNN. It doesn't seem to matter in experiments, and fixing it would be a breaking change.
             self.a_encoder_final_state = tf.concat([ops.get_last_from_seq(a_encoder_output_parts[0], self.answer_length-1), ops.get_last_from_seq(a_encoder_output_parts[1], self.answer_length-1)], axis=1)
-        # concat direction outputs again
 
         # build init state
         with tf.variable_scope('decoder_initial_state'):
@@ -203,14 +195,11 @@ class Seq2SeqModel(TFModel):
         # TODO: for Maluuba model, decoder inputs are concat of context and answer encoding
         with tf.variable_scope('decoder_init'):
 
-            # if not self.training_mode:
             beam_memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
             beam_memory_sequence_length = tf.contrib.seq2seq.tile_batch( self.context_length, multiplier=FLAGS.beam_width)
             s0_tiled = tf.contrib.seq2seq.tile_batch( self.s0, multiplier=FLAGS.beam_width)
             beam_init_state = tf.contrib.rnn.LSTMStateTuple(s0_tiled, tf.contrib.seq2seq.tile_batch(tf.zeros([curr_batch_size, self.decoder_units]), multiplier=FLAGS.beam_width))
-            # init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
-            # init_state = tf.contrib.seq2seq.tile_batch( init_state, multiplier=FLAGS.beam_width)
-            # else:
+
             train_memory = self.context_encoder_output
             train_memory_sequence_length = self.context_length
             train_init_state = tf.contrib.rnn.LSTMStateTuple(self.s0, tf.zeros([curr_batch_size, self.decoder_units]))
@@ -351,20 +340,9 @@ class Seq2SeqModel(TFModel):
                                                                output_layer = beam_projection_layer ,
                                                                length_penalty_weight=FLAGS.length_penalty)
 
-            # helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-            #       embedding=tf.eye(len(self.vocab) + FLAGS.max_copy_size),
-            #       start_tokens=tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size ] ),
-            #       end_token=end_token)
-            # my_decoder = tf.contrib.seq2seq.BasicDecoder( cell = decoder_cell,
-            #                                                 helper=helper,
-            #                                                   initial_state = init_state,
-            #                                                   output_layer = projection_layer )
-
             beam_outputs, beam_decoder_states,beam_out_lens = tf.contrib.seq2seq.dynamic_decode(  beam_decoder,
                                                                     impute_finished=False,
                                                                    maximum_iterations=40 )
-
-            # logits = outputs.rnn_output
 
             beam_pred_ids = beam_outputs.predicted_ids[:,:,0]
 
@@ -376,12 +354,9 @@ class Seq2SeqModel(TFModel):
 
             # pred_ids = debug_shape(pred_ids, "pred ids")
             beam_probs = tf.one_hot(beam_pred_ids, depth=len(self.vocab)+FLAGS.max_copy_size)
-            # logits2 =  tf.one_hot(pred_ids[:,:,1], depth=len(self.vocab)+FLAGS.max_copy_size)
 
 
         self.q_hat = training_probs#tf.nn.softmax(logits, dim=2)
-        # self.q_hat = debug_op(self.q_hat, tf.argmax(self.q_hat, axis=2), "q hat")
-        # self.context_length = debug_tensor(self.context_length, "ctxt len", summarize=None)
 
         # because we've done a few logs of softmaxes, there can be some precision problems that lead to non zero probability outside of the valid vocab, fix it here:
         self.max_vocab_size = tf.tile(tf.expand_dims(self.context_vocab_size+len(self.vocab),axis=1),[1,tf.shape(self.question_onehot)[1]])
@@ -394,25 +369,17 @@ class Seq2SeqModel(TFModel):
             self.a_string = ops.id_tensor_to_string(self.answer_coerced, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
             self.q_hat_string = ops.id_tensor_to_string(self.q_hat_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
 
-
-
-
             self.q_hat_beam_ids = beam_pred_ids
             self.q_hat_beam_string = ops.id_tensor_to_string(self.q_hat_beam_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
 
             self.q_hat_full_beam_str = [ops.id_tensor_to_string(ids*tf.sequence_mask(beam_out_lens[:,i], tf.shape(beam_pred_ids)[1], dtype=tf.int32), self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set) for i,ids in enumerate(tf.unstack(beam_outputs.predicted_ids,axis=2))]
             self.q_hat_full_beam_lens = [len for len in tf.unstack(beam_out_lens,axis=1)]
             self.q_hat_beam_lens = beam_out_lens[:,0]
-            # q_hat_ids2 = tf.argmax(tf.nn.softmax(logits2, dim=2),axis=2,output_type=tf.int32)
-            # self.q_hat_string2 = ops.id_tensor_to_string(q_hat_ids2, self.rev_vocab, self.context_raw)
 
             self.q_gold = ops.id_tensor_to_string(self.question_ids, self.rev_vocab, self.context_raw, context_as_set=FLAGS.context_as_set)
             self._output_summaries.extend(
                 [tf.summary.text("q_hat", self.q_hat_string),
                 tf.summary.text("q_gold", self.q_gold),
-                # tf.summary.text("q_gold_ids", tf.as_string(self.question_ids)),
-                # tf.summary.text("q_raw", self.question_raw),
-                # tf.summary.text("context", self.context_raw),
                 tf.summary.text("answer", self.answer_raw)])
 
 
@@ -495,5 +462,4 @@ class Seq2SeqModel(TFModel):
             self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
                 zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 
-        # self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.question_ids,tf.argmax(self.q_hat,axis=2,output_type=tf.int32)),tf.float32)*self.target_weights)
         self.accuracy = tf.reduce_mean(tf.cast(tf.reduce_sum(self.question_onehot  * tf.contrib.seq2seq.hardmax(self.q_hat), axis=-1),tf.float32)*self.target_weights)
