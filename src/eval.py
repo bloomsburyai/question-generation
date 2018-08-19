@@ -115,6 +115,7 @@ def main(_):
         nlls=[]
         disc_scores=[]
         sowe_similarities=[]
+        copy_probs=[]
 
         qgolds=[]
         qpreds=[]
@@ -127,7 +128,7 @@ def main(_):
         for e in range(1):
             for i in tqdm(range(num_steps), desc='Epoch '+str(e)):
                 dev_batch, curr_batch_size = dev_data_source.get_batch()
-                pred_batch,pred_beam,pred_beam_lens,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_full_beam_str, model.q_hat_full_beam_lens,model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
+                pred_batch,pred_beam,pred_beam_lens,pred_ids,pred_lens,gold_batch, gold_lens,gold_ids,ctxt,ctxt_len,ans,ans_len,nll,copy_prob= sess.run([model.q_hat_beam_string, model.q_hat_full_beam_str, model.q_hat_full_beam_lens,model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.question_ids, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll, model.mean_copy_prob], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
                 unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
                 a_text_batch = ops.byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
@@ -139,7 +140,7 @@ def main(_):
                 ctxts.extend(unfilt_ctxt_batch)
                 answers.extend(a_text_batch)
                 ans_positions.extend([dev_a_pos_unfilt[ix] for ix in dev_batch[3]])
-
+                copy_probs.extend(copy_prob.tolist())
 
                 # get QA score
 
@@ -205,6 +206,8 @@ def main(_):
 
                 # Quick output
                 if i==0:
+                    # print(copy_prob.tolist())
+                    # print(copy_probs)
                     pred_str = tokens_to_string(pred_batch[0][:pred_lens[0]-1])
                     gold_str = tokens_to_string(gold_batch[0][:gold_lens[0]-1])
                     # print(pred_str)
@@ -238,6 +241,8 @@ def main(_):
         print("BLEU: ", metrics.bleu_corpus(qgolds, qpreds))
         print("NLL: ", np.mean(nlls))
         print("SOWE: ", np.mean(sowe_similarities))
+
+        print("Copy prob: ", np.mean(copy_probs))
         if FLAGS.eval_metrics:
             print("QA: ", np.mean(qa_scores))
             print("LM: ", np.mean(lm_scores))

@@ -41,13 +41,16 @@ for i,triple in enumerate(squad):
     #     # max_pos = new_pos
     #     debugstr = triple[1]
     #     ix=i
-    # squad_count.update(c_toks)
+    squad_count.update(c_toks)
+    squad_count.update(q_toks)
     # squad_vocab |= set(c_toks)
 
     c_lens.append(len(c_toks))
     q_lens.append(len(q_toks))
 end = time()
 print(end-start)
+
+print(np.sum(c_lens)+np.sum(q_lens))
 
 # print("richard in glove", ("richard" in glove_short))
 # print("doctor in glove", ("doctor" in glove_short))
@@ -65,15 +68,18 @@ print(end-start)
 # print(squad_count.most_common(20))
 # print(squad_count.most_common()[-20:])
 #
-# _,top_n=zip(*squad_count.most_common(2000))
+top_words,top_n=zip(*squad_count.most_common(2000))
 
-# plt.title('Frequency of words in SQuAD questions')
-# plt.xlabel('Rank')
-# plt.ylabel('Frequency')
-# plt.bar([x for x in range(2000)], [y for y in top_n], 1 ,log=True)
-# # plt.bar([x for x in range(2000)], [squad_count[y] for y in glove_short], 1 ,log=True)
+print([(i,w) for i,w in enumerate(top_words)])
+
+plt.title('Frequency of words in SQuAD questions')
+plt.xlabel('Rank')
+plt.ylabel('Frequency')
+plt.bar([x for x in range(2000)], [y for y in top_n], 1 ,log=True)
+# plt.bar([x for x in range(2000)], [squad_count[y] for y in glove_short], 1 ,log=True)
 # plt.savefig("/users/Tom/Dropbox/msc-ml/project-report/figures/squad_freq.pdf", format="pdf")
-# plt.show()
+plt.show()
+exit()
 
 plt.title('Length of contexts against questions in SQuAD ')
 plt.xlabel('Context Length')

@@ -22,7 +22,7 @@ function ping()
 }
 function getQ()
 {
-  query = "/api/generate?context=" +$('#context').val()+ "&answer="+$('#answer').val()
+  query = "/api/generate?context=" +encodeURIComponent($('#context').val())+ "&answer="+$('#answer').val()
   $( "#response-spinner" ).toggleClass('d-none');
   $( "#response" ).toggleClass('d-none');
   $.ajax({

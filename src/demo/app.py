@@ -18,8 +18,8 @@ mem_limit=0.9
 
 class AQInstance():
     def __init__(self, vocab):
-        # self.model = Seq2SeqModel(vocab, training_mode=False)
-        self.model = MaluubaModel(vocab, training_mode=False)
+        self.model = Seq2SeqModel(vocab, training_mode=False)
+        # self.model = MaluubaModel(vocab, training_mode=False)
         with self.model.graph.as_default():
             self.model.ping = tf.constant("ack")
         # self.model = MaluubaModel(vocab, training_mode=False)
@@ -30,7 +30,7 @@ class AQInstance():
         self.chkpt_path = path
         with self.model.graph.as_default():
             saver = tf.train.Saver()
-            saver.restore(self.sess, path+ '/model.checkpoint')
+            saver.restore(self.sess, tf.train.latest_checkpoint(path))
             print("Loaded model from "+path)
 
     def get_q(self, context, ans,ans_pos):
@@ -45,7 +45,7 @@ class AQInstance():
     def ping(self):
         return self.sess.run(self.model.ping)
 
-model_slug_list = ['qgen-s2s-filt1']
+model_slug_list = ['SEQ2SEQ/1533280948','qgen-s2s-filt1']
 model_slug_curr = model_slug_list[0]
 
 from flask import Flask, current_app, request, redirect
@@ -58,16 +58,20 @@ def index():
 
 @app.route("/api/generate")
 def get_q():
-    question = "" + request.args['context'] + request.args['answer']
+
     ctxt = request.args['context']
     ans = request.args['answer']
     ans_pos = ctxt.find(ans)
 
-    ctxt,ans_pos = preprocessing.filter_context(ctxt, ans_pos, FLAGS.filter_window_size, FLAGS.filter_max_tokens)
+    if FLAGS.filter_window_size >-1:
+        ctxt,ans_pos = preprocessing.filter_context(ctxt, ans_pos, FLAGS.filter_window_size, FLAGS.filter_max_tokens)
     if ans_pos > -1:
         q =current_app.generator.get_q(ctxt.encode(), ans.encode(), ans_pos)
         return q
     else:
+        print(request.args)
+        print(ctxt)
+        print(ans)
         return "Couldnt find ans in context!"
 
 @app.route("/api/ping")
@@ -92,7 +96,7 @@ def init():
         FLAGS.log_dir = 'home/tomhosking/webapps/qgen/qgen/logs/'
         chkpt_path = '/home/tomhosking/webapps/qgen/qgen/models/saved/' + model_slug_curr
     else:
-        chkpt_path = FLAGS.model_dir+'saved/' + model_slug_curr
+        chkpt_path = FLAGS.model_dir+'qgen-saved/' + model_slug_curr
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
     app.generator = AQInstance(vocab=vocab)

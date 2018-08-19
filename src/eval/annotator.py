@@ -8,8 +8,8 @@ import sqlite3
 import numpy as np
 from nltk.tokenize import TreebankWordTokenizer, sent_tokenize
 
-homedir='/home/tomhosking/webapps/qgen_scores/htdocs/'
-# homedir='./'
+# homedir='/home/tomhosking/webapps/qgen_scores/htdocs/'
+homedir='./'
 
 # Filter a complete context down to the sentence containing the start of the answer span
 def filter_context(ctxt, char_pos, window_size=0, max_tokens=-1):
@@ -83,23 +83,27 @@ def set_score():
 @app.route("/api/get_q")
 def get_q():
     init()
+    scorer_name = request.args['scorer_name']
     ip = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
 
     with sqlite3.connect(homedir+'scores/scores.sqlite') as db:
-        res = db.execute('''SELECT COUNT(q) as count FROM scores WHERE ip = ?''', (ip,))
+        res = db.execute('''SELECT COUNT(q) as count FROM scores WHERE scorer_name = ?''', (scorer_name,))
         ip_count = res.fetchone()[0]
-    qdict = np.random.choice(app.questions)
+    model_choice = np.random.choice(len(app.model_ids))
+    # model_choice = ip_count%len(app.model_ids)
+    qdict=app.questions[model_choice][ip_count]
     qdict['c'], qdict['a_pos'] = filter_context(qdict['c'], qdict['a_pos'], window_size=1)
     return json.dumps({'ip_count': ip_count, **qdict})
 
 def init():
     # print('Spinning up AQ annotator app')
-    model_ids = ['MALUUBA-CROP-LATENT','BASELINE','MALUUBA']
+    app.model_ids = ['MALUUBA-CROP-LATENT','BASELINE','MALUUBA']
     app.questions=[]
-    for model_id in model_ids:
+    for i,model_id in enumerate(app.model_ids):
+        app.questions.append([])
         with open(homedir+'results'+'/out_eval_'+model_id+'.json') as f:
             results = json.load(f)['results']
-            app.questions.extend([{'qid': ix, 'model_id':model_id ,**el} for ix,el in enumerate(results)])
+            app.questions[i].extend([{'qid': ix, 'model_id':model_id ,**el} for ix,el in enumerate(results)])
     try:
         # Creates or opens a file called mydb with a SQLite3 DB
         app.db = sqlite3.connect(homedir+'scores/scores.sqlite')
