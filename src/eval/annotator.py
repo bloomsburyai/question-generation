@@ -93,6 +93,8 @@ def get_q():
     # model_choice = ip_count%len(app.model_ids)
     qdict=app.questions[model_choice][ip_count]
     qdict['c'], qdict['a_pos'] = filter_context(qdict['c'], qdict['a_pos'], window_size=1)
+    qdict['c'] = qdict['c'][:qdict['a_pos']] + '<strong>' + qdict['c'][qdict['a_pos']:]
+    qdict['c'] = qdict['c'][:qdict['a_pos']+8+len(qdict['a_text'])] + '</strong>' + qdict['c'][qdict['a_pos']+8+len(qdict['a_text']):]
     return json.dumps({'ip_count': ip_count, **qdict})
 
 def init():
