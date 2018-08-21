@@ -174,7 +174,9 @@ class Seq2SeqModel(TFModel):
                 sequence_length=self.answer_length, dtype=tf.float32)
 
             # This is actually wrong! It should take last element of the fwd RNN, and first element of the bwd RNN. It doesn't seem to matter in experiments, and fixing it would be a breaking change.
-            self.a_encoder_final_state = tf.concat([ops.get_last_from_seq(a_encoder_output_parts[0], self.answer_length-1), ops.get_last_from_seq(a_encoder_output_parts[1], self.answer_length-1)], axis=1)
+            # self.a_encoder_final_state = tf.concat([ops.get_last_from_seq(a_encoder_output_parts[0], self.answer_length-1), ops.get_last_from_seq(a_encoder_output_parts[1], self.answer_length-1)], axis=1)
+            # Fixed!
+            self.a_encoder_final_state = tf.concat([ops.get_last_from_seq(a_encoder_output_parts[0], self.answer_length-1), a_encoder_output_parts[1][:,0,:]], axis=1)
 
         # build init state
         with tf.variable_scope('decoder_initial_state'):

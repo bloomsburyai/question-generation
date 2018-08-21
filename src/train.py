@@ -368,7 +368,7 @@ def main(_):
                 np.random.shuffle(dev_data)
                 dev_subset = dev_data[:num_dev_samples]
                 dev_data_source.initialise(dev_subset)
-                for i in tqdm(range(num_steps_dev), desc='Eval '+str(i)):
+                for j in tqdm(range(num_steps_dev), desc='Eval '+str(i)):
                     dev_batch, curr_batch_size = dev_data_source.get_batch()
                     pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
@@ -380,7 +380,7 @@ def main(_):
                         f1s.append(metrics.f1(gold_str, pred_str))
                         bleus.append(metrics.bleu(gold_str, pred_str))
                         # out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
-                    if i==0:
+                    if j==0:
                         title=chkpt_path
                         out_str = output_eval(title,pred_batch,  pred_ids, pred_lens, gold_batch, gold_lens, ctxt, ctxt_len, ans, ans_len)
                         with open(FLAGS.log_dir+'out_eval_'+FLAGS.model_type+'.htm', 'w', encoding='utf-8') as fp:
@@ -407,6 +407,6 @@ def main(_):
                     if FLAGS.policy_gradient:
                         print("Saving anyway")
                         saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
-                        discriminator.save_to_chkpt(FLAGS.model_dir, e)
+                        discriminator.save_to_chkpt(FLAGS.model_dir, i)
 if __name__ == '__main__':
     tf.app.run()
