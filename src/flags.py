@@ -35,6 +35,8 @@ tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for de
 tf.app.flags.DEFINE_integer("switch_units", 64, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
+tf.app.flags.DEFINE_float("entropy_weight", 0.01, "Weight for aux entropy loss")
+tf.app.flags.DEFINE_float("suppression_weight", 0.01, "Weight for suppression loss")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
 tf.app.flags.DEFINE_boolean("context_as_set", False, "Convert context into a set of tokens rather than list for use by copy mech. Must use copy priority if this is enabled!!")
 tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q using copy priority")

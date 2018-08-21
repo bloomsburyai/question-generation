@@ -434,7 +434,7 @@ class Seq2SeqModel(TFModel):
                 # self.loss = tf.abs(tf.acos(self.similarity)
             else:
 
-                self.loss = self.xe_loss + 0.01*self.suppression_loss + 0.01*self.entropy_loss
+                self.loss = self.xe_loss + FLAGS.suppression_weight*self.suppression_loss + FLAGS.entropy_weight*self.entropy_loss
 
         self.shortlist_prob = tf.reduce_sum(self.q_hat[:,:,:len(self.vocab)],axis=2)*self.target_weights
         self.copy_prob = tf.reduce_sum(self.q_hat[:,:,len(self.vocab):],axis=2)*self.target_weights

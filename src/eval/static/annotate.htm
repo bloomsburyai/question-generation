@@ -166,7 +166,7 @@
         <div id="score_buttons" style="display:none;">
           <hr/>
           <div class="form-group">
-            Fluency
+            Fluency <small style="margin-left:58px;">Low</small>
             <div class="btn-group btn-group-toggle" data-toggle="buttons">
               <label class="btn btn-outline-primary">
                 <input type="radio" name="fluency" id="fluency1" autocomplete="off" value="1"> 1
@@ -184,10 +184,11 @@
                 <input type="radio" name="fluency" id="option3" autocomplete="off" value="5"> 5
               </label>
             </div>
+            <small>High</small>
           </div>
 
           <div class="form-group">
-            <label>Relevance </label>
+            <label>Relevance </label> <small style="margin-left:40px;">Low</small>
             <div class="btn-group btn-group-toggle" data-toggle="buttons">
               <label class="btn btn-outline-primary">
                 <input type="radio" name="relevance" id="relevance1" autocomplete="off" value="1"> 1
@@ -205,6 +206,7 @@
                 <input type="radio" name="relevance" id="option3" autocomplete="off" value="5"> 5
               </label>
             </div>
+            <small>High</small>
           </div>
 
           <button type="submit" class="btn btn-primary" onclick="score(); return false;">Submit</button>

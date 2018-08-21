@@ -99,11 +99,11 @@ def get_q():
 
 def init():
     # print('Spinning up AQ annotator app')
-    app.model_ids = ['MALUUBA-CROP-LATENT','BASELINE','MALUUBA']
+    app.model_ids = ['MALUUBA','MALUUBA-CROP-LATENT','MALUUBA-CROP-SMART-SET','MALUUBA_RL_BOTH-LATENT-SCHEDULE', 'MALUUBA_RL_DISC-LATENT-JOINT']
     app.questions=[]
     for i,model_id in enumerate(app.model_ids):
         app.questions.append([])
-        with open(homedir+'results'+'/out_eval_'+model_id+'.json') as f:
+        with open(homedir+'results'+'/out_eval_'+model_id+'_human.json') as f:
             results = json.load(f)['results']
             app.questions[i].extend([{'qid': ix, 'model_id':model_id ,**el} for ix,el in enumerate(results)])
     try:
