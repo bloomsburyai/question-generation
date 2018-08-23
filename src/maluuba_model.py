@@ -32,7 +32,7 @@ class MaluubaModel(Seq2SeqModel):
             # self.qa = MpcmQaInstance()
             # self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
             self.qa = QANetInstance()
-            self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet')
+            self.qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet2')
 
         with self.graph.as_default():
 

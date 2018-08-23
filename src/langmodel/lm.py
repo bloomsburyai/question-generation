@@ -117,7 +117,7 @@ class LstmLmInstance():
 
 def main(_):
     train_data = loader.load_squad_triples("./data/", False)
-    dev_data = loader.load_squad_triples("./data/", True)
+    dev_data = loader.load_squad_triples("./data/", test=True)
 
 
     from tqdm import tqdm
@@ -148,7 +148,7 @@ def main(_):
     perps=[]
     num_steps = len(dev_qs)//128
     for i in tqdm(range(num_steps)):
-        perps.extend(lm.get_seq_perplexity(dev_qs[i:i+128]))
+        perps.extend(lm.get_seq_perplexity(dev_qs[i*128:(i+1)*128]))
     print(np.mean(perps))
 
 if __name__ == "__main__":

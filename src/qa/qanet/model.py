@@ -43,8 +43,8 @@ class Model(object):
                 self.q_mask = tf.slice(self.q_mask, [0, 0], [N, self.q_maxlen])
                 self.ch = tf.slice(self.ch, [0, 0, 0], [N, self.c_maxlen, CL])
                 self.qh = tf.slice(self.qh, [0, 0, 0], [N, self.q_maxlen, CL])
-                self.y1 = tf.argmax(tf.slice(self.y1, [0, 0], [N, self.c_maxlen]))
-                self.y2 = tf.argmax(tf.slice(self.y2, [0, 0], [N, self.c_maxlen]))
+                self.y1 = tf.argmax(tf.slice(self.y1, [0, 0], [N, self.c_maxlen]),axis=-1)
+                self.y2 = tf.argmax(tf.slice(self.y2, [0, 0], [N, self.c_maxlen]),axis=-1)
             else:
                 self.c_maxlen, self.q_maxlen = config.para_limit, config.ques_limit
 
@@ -168,7 +168,7 @@ class Model(object):
 
             outer = tf.matmul(tf.expand_dims(tf.nn.softmax(logits1), axis=2),
                               tf.expand_dims(tf.nn.softmax(logits2), axis=1))
-            outer = tf.matrix_band_part(outer, 0, -1)
+            outer = tf.matrix_band_part(outer, 0, config.ans_limit)
             self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
             self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
             losses = tf.nn.sparse_softmax_cross_entropy_with_logits(

@@ -186,7 +186,7 @@ def main(_):
     import itertools
     from sklearn.metrics import roc_curve, auc
 
-    squad = loader.load_squad_triples(path="./data/", dev=True, v2=True, as_dict=True)
+    # squad = loader.load_squad_triples(path="./data/", dev=True, v2=True, as_dict=True)
     # with open("./data/squad2_dev_official_output_fixed.json") as dataset_file:
     #     ans_preds = json.load(dataset_file)
     with open("./results/out_eval_MALUUBA-CROP-LATENT.json") as dataset_file:
@@ -194,8 +194,14 @@ def main(_):
 
 
 
+# 1533568502-MALUUBA-CROP-LATENT_train
+# 1533568826-MALUUBA-CROP-LATENT_train_QAINIT
+    # disc_path = "./models/saved/discriminator-trained-latent"
+    disc_path = "./models/saved/1533568502-MALUUBA-CROP-LATENT_train"
+    # disc_path = "./models/saved/1533568826-MALUUBA-CROP-LATENT_train_QAINIT"
 
-    disc = DiscriminatorInstance(path="./models/saved/discriminator-trained-latent")
+
+    disc = DiscriminatorInstance(path=disc_path)
     # disc = DiscriminatorInstance(path="./models/disc/1533307366-SQUAD-QANETINIT")
 
     # output={}
@@ -225,35 +231,42 @@ def main(_):
 
         gold_labels.append(1)
         gold_labels.append(0)
-        pred_labels.append(np.round(gold_score[0]))
-        pred_labels.append(np.round(pred_score[0]))
+        pred_labels.append(1.0 * (gold_score[0] > 0.2))
+        pred_labels.append(1.0 * (pred_score[0] > 0.2))
         scores.append(gold_score[0])
         scores.append(pred_score[0])
 
 
+    print(disc_path)
+    print("Acc: ", np.mean(np.equal(gold_labels, pred_labels)))
+
+
+
     # oh_labels =np.eye(2)[gold_labels]
     ### disc conf mat
-    # cm = confusion_matrix(gold_labels, pred_labels)
-    # mat = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-    # print(mat)
-    # plt.imshow(mat, cmap=plt.cm.Blues)
-    # plt.colorbar()
-    # tick_marks = np.arange(2)
-    # plt.xticks(tick_marks, [0,1], rotation=45)
-    # plt.yticks(tick_marks, [0,1])
-    # fmt = '.2f'
-    # thresh = mat.max() / 2.
-    # for i, j in itertools.product(range(mat.shape[0]), range(mat.shape[1])):
-    #     plt.text(j, i, format(mat[i, j], fmt),
-    #              horizontalalignment="center",
-    #              color="white" if mat[i, j] > thresh else "black")
-    #
-    # # plt.tight_layout()
-    # plt.ylabel('Actual Source')
-    # plt.xlabel('Predicted source')
-    # # plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/confusion_maluuba_crop_smart_set.pdf", format="pdf")
-    # plt.show()
-    # # exit()
+    cm = confusion_matrix(gold_labels, pred_labels)
+    mat = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    print(mat)
+    plt.imshow(mat, cmap=plt.cm.Blues)
+    plt.colorbar()
+    tick_marks = np.arange(2)
+    plt.xticks(tick_marks, [0,1], rotation=45)
+    plt.yticks(tick_marks, [0,1])
+    fmt = '.2f'
+    thresh = mat.max() / 2.
+    for i, j in itertools.product(range(mat.shape[0]), range(mat.shape[1])):
+        plt.text(j, i, format(mat[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if mat[i, j] > thresh else "black")
+
+    # plt.tight_layout()
+    plt.ylabel('Actual Source')
+    plt.xlabel('Predicted source')
+    # plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/confusion_maluuba_crop_smart_set.pdf", format="pdf")
+    plt.show()
+    exit()
+
+
 
     ### disc Roc curves
     fpr, tpr, _ = roc_curve(gold_labels, scores)
@@ -267,7 +280,7 @@ def main(_):
     plt.ylim([0.0, 1.0])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic example')
+    plt.title('Discriminator RoC curve')
     plt.legend(loc="lower right")
     plt.show()
     exit()

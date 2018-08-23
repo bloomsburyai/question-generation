@@ -221,7 +221,7 @@ class MpcmQaInstance():
             saver.restore(self.sess, path+ '/model.checkpoint')
 
     def get_ans(self, contexts, questions):
-        toks=tokenise(contexts, asbytes=False)
+        toks=[tokenise(ctxt, asbytes=False) for ctxt in contexts]
         padded_batch_cs = self.get_padded_batch(contexts)
         padded_batch_qs = self.get_padded_batch(questions)
         spans = self.sess.run(self.model.pred_span, feed_dict={self.model.context_in: padded_batch_cs, self.model.question_in: padded_batch_qs})
@@ -229,27 +229,42 @@ class MpcmQaInstance():
 
 
 def main(_):
+    import helpers.metrics as metrics
+    from tqdm import tqdm
 
-    train_data = loader.load_squad_triples("./data/", False)
+    # train_data = loader.load_squad_triples("./data/", False)
+    dev_data = loader.load_squad_triples("./data/", test=True, ans_list=True)
 
 
 
-
-    print('Loaded SQuAD with ',len(train_data),' triples')
-    train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
+    # print('Loaded SQuAD with ',len(train_data),' triples')
+    # train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
 
     qa = MpcmQaInstance()
-    qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
+    qa.load_from_chkpt(FLAGS.model_dir+'saved/qamaybe')
     vocab = qa.vocab
 
     questions = ["What colour is the car?","When was the car made?","Where was the date?", "What was the dog called?","Who was the oldest cat?"]
     contexts=["The car is green, and was built in 1985. This sentence should make it less likely to return the date, when asked about a cat. The oldest cat was called creme puff and lived for many years!" for i in range(len(questions))]
 
 
-    spans = qa.get_ans(contexts, questions)
-    print(contexts[0])
-    for i, q in enumerate(questions):
-        toks = tokenise(contexts[i], asbytes=False)
-        print(q, "->", toks[spans[i,0]:spans[i,1]])
+
+    # print(contexts[0])
+
+
+    f1s=[]
+    ems=[]
+    for x in tqdm(dev_data):
+        ans_pred = qa.get_ans([x[0]], [x[1]])[0]
+
+
+        this_f1s=[]
+        this_ems=[]
+        for a in range(len(x[2])):
+            this_ems.append(1.0*(metrics.normalize_answer(ans_pred) == metrics.normalize_answer(x[2][a])))
+            this_f1s.append(metrics.f1(metrics.normalize_answer(ans_pred), metrics.normalize_answer(x[2][a])))
+        ems.append(max(this_ems))
+        f1s.append(max(this_f1s))
+    print("EM: ",np.mean(ems), " F1: ", np.mean(f1s))
 if __name__ == "__main__":
     tf.app.run()

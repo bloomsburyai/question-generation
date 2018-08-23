@@ -76,7 +76,7 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
-    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA-CROP-LATENT'+'/'+'1533247183'
+    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA-CROP-LATENT'+'/'+'1534123959'
     # restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
     disc_path = FLAGS.model_dir+'saved/discriminator-trained-latent'
 
@@ -230,7 +230,7 @@ def main(_):
                 gold_ans_str = byte_token_array_to_str(train_batch[2][0], train_batch[2][2], is_array=False)
 
 
-                qa_f1s.extend([metrics.f1(gold_ans_str[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)])
+                qa_f1s.extend([metrics.f1(metrics.normalize_answer(gold_ans_str[b]), metrics.normalize_answer(qa_pred[b])) for b in range(curr_batch_size)])
 
                 disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
 

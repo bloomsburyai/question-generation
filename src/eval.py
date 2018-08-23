@@ -84,7 +84,7 @@ def main(_):
 
         lm.load_from_chkpt(FLAGS.model_dir+'saved/lmtest')
         # qa.load_from_chkpt(FLAGS.model_dir+'saved/qatest')
-        qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet')
+        qa.load_from_chkpt(FLAGS.model_dir+'saved/qanet2')
 
         discriminator = DiscriminatorInstance(trainable=False, path=disc_path)
 
@@ -156,8 +156,8 @@ def main(_):
                     qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(pred_batch, pred_lens))
                     gold_qa_pred = qa.get_ans(unfilt_ctxt_batch, ops.byte_token_array_to_str(dev_batch[1][0], dev_batch[1][3]))
 
-                    qa_score_batch = [metrics.f1(gold_ans[b].lower(), qa_pred[b].lower()) for b in range(curr_batch_size)]
-                    qa_score_gold_batch = [metrics.f1(gold_ans[b].lower(), gold_qa_pred[b].lower()) for b in range(curr_batch_size)]
+                    qa_score_batch = [metrics.f1(metrics.normalize_answer(gold_ans[b]), metrics.normalize_answer(qa_pred[b])) for b in range(curr_batch_size)]
+                    qa_score_gold_batch = [metrics.f1(metrics.normalize_answer(gold_ans[b]), metrics.normalize_answer(gold_qa_pred[b])) for b in range(curr_batch_size)]
                     lm_score_batch = lm.get_seq_perplexity(pred_q_batch).tolist()
                     disc_score_batch = discriminator.get_pred(unfilt_ctxt_batch, pred_q_batch, gold_ans, unfilt_apos_batch).tolist()
 

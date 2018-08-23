@@ -13,7 +13,8 @@ import flags
 from qa.mpcm import MpcmQa
 from helpers.preprocessing import tokenise, char_pos_to_word, filter_squad
 from helpers import loader
-from helpers.metrics import f1
+from helpers.metrics import f1, normalize_answer
+
 
 def get_padded_batch(seq_batch, vocab):
     seq_batch_ids = [[vocab[loader.SOS]]+[vocab[tok if tok in vocab.keys() else loader.OOV] for tok in tokenise(sent, asbytes=False)]+[vocab[loader.EOS]] for sent in seq_batch]
@@ -40,7 +41,7 @@ def main(_):
         os.makedirs(chkpt_path)
 
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
-    dev_data = loader.load_squad_triples(FLAGS.data_path, True)
+    dev_data = loader.load_squad_triples(FLAGS.data_path, dev=True, ans_list=True)
 
     train_data = filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
     # dev_data = filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
@@ -49,7 +50,7 @@ def main(_):
         train_data=train_data[:1000]
         num_dev_samples=100
     else:
-        num_dev_samples=1000
+        num_dev_samples=3000
 
     print('Loaded SQuAD with ',len(train_data),' triples')
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
@@ -149,15 +150,6 @@ def main(_):
                     summary_writer.add_summary(f1summary, global_step=(e*num_steps_train+i))
                     summary_writer.add_summary(emsummary, global_step=(e*num_steps_train+i))
 
-                    out_str="<h1>" + str(e) + " - " + str(i)+' ('+ str(datetime.datetime.now()) +')' + "</h1>"
-                    for b in range(FLAGS.qa_batch_size):
-                        out_str += batch_contexts[b] + '<br/>'
-                        out_str += batch_questions[b] + '<br/>'
-                        out_str += str(batch_answers[b])+ str(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]]) + '<br/>'
-                        out_str += str(pred[b]) + str(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]]) + '<br/>'
-                        out_str += "<hr/>"
-                    with open(FLAGS.log_dir+'out_qa.htm', 'w', encoding='utf-8') as fp:
-                        fp.write(out_str)
 
                     # saver.save(sess, chkpt_path+'/model.checkpoint')
 
@@ -177,8 +169,8 @@ def main(_):
 
                 batch_answers=[]
                 for j, ctxt in enumerate(batch_contexts):
-                    ans_span=char_pos_to_word(ctxt.encode(), [t.encode() for t in tokenise(ctxt, asbytes=False)], batch_answer_charpos[j])
-                    ans_span=(ans_span, ans_span+len(tokenise(batch_ans_text[j],asbytes=False))-1)
+                    ans_span=char_pos_to_word(ctxt.encode(), [t.encode() for t in tokenise(ctxt, asbytes=False)], batch_answer_charpos[j][0])
+                    ans_span=(ans_span, ans_span+len(tokenise(batch_ans_text[j][0],asbytes=False))-1)
                     batch_answers.append(ans_span)
 
 
@@ -191,11 +183,14 @@ def main(_):
                 pred_str=[]
 
                 for b in range(FLAGS.qa_batch_size):
-                    gold_str.append(" ".join(tokenise(batch_contexts[b],asbytes=False)[batch_answers[b][0]:batch_answers[b][1]+1]))
-                    pred_str.append( " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]+1]) )
-
-                f1s.extend([f1(gold_str[b], pred_str[b]) for b in range(FLAGS.qa_batch_size)])
-                exactmatches.extend([ np.product(pred[b] == batch_answers[b])*1.0 for b in range(FLAGS.qa_batch_size) ])
+                    pred_str = " ".join(tokenise(batch_contexts[b],asbytes=False)[pred[b][0]:pred[b][1]+1])
+                    this_f1=[]
+                    this_em=[]
+                    for a in range(len(batch_ans_text[b])):
+                        this_f1.append(f1(normalize_answer(batch_ans_text[b][a]), normalize_answer(pred_str)))
+                        this_em.append(1.0*(normalize_answer(batch_ans_text[b][a]) == normalize_answer(pred_str)))
+                    f1s.append(max(this_f1))
+                    exactmatches.append(max(this_em))
                 nlls.extend(nll.tolist())
             f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
                                              simple_value=sum(f1s)/len(f1s))])
