@@ -7,6 +7,9 @@ tf.app.flags.DEFINE_boolean("testing", False, "Reduce model size for local testi
 tf.app.flags.DEFINE_string("model_type", 'MALUUBA', "Model type code")
 
 tf.app.flags.DEFINE_boolean("restore", False, "Restore from existing chkpt?")
+tf.app.flags.DEFINE_string("restore_path", None, "Restore from existing chkpt?")
+
+
 tf.app.flags.DEFINE_boolean("policy_gradient", False, "Train using policy gradient?")
 tf.app.flags.DEFINE_boolean("glove_vocab", False, "Use glove to determine the top n words? Set false to use corpus")
 tf.app.flags.DEFINE_boolean("embedding_loss", False, "Use a loss based on similarity between embeddings instead of XE")

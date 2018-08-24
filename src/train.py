@@ -76,7 +76,7 @@ def main(_):
 
     run_id = str(int(time.time()))
     chkpt_path = FLAGS.model_dir+'qgen/'+FLAGS.model_type+'/'+run_id
-    restore_path=FLAGS.model_dir+'qgen/'+'MALUUBA-CROP-LATENT'+'/'+'1534123959'
+    restore_path=FLAGS.model_dir+'qgen/'+ FLAGS.restore_path if FLAGS.restore_path is not None else None#'MALUUBA-CROP-LATENT'+'/'+'1534123959'
     # restore_path=FLAGS.model_dir+'saved/qgen-maluuba-crop-glove-smart'
     disc_path = FLAGS.model_dir+'saved/discriminator-trained-latent'
 
@@ -109,6 +109,8 @@ def main(_):
     train_contexts, train_qs, train_as,train_a_pos = zip(*train_data)
 
     if FLAGS.restore:
+        if restore_path is None:
+            exit('You need to specify a restore path!')
         with open(restore_path+'/vocab.json', encoding="utf-8") as f:
             vocab = json.load(f)
     elif FLAGS.glove_vocab:
