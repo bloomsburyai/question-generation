@@ -137,7 +137,7 @@ def main(_):
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
         if FLAGS.policy_gradient:
-            discriminator = DiscriminatorInstance(trainable=FLAGS.policy_gradient, path=disc_path)
+            discriminator = DiscriminatorInstance(trainable=FLAGS.disc_train, path=disc_path)
     else:
         exit("Unrecognised model type: "+FLAGS.model_type)
 
@@ -406,7 +406,7 @@ def main(_):
                     saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
                 else:
                     print("NLL not improved ", mean_nll)
-                    if FLAGS.policy_gradient:
+                    if FLAGS.disc_train:
                         print("Saving anyway")
                         saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
                         discriminator.save_to_chkpt(FLAGS.model_dir, i)
