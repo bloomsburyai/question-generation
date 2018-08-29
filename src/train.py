@@ -406,9 +406,11 @@ def main(_):
                     saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
                 else:
                     print("NLL not improved ", mean_nll)
-                    if FLAGS.disc_train:
+                    if FLAGS.policy_gradient:
                         print("Saving anyway")
                         saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
+                    if FLAGS.disc_train:
+                        print("Saving disc")
                         discriminator.save_to_chkpt(FLAGS.model_dir, i)
 if __name__ == '__main__':
     tf.app.run()
