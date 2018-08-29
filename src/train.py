@@ -158,7 +158,7 @@ def main(_):
         train_data_source.initialise(train_data)
 
         num_steps_train = len(train_data)//FLAGS.batch_size
-        num_steps_dev = num_dev_samples//FLAGS.batch_size
+        num_steps_dev = num_dev_samples//FLAGS.eval_batch_size
 
         if FLAGS.restore:
             saver.restore(sess, tf.train.latest_checkpoint(restore_path))
