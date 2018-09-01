@@ -244,7 +244,7 @@ class CopyLayer(base.Layer):
             # print(copy_combine_matrix)
             combine_matrix = tf.concat([sl_combine_matrix, copy_combine_matrix], axis=2)
             # print(combine_matrix)
-            result = tf.squeeze(tf.matmul(combine_matrix, tf.expand_dims(result, -1)),-1)
+            result = tf.squeeze(tf.matmul(tf.transpose(combine_matrix,[0,2,1]), tf.expand_dims(result, -1)),-1)
             # result = debug_tensor(result)
             # print(result)
             # exit()
