@@ -224,10 +224,30 @@ class CopyLayer(base.Layer):
             copy_dist=alignments
 
 
+
+
         copy_dist_padded = tf.pad(copy_dist, [[0, 0], [0, self.max_copy_size-tf.shape(copy_dist)[-1]]], 'CONSTANT', constant_values=0)
 
         result = tf.concat([(1-self.switch)*shortlist,self.switch*copy_dist_padded], axis=1) # this used to be safe_log'd
 
+        # Take any tokens that are the same in either vocab and combine their probabilities
+        if FLAGS.combine_vocab:
+            # copy everything in real shortlist except special toks
+            # print(len_source, self.max_copy_size)
+            sl_off_diag = tf.concat([tf.zeros([batch_size*beam_width,self.max_copy_size,4]), tf.pad(tf.one_hot(source, depth=self.vocab_size+self.max_copy_size)[:,:,4:self.vocab_size], [[0, 0], [0, self.max_copy_size-len_source],[0,0]], 'CONSTANT', constant_values=0) ],axis=2)
+            # print(sl_off_diag)
+            # obv k
+            sl_combine_matrix= tf.concat([tf.tile(tf.expand_dims(tf.eye(self.vocab_size),0),[batch_size*beam_width,1,1]), sl_off_diag], axis=1)
+            # only keep stuff in copy that doesnt exist in sl
+            copy_combine_matrix = tf.concat([tf.zeros([batch_size*beam_width,  self.vocab_size,self.max_copy_size]), tf.tile(tf.expand_dims(tf.eye(self.max_copy_size),0),[batch_size*beam_width,1,1])-tf.tile(tf.reduce_sum(sl_combine_matrix[:,self.vocab_size:,:],axis=2,keep_dims=True),[1,1,self.max_copy_size])], axis=1)
+            # print(sl_combine_matrix)
+            # print(copy_combine_matrix)
+            combine_matrix = tf.concat([sl_combine_matrix, copy_combine_matrix], axis=2)
+            # print(combine_matrix)
+            result = tf.squeeze(tf.matmul(combine_matrix, tf.expand_dims(result, -1)),-1)
+            # result = debug_tensor(result)
+            # print(result)
+            # exit()
         target_shape = tf.concat([shape[:-1], [-1]], 0)
 
         result =tf.reshape(result, target_shape)
