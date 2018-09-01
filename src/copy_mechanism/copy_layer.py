@@ -234,7 +234,7 @@ class CopyLayer(base.Layer):
         if FLAGS.combine_vocab:
             # copy everything in real shortlist except special toks
             # print(len_source, self.max_copy_size)
-            sl_off_diag = tf.concat([tf.zeros([batch_size*beam_width,self.max_copy_size,4]), tf.pad(tf.one_hot(source, depth=self.vocab_size+self.max_copy_size)[:,:,4:self.vocab_size], [[0, 0], [0, self.max_copy_size-len_source],[0,0]], 'CONSTANT', constant_values=0) ],axis=2)
+            sl_off_diag = tf.concat([tf.zeros([batch_size*beam_width,self.max_copy_size,4]), tf.pad(tf.one_hot(source_tiled, depth=self.vocab_size+self.max_copy_size)[:,:,4:self.vocab_size], [[0, 0], [0, self.max_copy_size-len_source],[0,0]], 'CONSTANT', constant_values=0) ],axis=2)
             # print(sl_off_diag)
             # obv k
             sl_combine_matrix= tf.concat([tf.tile(tf.expand_dims(tf.eye(self.vocab_size),0),[batch_size*beam_width,1,1]), sl_off_diag], axis=1)
