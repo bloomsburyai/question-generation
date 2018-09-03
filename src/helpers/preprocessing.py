@@ -36,7 +36,7 @@ from helpers.loader import OOV, PAD, EOS, SOS
 #     return idxs[0], (idxs[-1][0], idxs[-1][1] + 1)
 
 
-def lookup_vocab(words, vocab, context=None, ans_tok_pos=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False, asbytes=True, smart_copy=True ):
+def lookup_vocab(words, vocab, context=None, ans_tok_pos=None, do_tokenise=True, append_eos=False, context_as_set=False, copy_priority=False, asbytes=True, smart_copy=True, find_all=False ):
     ids = []
 
     decoded_context = [w.decode() if asbytes else w for w in tokenise(context)] if context is not None else []
@@ -46,7 +46,19 @@ def lookup_vocab(words, vocab, context=None, ans_tok_pos=None, do_tokenise=True,
 
     for w in words:
         # Use a few heuristics to decide where to copy from
-        if copy_priority and smart_copy:
+        if find_all:
+            this_ids=[]
+            if context is not None and not context_as_set and w in decoded_context:
+                indices = [i+len(vocab) for i, x in enumerate(decoded_context) if x == w]
+                this_ids.extend(indices)
+            if context is not None and context_as_set and w in context_set:
+                this_ids.append(len(vocab) + context_set.index(w))
+            if w in vocab.keys():
+                this_ids.append(vocab[w])
+            if len(this_ids) ==0 :
+                this_ids.append(vocab[OOV])
+            ids.append(this_ids)
+        elif copy_priority and smart_copy:
             if context is not None and not context_as_set and w in decoded_context:
                 if decoded_context.count(w) > 1 and ans_tok_pos is not None:
                     # Multiple options, either pick the one that flows from previous, or pick the nearest to answer
@@ -98,10 +110,13 @@ def lookup_vocab(words, vocab, context=None, ans_tok_pos=None, do_tokenise=True,
             else:
                 ids.append(vocab[OOV])
     if append_eos:
-        ids.append(vocab[EOS])
-    embedded = np.asarray(ids, dtype=np.int32)
+        ids.append(vocab[EOS] if not find_all else [vocab[EOS]])
 
-    return embedded
+    if not find_all:
+        return np.asarray(ids, dtype=np.int32)
+    else:
+        return ids
+
 
 # def find_start(haystack, key):
 #     haystack = [w.decode() for w in haystack]
@@ -238,7 +253,13 @@ def process_squad_question(vocab, max_copy_size, context_as_set=False, copy_prio
         question_ids = lookup_vocab(question, vocab, context=context, ans_tok_pos=ans_tok_pos, append_eos=True, context_as_set=context_as_set, copy_priority=copy_priority, smart_copy=smart_copy)
         question_len = np.asarray(len(question_ids), dtype=np.int32)
         if latent_switch:
-            question_oh = np.eye(len(vocab)+max_copy_size, dtype=np.float32)[question_ids]
+            all_ids = lookup_vocab(question, vocab, context=context, ans_tok_pos=ans_tok_pos, append_eos=True, context_as_set=context_as_set, copy_priority=copy_priority, smart_copy=smart_copy, find_all=True)
+            # print(all_ids)
+            question_oh = np.asarray([np.sum(np.eye(len(vocab)+max_copy_size, dtype=np.float32)[ids], axis=0) for ids in all_ids], dtype=np.float32)
+            # print(np.shape(np.eye(len(vocab)+max_copy_size, dtype=np.float32)[all_ids[0]]))
+            # print(all_ids)
+            # print(np.shape(question_oh))
+            # exit()
         else:
             question_oh = np.eye(len(vocab)+max_copy_size, dtype=np.float32)[question_ids]
         return [tokenise(question,append_eos=True), question_ids, question_oh, question_len]
