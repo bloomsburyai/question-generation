@@ -252,8 +252,8 @@ class CopyLayer(base.Layer):
             alignments = align_zeroed
             shortlist = shortlist + sum_part[:,:self.vocab_size]
             # result = tf.Print(result, [tf.reduce_sum(result[:,:self.vocab_size],-1)], "result sl sum")
-            shortlist = tf.Print(shortlist, [tf.reduce_sum(align_moved,-1)], "sum align_moved")
-            shortlist = tf.Print(shortlist, [tf.reduce_sum(sum_part[:,:self.vocab_size],-1)], "sum sum_part")
+            # shortlist = tf.Print(shortlist, [tf.reduce_sum(align_moved,-1)], "sum align_moved")
+            # shortlist = tf.Print(shortlist, [tf.reduce_sum(sum_part[:,:self.vocab_size],-1)], "sum sum_part")
 
 
         # convert position probs to ids
@@ -272,8 +272,8 @@ class CopyLayer(base.Layer):
 
         result = tf.concat([shortlist,copy_dist_padded], axis=1) # this used to be safe_log'd
 
-        if FLAGS.combine_vocab:
-            result = tf.Print(result, [tf.reduce_sum(result,-1)], "result sum")
+        # if FLAGS.combine_vocab:
+            # result = tf.Print(result, [tf.reduce_sum(result,-1)], "result sum")
 
         target_shape = tf.concat([shape[:-1], [-1]], 0)
 
