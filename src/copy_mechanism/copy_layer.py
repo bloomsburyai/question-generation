@@ -105,6 +105,7 @@ class CopyLayer(base.Layer):
                  trainable=True,
                  name=None,
                  source_provider: Callable[[], tf.Tensor] = None,
+                 source_provider_sl: Callable[[], tf.Tensor] = None,
                  condition_encoding: Callable[[], tf.Tensor] = None,
                  output_mask: Callable[[], tf.Tensor] = None,
                  training_mode=False,
@@ -118,6 +119,7 @@ class CopyLayer(base.Layer):
                                         **kwargs)
         self.vocab_size = vocab_size
         self.source_provider = source_provider
+        self.source_provider_sl = source_provider_sl
         self.embedding_dim = embedding_dim
         self.units = units
         self.switch_units = switch_units
@@ -151,6 +153,7 @@ class CopyLayer(base.Layer):
         #  [len_target, batch_size,emb_dim + len_source] in train
         source = self.source_provider()  # [batch_size, len_source]
         # source = debug_shape(source,"src")
+        source_sl = self.source_provider_sl()
 
         condition_encoding = self.condition_encoding()
         # condition_encoding = debug_shape(condition_encoding, "cond enc")
@@ -215,6 +218,44 @@ class CopyLayer(base.Layer):
 
 
         source_tiled = tf.contrib.seq2seq.tile_batch(source, multiplier=beam_width)
+        source_tiled_sl = tf.contrib.seq2seq.tile_batch(source_sl, multiplier=beam_width)
+
+        shortlist = (1-self.switch)*shortlist
+        alignments = self.switch*alignments
+
+
+        # Take any tokens that are the same in either vocab and combine their probabilities
+        # old: mult by a big sparse matrix - not v mem efficient..
+        # opt1: mult the copy dist by a vocab x copy matrix and add to vocab part
+        # opt2: do an nd_gather to copy the relevant prob mass, then mask carefully to remove it
+        if FLAGS.combine_vocab:
+            # copy everything in real shortlist except special toks
+            # print(len_source, self.max_copy_size)
+            source_tiled_sl_padded = tf.pad(source_tiled_sl, [[0, 0], [0, self.max_copy_size-tf.shape(source_tiled_sl)[-1]]], 'CONSTANT', constant_values=0)
+
+            # attempt 2!
+            batch_ix = tf.tile(tf.expand_dims(tf.range(batch_size*beam_width),axis=-1),[1,len_source])
+            # seq_ix = tf.tile(tf.expand_dims(tf.range(len_source),axis=0),[batch_size*beam_width,1])
+            tgt_indices = tf.reshape(tf.concat([tf.expand_dims(batch_ix,-1),tf.expand_dims(source_tiled_sl,-1)], axis=2),[-1,2])
+            ident_indices = tf.where(tf.greater(source_tiled_sl, -1))
+            # ident_indices = tf.where()
+            # tgt_indices = debug_tensor(tgt_indices)
+
+            # get the copy probs at each point in the source..
+            updates = tf.reshape(tf.gather_nd(alignments, ident_indices),[-1])
+            # and send them to the their shortlist index
+            sum_part = tf.scatter_nd(tgt_indices, updates, [batch_size*beam_width, self.vocab_size+self.max_copy_size])
+            # then zero out the ix's that got copied
+            align_zeroed = alignments * tf.cast(tf.greater_equal(source_tiled_sl,self.vocab_size),tf.float32)
+            align_moved = alignments * tf.cast(tf.less(source_tiled_sl,self.vocab_size),tf.float32) # ie only let through stuff that *isnt* in SL
+            # and add the correct pieces together
+            alignments = align_zeroed
+            shortlist = shortlist + sum_part[:,:self.vocab_size]
+            # result = tf.Print(result, [tf.reduce_sum(result[:,:self.vocab_size],-1)], "result sl sum")
+            shortlist = tf.Print(shortlist, [tf.reduce_sum(align_moved,-1)], "sum align_moved")
+            shortlist = tf.Print(shortlist, [tf.reduce_sum(sum_part[:,:self.vocab_size],-1)], "sum sum_part")
+
+
         # convert position probs to ids
         if self.context_as_set:
             # print(source) # batch x seq
@@ -229,45 +270,10 @@ class CopyLayer(base.Layer):
 
         copy_dist_padded = tf.pad(copy_dist, [[0, 0], [0, self.max_copy_size-tf.shape(copy_dist)[-1]]], 'CONSTANT', constant_values=0)
 
-        result = tf.concat([(1-self.switch)*shortlist,self.switch*copy_dist_padded], axis=1) # this used to be safe_log'd
+        result = tf.concat([shortlist,copy_dist_padded], axis=1) # this used to be safe_log'd
 
-        # Take any tokens that are the same in either vocab and combine their probabilities
-        # old: mult by a big sparse matrix - not v mem efficient..
-        # opt1: mult the copy dist by a vocab x copy matrix and add to vocab part
-        # opt2: do an nd_gather to copy the relevant prob mass, then mask carefully to remove it
         if FLAGS.combine_vocab:
-            # copy everything in real shortlist except special toks
-            # print(len_source, self.max_copy_size)
-            source_tiled_padded = tf.pad(source_tiled, [[0, 0], [0, self.max_copy_size-tf.shape(source_tiled)[-1]]], 'CONSTANT', constant_values=0)
-            if False:
-                sl_off_diag = tf.concat([tf.zeros([batch_size*beam_width,self.max_copy_size,4]), tf.pad(tf.one_hot(source_tiled, depth=self.vocab_size+self.max_copy_size)[:,:,4:self.vocab_size], [[0, 0], [0, self.max_copy_size-len_source],[0,0]], 'CONSTANT', constant_values=0) ],axis=2)
-
-                sl_combine_matrix= tf.concat([tf.tile(tf.expand_dims(tf.eye(self.vocab_size),0),[batch_size*beam_width,1,1]), sl_off_diag], axis=1)
-                # only keep stuff in copy that doesnt exist in sl
-                copy_combine_matrix = tf.concat([tf.zeros([batch_size*beam_width,  self.vocab_size,self.max_copy_size]), tf.tile(tf.expand_dims(tf.eye(self.max_copy_size),0),[batch_size*beam_width,1,1])-tf.tile(tf.reduce_sum(sl_combine_matrix[:,self.vocab_size:,:],axis=2,keep_dims=True),[1,1,self.max_copy_size])], axis=1)
-                combine_matrix = tf.concat([sl_combine_matrix, copy_combine_matrix], axis=2)
-                result = tf.squeeze(tf.matmul(tf.transpose(combine_matrix,[0,2,1]), tf.expand_dims(result, -1)),-1)
-
-            # attempt 2!
-            batch_ix = tf.tile(tf.expand_dims(tf.range(batch_size*beam_width),axis=-1),[1,len_source])
-            seq_ix = tf.tile(tf.expand_dims(tf.range(len_source),axis=0),[batch_size*beam_width,1])
-            tgt_indices = tf.reshape(tf.concat([tf.expand_dims(batch_ix,-1),tf.expand_dims(source_tiled,-1)], axis=2),[-1,2])
-            ident_indices = tf.concat([tf.expand_dims(batch_ix,-1),tf.expand_dims(seq_ix,-1)], axis=2)
-            # tgt_indices = debug_tensor(tgt_indices)
-
-            # get the copy probs at each point in the source..
-            updates = tf.reshape(tf.gather_nd(result[:,self.vocab_size:], ident_indices),[-1])
-            # and send them to the their shortlist index (or not)
-            result_sum_part = tf.scatter_nd(tgt_indices, updates, tf.shape(result))
-            # then zero out the ix's that got copied
-            result_zeroed = result * tf.concat([tf.ones_like(shortlist),tf.cast(tf.logical_not(tf.less(source_tiled_padded,self.vocab_size)),tf.float32)], axis=1)
-            # and add the correct pieces together
-            result = result_zeroed+ tf.concat([result_sum_part[:,:self.vocab_size], tf.zeros_like(copy_dist_padded)], axis=1)
-            # result = tf.Print(result, [tf.reduce_sum(result[:,:self.vocab_size],-1)], "result sl sum")
-            # result = tf.Print(result, [tf.reduce_sum(result_sum_part,-1)], "result sumpart sum")
-            # result = tf.Print(result, [tf.reduce_sum(result_zeroed,-1)], "result zeroed sum")
-            # result = tf.Print(result, [tf.reduce_sum(result,-1)], "result sum")
-
+            result = tf.Print(result, [tf.reduce_sum(result,-1)], "result sum")
 
         target_shape = tf.concat([shape[:-1], [-1]], 0)
 
