@@ -23,6 +23,9 @@ class DiscriminatorInstance():
         self.load_from_chkpt(path, force_init)
         if trainable:
             self.summary_writer = tf.summary.FileWriter(config.log_dir+'disc/'+self.run_id, self.model.graph)
+    def __del__(self):
+        self.sess.close()
+
 
     def load_from_chkpt(self, path=None, force_init=False):
 
@@ -189,16 +192,16 @@ def main(_):
     # squad = loader.load_squad_triples(path="./data/", dev=True, v2=True, as_dict=True)
     # with open("./data/squad2_dev_official_output_fixed.json") as dataset_file:
     #     ans_preds = json.load(dataset_file)
-    with open("./results/out_eval_MALUUBA-CROP-LATENT.json") as dataset_file:
+    with open("./results/out_eval_MALUUBA-CROP-LATENT-GLOVE_test.json") as dataset_file:
         results = json.load(dataset_file)['results']
 
 
 
-# 1533568502-MALUUBA-CROP-LATENT_train
-# 1533568826-MALUUBA-CROP-LATENT_train_QAINIT
-    # disc_path = "./models/saved/discriminator-trained-latent"
-    disc_path = "./models/saved/1533568502-MALUUBA-CROP-LATENT_train"
-    # disc_path = "./models/saved/1533568826-MALUUBA-CROP-LATENT_train_QAINIT"
+# 1535473379-MALUUBA-CROP-LATENT-GLOVE_train
+# 1535474306-MALUUBA-CROP-LATENT-GLOVE_train_QAINIT
+    # disc_path = "./models/saved/discriminator-trained"
+    disc_path = "./models/saved2/1535473379-MALUUBA-CROP-LATENT-GLOVE_train"
+    # disc_path = "./models/saved2/1535474306-MALUUBA-CROP-LATENT-GLOVE_train_QAINIT"
 
 
     disc = DiscriminatorInstance(path=disc_path)
@@ -224,15 +227,16 @@ def main(_):
     pred_labels=[]
     scores=[]
 
-    for res in tqdm(results[:1000]):
+    for res in tqdm(results[:3000]):
         # print(res['q_gold'], res['q_pred'])
         gold_score = disc.get_pred([res['c']], [res['q_gold']],[res['a_text']],[res['a_pos']])
         pred_score = disc.get_pred([res['c']], [res['q_pred']],[res['a_text']],[res['a_pos']])
 
+
         gold_labels.append(1)
         gold_labels.append(0)
-        pred_labels.append(1.0 * (gold_score[0] > 0.2))
-        pred_labels.append(1.0 * (pred_score[0] > 0.2))
+        pred_labels.append(1.0 * (gold_score[0] > 0.5))
+        pred_labels.append(1.0 * (pred_score[0] > 0.5))
         scores.append(gold_score[0])
         scores.append(pred_score[0])
 
@@ -244,14 +248,17 @@ def main(_):
 
     # oh_labels =np.eye(2)[gold_labels]
     ### disc conf mat
+    # gold_labels =['Generated' if l==0 else 'Ground truth' for l in gold_labels]
+    # pred_labels =['Generated' if l==0 else 'Ground truth' for l in pred_labels]
+    plt.figure(figsize=(4.5,3.5))
     cm = confusion_matrix(gold_labels, pred_labels)
     mat = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     print(mat)
     plt.imshow(mat, cmap=plt.cm.Blues)
     plt.colorbar()
     tick_marks = np.arange(2)
-    plt.xticks(tick_marks, [0,1], rotation=45)
-    plt.yticks(tick_marks, [0,1])
+    plt.xticks(tick_marks,['Generated','Ground truth'],  rotation=0)
+    plt.yticks(tick_marks, ['Generated','Ground truth'],  rotation=90)
     fmt = '.2f'
     thresh = mat.max() / 2.
     for i, j in itertools.product(range(mat.shape[0]), range(mat.shape[1])):
@@ -260,18 +267,18 @@ def main(_):
                  color="white" if mat[i, j] > thresh else "black")
 
     # plt.tight_layout()
-    plt.ylabel('Actual Source')
-    plt.xlabel('Predicted source')
-    # plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/confusion_maluuba_crop_smart_set.pdf", format="pdf")
-    plt.show()
-    exit()
+    plt.ylabel('Actual Source', fontsize=14)
+    plt.xlabel('Predicted source', fontsize=14)
+    plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/disc_cm_latent.pdf", format="pdf", bbox_inches="tight")
+    # plt.show()
+    # exit()
 
 
 
     ### disc Roc curves
     fpr, tpr, _ = roc_curve(gold_labels, scores)
     roc_auc = auc(fpr, tpr)
-    plt.figure()
+    plt.figure(figsize=(4.5,3.5))
     lw = 2
     plt.plot(fpr, tpr, color='darkorange',
              lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
@@ -282,6 +289,7 @@ def main(_):
     plt.ylabel('True Positive Rate')
     plt.title('Discriminator RoC curve')
     plt.legend(loc="lower right")
+    plt.savefig("/users/Tom/Dropbox/Apps/Overleaf/Question Generation/figures/disc_roc_latent.pdf", format="pdf", bbox_inches="tight")
     plt.show()
     exit()
 

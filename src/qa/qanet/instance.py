@@ -49,6 +49,9 @@ class QANetInstance():
                 self.saver.restore(self.sess, tf.train.latest_checkpoint(path))
             if config.decay < 1.0:
                 self.sess.run(self.model.assign_vars)
+    def __del__(self):
+        self.sess.close()
+
 
     def get_ans(self, contexts, questions):
         config = tf.app.flags.FLAGS
