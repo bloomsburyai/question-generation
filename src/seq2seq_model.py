@@ -107,22 +107,22 @@ class Seq2SeqModel(TFModel):
         # Build encoder for context
         # Build RNN cell for encoder
         with tf.variable_scope('context_encoder'):
-            context_encoder_cell_fwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+            context_encoder_cell_fwd = tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units) for n in range(FLAGS.ctxt_encoder_depth)]),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     input_size=self.embedding_size+1,
                     variational_recurrent=True,
-                    dtype=tf.float32) for n in range(1)])
-            context_encoder_cell_bwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+                    dtype=tf.float32)
+            context_encoder_cell_bwd = tf.contrib.rnn.DropoutWrapper(
+                    cell=tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units) for n in range(FLAGS.ctxt_encoder_depth)]),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     input_size=self.embedding_size+1,
                     variational_recurrent=True,
-                    dtype=tf.float32) for n in range(1)])
+                    dtype=tf.float32)
 
             # Unroll encoder RNN
             context_encoder_output_parts, context_encoder_state = tf.nn.bidirectional_dynamic_rnn(
@@ -151,22 +151,22 @@ class Seq2SeqModel(TFModel):
 
             self.full_condition_encoding = tf.concat([self.context_condition_encoding, self.answer_embedded], axis=2)
 
-            a_encoder_cell_fwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+            a_encoder_cell_fwd = tf.contrib.rnn.DropoutWrapper(cell=tf.nn.rnn_cell.MultiRNNCell([
+                    tf.contrib.rnn.BasicLSTMCell(num_units=self.answer_encoder_units) for n in range(FLAGS.ans_encoder_depth)]),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     input_size=self.context_encoder_units*2+self.embedding_size,
                     variational_recurrent=True,
-                    dtype=tf.float32) for n in range(1)])
-            a_encoder_cell_bwd = tf.nn.rnn_cell.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(
-                    cell=tf.contrib.rnn.BasicLSTMCell(num_units=self.context_encoder_units),
+                    dtype=tf.float32)
+            a_encoder_cell_bwd = tf.contrib.rnn.DropoutWrapper(cell=tf.nn.rnn_cell.MultiRNNCell([
+                    tf.contrib.rnn.BasicLSTMCell(num_units=self.answer_encoder_units) for n in range(FLAGS.ans_encoder_depth)]),
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     input_size=self.context_encoder_units*2+self.embedding_size,
                     variational_recurrent=True,
-                    dtype=tf.float32) for n in range(1)])
+                    dtype=tf.float32)
 
             # Unroll encoder RNN
             a_encoder_output_parts, a_encoder_state_parts = tf.nn.bidirectional_dynamic_rnn(
