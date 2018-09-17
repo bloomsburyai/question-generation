@@ -101,8 +101,14 @@ class Seq2SeqModel(TFModel):
             lt_end = tf.less(context_ix, tf.tile(tf.expand_dims(self.answer_locs[:,0]+self.answer_length,axis=1), [1, max_context_len]))
             self.in_answer_feature = tf.expand_dims(tf.cast(tf.logical_and(gt_start, lt_end), tf.float32),axis=2)
 
+            embed_feats =[self.context_embedded, self.in_answer_feature]
+
+            if FLAGS.begin_ans_feat:
+                self.begin_ans_feat = tf.expand_dims(tf.one_hot(self.answer_locs[:,0], depth=max_context_len), axis=2)
+                embed_feats.append(self.begin_ans_feat)
+
             # augment embedding
-            self.context_embedded = tf.concat([self.context_embedded, self.in_answer_feature], axis=2)
+            self.context_embedded = tf.concat(embed_feats, axis=2)
 
         # Build encoder for context
         # Build RNN cell for encoder
@@ -112,7 +118,7 @@ class Seq2SeqModel(TFModel):
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-                    input_size=self.embedding_size+1,
+                    input_size=self.embedding_size+1+(1 if FLAGS.begin_ans_feat else 0),
                     variational_recurrent=True,
                     dtype=tf.float32)
             context_encoder_cell_bwd = tf.contrib.rnn.DropoutWrapper(
@@ -120,7 +126,7 @@ class Seq2SeqModel(TFModel):
                     input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                     output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-                    input_size=self.embedding_size+1,
+                    input_size=self.embedding_size+1+(1 if FLAGS.begin_ans_feat else 0),
                     variational_recurrent=True,
                     dtype=tf.float32)
 
