@@ -43,9 +43,9 @@ def main(_):
     # train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,_,dev_a_pos_unfilt = zip(*dev_data)
 
-    if FLAGS.filter_window_size >-1:
+    if FLAGS.filter_window_size_before >-1:
         # train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
-        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+        dev_data = preprocessing.filter_squad(dev_data, window_size_before=FLAGS.filter_window_size_before, window_size_after=FLAGS.filter_window_size_after, max_tokens=FLAGS.filter_max_tokens)
 
 
     # print('Loaded SQuAD with ',len(train_data),' triples')

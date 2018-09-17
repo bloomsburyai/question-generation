@@ -99,9 +99,9 @@ def main(_):
     else:
         num_dev_samples=FLAGS.num_dev_samples
 
-    if FLAGS.filter_window_size >-1:
-        train_data = preprocessing.filter_squad(train_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
-        dev_data = preprocessing.filter_squad(dev_data, window_size=FLAGS.filter_window_size, max_tokens=FLAGS.filter_max_tokens)
+    if FLAGS.filter_window_size_before >-1:
+        train_data = preprocessing.filter_squad(train_data, window_size_before=FLAGS.filter_window_size_before, window_size_after=FLAGS.filter_window_size_after, max_tokens=FLAGS.filter_max_tokens)
+        dev_data = preprocessing.filter_squad(dev_data, window_size_before=FLAGS.filter_window_size_before, window_size_after=FLAGS.filter_window_size_after, max_tokens=FLAGS.filter_max_tokens)
 
 
 

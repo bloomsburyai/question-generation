@@ -26,7 +26,8 @@ tf.app.flags.DEFINE_string("log_dir", './logs/', "Path to logs")
 tf.app.flags.DEFINE_string("model_dir", './models/', "Path to checkpoints")
 
 # hyperparams
-tf.app.flags.DEFINE_integer("filter_window_size", 1, "Filter contexts down to the sentences around the answer. Set -1 to disable filtering")
+tf.app.flags.DEFINE_integer("filter_window_size_before", 1, "Filter contexts down to the sentences around the answer. Set -1 to disable filtering")
+tf.app.flags.DEFINE_integer("filter_window_size_after", 1, "Filter contexts down to the sentences around the answer. Set -1 to disable filtering")
 tf.app.flags.DEFINE_integer("filter_max_tokens", 100, "Filter contexts down to at most this many tokens around the answer. Set -1 to disable filtering")
 
 tf.app.flags.DEFINE_integer("max_context_len", 203, "Max context length. 768 for squad, 384 if filtered, 442 if filtered with window=1")
