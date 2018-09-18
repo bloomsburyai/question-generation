@@ -472,7 +472,10 @@ class Seq2SeqModel(TFModel):
 
             # Optimization
             if FLAGS.opt_type == "sgd":
-                self.optimizer = tf.train.GradientDescentOptimizer(FLAGS.learning_rate).apply_gradients(
+                self.global_step = tf.train.create_global_step(self.graph)
+
+                self.sgd_lr = 1 * tf.pow(0.5, tf.cast(tf.minimum(0, tf.cast(self.global_step, tf.int32)-8000)/1000, tf.float32))
+                self.optimizer = tf.train.GradientDescentOptimizer(self.sgd_lr).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
             else:
                 self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
