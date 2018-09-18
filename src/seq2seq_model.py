@@ -471,7 +471,11 @@ class Seq2SeqModel(TFModel):
                 gradients, 5)
 
             # Optimization
-            self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
-                zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
+            if FLAGS.opt_type == "sgd":
+                self.optimizer = tf.train.GradientDescentOptimizer(FLAGS.learning_rate).apply_gradients(
+                    zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
+            else:
+                self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
+                    zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
 
         self.accuracy = tf.reduce_mean(tf.cast(tf.reduce_sum(self.question_onehot  * tf.contrib.seq2seq.hardmax(self.q_hat), axis=-1),tf.float32)*self.target_weights)

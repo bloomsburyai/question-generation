@@ -43,6 +43,7 @@ tf.app.flags.DEFINE_integer("ans_encoder_depth", 1, "Number of hidden units for 
 
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
+tf.app.flags.DEFINE_string("opt_type", "adam", "Optimizer")
 tf.app.flags.DEFINE_float("entropy_weight", 0.01, "Weight for aux entropy loss")
 tf.app.flags.DEFINE_float("suppression_weight", 0.01, "Weight for suppression loss")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
