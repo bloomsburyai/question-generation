@@ -3,9 +3,6 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.python.layers import base
-from tensorflow.python.framework import tensor_shape
-
 import helpers.preprocessing as preprocessing
 
 
@@ -474,7 +471,8 @@ class Seq2SeqModel(TFModel):
             if FLAGS.opt_type == "sgd":
                 self.global_step = tf.train.create_global_step(self.graph)
 
-                self.sgd_lr = 1 * tf.pow(0.5, tf.cast(tf.minimum(0, tf.cast(self.global_step, tf.int32)-8000)/1000, tf.float32))
+                self.sgd_lr = 1 * tf.pow(0.5, tf.cast(tf.maximum(0, tf.cast(self.global_step, tf.int32)-8000)/1000, tf.float32))
+                self._train_summaries.append(tf.summary.scalar('debug/sgd_lr', self.sgd_lr))
                 self.optimizer = tf.train.GradientDescentOptimizer(self.sgd_lr).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
             else:
