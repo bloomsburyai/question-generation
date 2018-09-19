@@ -119,6 +119,8 @@ def main(_):
 
             qgolds=[]
             qpreds=[]
+            qpred_ids=[]
+            qgold_ids=[]
             ctxts=[]
             answers=[]
             ans_positions=[]
@@ -141,6 +143,8 @@ def main(_):
                     answers.extend(a_text_batch)
                     ans_positions.extend([dev_a_pos_unfilt[ix] for ix in dev_batch[3]])
                     copy_probs.extend(copy_prob.tolist())
+
+
 
                     # get QA score
 
@@ -201,7 +205,11 @@ def main(_):
                             'q_gold': gold_str,
                             'a_pos': unfilt_apos_batch[b],
                             'a_text': a_text_batch[b],
-                            'metrics': this_metric_dict
+                            'metrics': this_metric_dict,
+
+                            'q_pred_ids': pred_ids.tolist()[b],
+                            'q_gold_ids': dev_batch[1][1][b].tolist()
+
                         })
 
                     # Quick output
