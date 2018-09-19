@@ -88,8 +88,10 @@ tf.app.flags.DEFINE_float("lm_dropout", 0.3, "LM num epochs")
 
 # eval params
 tf.app.flags.DEFINE_integer("beam_width", 32, "Beam width for decoding")
-tf.app.flags.DEFINE_integer("num_dev_samples", 4691, "How many examples to use for OOS evaluations")
-tf.app.flags.DEFINE_integer("num_eval_samples", 5609, "How many examples to use for evaluations")
+# tf.app.flags.DEFINE_integer("num_dev_samples", 4691, "How many examples to use for OOS evaluations")
+tf.app.flags.DEFINE_integer("num_dev_samples", 10570, "How many examples to use for OOS evaluations")
+# tf.app.flags.DEFINE_integer("num_eval_samples", 5609, "How many examples to use for evaluations")
+tf.app.flags.DEFINE_integer("num_eval_samples", 11877, "How many examples to use for evaluations")
 tf.app.flags.DEFINE_boolean("eval_on_dev", True, "Should the eval script use the dev set?")
 tf.app.flags.DEFINE_boolean("eval_on_test", False, "Should the eval script use the test set?")
 tf.app.flags.DEFINE_string("eval_model_id", "", "Run ID of the saved model to be evaluated")
