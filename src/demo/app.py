@@ -18,7 +18,8 @@ FLAGS = tf.app.flags.FLAGS
 mem_limit=0.9
 
 
-model_slug_list = ['MALUUBA-CROP-SET-GLOVE/1535568489','SEQ2SEQ/1533280948','qgen-s2s-filt1']
+# model_slug_list = ['MALUUBA-CROP-SET-GLOVE/1535568489','SEQ2SEQ/1533280948','qgen-s2s-filt1']
+model_slug_list = ['MALUUBA-CROP-SET-GLOVE']
 model_slug_curr = model_slug_list[0]
 
 from flask import Flask, current_app, request, redirect
@@ -36,8 +37,8 @@ def get_q():
     ans = request.args['answer']
     ans_pos = ctxt.find(ans)
 
-    if FLAGS.filter_window_size >-1:
-        ctxt,ans_pos = preprocessing.filter_context(ctxt, ans_pos, FLAGS.filter_window_size, FLAGS.filter_max_tokens)
+    if FLAGS.filter_window_size_before >-1:
+        ctxt,ans_pos = preprocessing.filter_context(ctxt, ans_pos, FLAGS.filter_window_size_before, FLAGS.filter_window_size_after, FLAGS.filter_max_tokens)
     if ans_pos > -1:
         q =current_app.generator.get_q(ctxt.encode(), ans.encode(), ans_pos)
         return q
@@ -69,7 +70,7 @@ def init():
         FLAGS.log_dir = 'home/tomhosking/webapps/qgen/qgen/logs/'
         chkpt_path = '/home/tomhosking/webapps/qgen/qgen/models/saved/' + model_slug_curr
     else:
-        chkpt_path = FLAGS.model_dir+'qgen-saved/' + model_slug_curr
+        chkpt_path = FLAGS.model_dir+'qgen/' + model_slug_curr
     with open(chkpt_path+'/vocab.json') as f:
         vocab = json.load(f)
     app.generator = AQInstance(vocab=vocab)
@@ -78,4 +79,4 @@ def init():
 if __name__ == '__main__':
     init()
     with app.app_context():
-        app.run(port=14045)
+        app.run(port=8000)
