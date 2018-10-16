@@ -14,7 +14,7 @@ Requires python 3 and TensorFlow 1.4 or 1.7
 ### tl;dr
 
 ```bash
-pip install - requirements.txt
+pip install -r requirements.txt
 ./setup.sh
 ./demo.sh --model_type MALUUBA --context_as_set --glove_vocab
 ```
