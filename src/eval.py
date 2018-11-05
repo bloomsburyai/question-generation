@@ -39,6 +39,11 @@ def main(_):
     # load dataset
     # train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, dev=FLAGS.eval_on_dev, test=FLAGS.eval_on_test)
+    
+    if len(dev_data) < FLAGS.num_eval_samples:
+        exit('***ERROR*** Eval dataset is smaller than the num_eval_samples flag!')
+    if len(dev_data) > FLAGS.num_eval_samples:
+        print('***WARNING*** Eval dataset is larger than the num_eval_samples flag!')
 
     # train_contexts_unfilt, _,_,train_a_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,_,dev_a_pos_unfilt = zip(*dev_data)

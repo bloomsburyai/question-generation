@@ -90,6 +90,12 @@ def main(_):
     train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, True)
 
+    if len(dev_data) < FLAGS.num_dev_samples:
+        exit('***ERROR*** Dev dataset is smaller than the num_dev_samples flag!')
+    if len(dev_data) > FLAGS.num_dev_samples:
+        print('***WARNING*** Dev dataset is larger than the num_dev_samples flag!')
+
+
     train_contexts_unfilt, _,ans_text_unfilt,ans_pos_unfilt = zip(*train_data)
     dev_contexts_unfilt, _,dev_ans_text_unfilt,dev_ans_pos_unfilt = zip(*dev_data)
 
