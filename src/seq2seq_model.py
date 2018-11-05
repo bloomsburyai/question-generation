@@ -196,8 +196,12 @@ class Seq2SeqModel(TFModel):
             r = tf.reduce_sum(self.context_encoder_output, axis=1)/tf.expand_dims(tf.cast(self.context_length,tf.float32),axis=1) + tf.matmul(self.context_encoding,L)
             self.s0 = tf.nn.tanh(tf.matmul(r,W0) + b0)
 
+        if self.advanced_condition_encoding:
+            # for Maluuba model, decoder inputs are concat of context and answer encoding
+            # Strictly speaking this is still wrong - the attn mech uses only the context encoding
+            self.context_encoder_output = tf.concat([self.context_encoder_output, tf.tile(tf.expand_dims(self.a_encoder_final_state,axis=1),[1,max_context_len,1])], axis=2)
+
         # decode
-        # TODO: for Maluuba model, decoder inputs are concat of context and answer encoding
         with tf.variable_scope('decoder_init'):
 
             beam_memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
