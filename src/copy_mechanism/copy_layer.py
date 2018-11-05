@@ -237,7 +237,7 @@ class CopyLayer(base.Layer):
             batch_ix = tf.tile(tf.expand_dims(tf.range(batch_size*beam_width),axis=-1),[1,len_source])
             # seq_ix = tf.tile(tf.expand_dims(tf.range(len_source),axis=0),[batch_size*beam_width,1])
             tgt_indices = tf.reshape(tf.concat([tf.expand_dims(batch_ix,-1),tf.expand_dims(source_tiled_sl,-1)], axis=2),[-1,2])
-            ident_indices = tf.where(tf.greater(source_tiled_sl, -1))
+            ident_indices = tf.where(tf.greater(source_tiled_sl, -1)) # get ixs of all elements
             # ident_indices = tf.where()
             # tgt_indices = debug_tensor(tgt_indices)
 
