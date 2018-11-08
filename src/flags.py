@@ -65,6 +65,7 @@ tf.app.flags.DEFINE_boolean("pg_dropout", False, "Use dropout when generating th
 
 tf.app.flags.DEFINE_float("lm_weight", 0.25, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
 tf.app.flags.DEFINE_float("qa_weight", 0.5, "Loss multiplier for QA in Maluuba model. Paper gives 1.0 alone or 0.5 joint")
+tf.app.flags.DEFINE_float("bleu_weight", 0.0, "Loss multiplier for BLEU reward")
 tf.app.flags.DEFINE_float("pg_ml_weight", 1, "Loss multiplier for maximum likelihood when doing PG")
 
 
