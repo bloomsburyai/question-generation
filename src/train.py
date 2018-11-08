@@ -401,34 +401,35 @@ def main(_):
                         gold_q_str = byte_token_array_to_str(dev_batch[1][0], dev_batch[1][3])
 
 
-                        # Get reward values
-                        lm_score = (-1*model.lm.get_seq_perplexity(pred_str)).tolist() # lower perplexity is better
+                        if FLAGS.policy_gradient:
+                            # Get reward values
+                            lm_score = (-1*model.lm.get_seq_perplexity(pred_str)).tolist() # lower perplexity is better
 
-                        # retrieve the uncropped context for QA evaluation
-                        unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
-                        ans_text_batch = [dev_ans_text_unfilt[ix] for ix in dev_batch[3]]
-                        ans_pos_batch = [dev_ans_pos_unfilt[ix] for ix in dev_batch[3]]
+                            # retrieve the uncropped context for QA evaluation
+                            unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
+                            ans_text_batch = [dev_ans_text_unfilt[ix] for ix in dev_batch[3]]
+                            ans_pos_batch = [dev_ans_pos_unfilt[ix] for ix in dev_batch[3]]
 
-                        qa_pred = model.qa.get_ans(unfilt_ctxt_batch, pred_str)
-                        qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, gold_q_str)
+                            qa_pred = model.qa.get_ans(unfilt_ctxt_batch, pred_str)
+                            qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, gold_q_str)
 
-                        # gold_str=[]
-                        # pred_str=[]
-                        qa_f1s = []
-                        gold_ans_str = byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
+                            # gold_str=[]
+                            # pred_str=[]
+                            qa_f1s = []
+                            gold_ans_str = byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
 
 
-                        qa_f1s.extend([metrics.f1(metrics.normalize_answer(gold_ans_str[b]), metrics.normalize_answer(qa_pred[b])) for b in range(curr_batch_size)])
+                            qa_f1s.extend([metrics.f1(metrics.normalize_answer(gold_ans_str[b]), metrics.normalize_answer(qa_pred[b])) for b in range(curr_batch_size)])
 
-                        disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
-                        bleu_scores = [metrics.bleu(pred_str[b], gold_q_str[b]) for b in range(curr_batch_size)]
+                            disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
+                            bleu_scores = [metrics.bleu(pred_str[b], gold_q_str[b]) for b in range(curr_batch_size)]
 
-                        qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
-                        lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
-                        disc_score_whitened = (disc_scores-disc_score_moments.mean)/np.sqrt(disc_score_moments.variance+1e-6)
-                        bleu_score_whitened = (bleu_scores-bleu_score_moments.mean)/np.sqrt(bleu_score_moments.variance+1e-6)
+                            qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
+                            lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
+                            disc_score_whitened = (disc_scores-disc_score_moments.mean)/np.sqrt(disc_score_moments.variance+1e-6)
+                            bleu_score_whitened = (bleu_scores-bleu_score_moments.mean)/np.sqrt(bleu_score_moments.variance+1e-6)
 
-                        rewards.extend((qa_score_whitened*FLAGS.qa_weight + lm_score_whitened*FLAGS.lm_weight + disc_score_whitened*FLAGS.disc_weight + bleu_score_whitened*FLAGS.bleu_weight).tolist())
+                            rewards.extend((qa_score_whitened*FLAGS.qa_weight + lm_score_whitened*FLAGS.lm_weight + disc_score_whitened*FLAGS.disc_weight + bleu_score_whitened*FLAGS.bleu_weight).tolist())
 
                         nlls.extend(nll.tolist())
                         # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
@@ -447,7 +448,6 @@ def main(_):
                                 fp.write(out_str)
 
                     dev_bleu = metrics.bleu_corpus(gold_strs, pred_strs)
-                    mean_reward = np.mean(rewards)
 
                     f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
                                                      simple_value=sum(f1s)/len(f1s))])
@@ -455,13 +455,15 @@ def main(_):
                                               simple_value=dev_bleu)])
                     nllsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/nll",
                                        simple_value=sum(nlls)/len(nlls))])
-                    rewardsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/reward",
-                                        simple_value=mean_reward)])
 
                     summary_writer.add_summary(f1summary, global_step=i)
                     summary_writer.add_summary(bleusummary, global_step=i)
                     summary_writer.add_summary(nllsummary, global_step=i)
-                    summary_writer.add_summary(rewardsummary, global_step=i)
+                    if FLAGS.policy_gradient:
+                        mean_reward = np.mean(rewards)
+                        rewardsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/reward",
+                                             simple_value=mean_reward)])
+                        summary_writer.add_summary(rewardsummary, global_step=i)
 
                     mean_nll=sum(nlls)/len(nlls)
                     if (not FLAGS.policy_gradient and mean_nll < best_oos_nll):

@@ -261,7 +261,10 @@ class CopyLayer(base.Layer):
             # print(source) # batch x seq
             # print(alignments) # batch x seq
             pos_to_id = tf.one_hot(source_tiled-self.vocab_size, depth=self.max_copy_size) # batch x seq x vocab
-            copy_dist = tf.squeeze(tf.matmul(tf.expand_dims(alignments,1), pos_to_id), axis=1)
+            if FLAGS.maxout_pointer:
+                copy_dist = tf.reduce_max(pos_to_id * tf.expand_dims(alignments, 2), axis=1)
+            else:
+                copy_dist = tf.squeeze(tf.matmul(tf.expand_dims(alignments,1), pos_to_id), axis=1)
         else:
             copy_dist=alignments
 
