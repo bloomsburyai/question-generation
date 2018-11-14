@@ -38,8 +38,9 @@ tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden unit
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("switch_units", 64, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
-tf.app.flags.DEFINE_integer("ctxt_encoder_depth", 1, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
-tf.app.flags.DEFINE_integer("ans_encoder_depth", 1, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
+tf.app.flags.DEFINE_integer("ctxt_encoder_depth", 1, "Number of RNN layers in context encoder")
+tf.app.flags.DEFINE_integer("ans_encoder_depth", 1, "Number of RNN layers in answer encoder (ie the Maluuba widget)")
+
 
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")

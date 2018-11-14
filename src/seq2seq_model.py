@@ -479,6 +479,15 @@ class Seq2SeqModel(TFModel):
                 self._train_summaries.append(tf.summary.scalar('debug/sgd_lr', self.sgd_lr))
                 self.optimizer = tf.train.GradientDescentOptimizer(self.sgd_lr).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
+            elif FLAGS.opt_type == "sgd_mom":
+                self.global_step = tf.train.create_global_step(self.graph)
+
+                self.sgd_lr = 1 * tf.pow(0.5, tf.cast(tf.maximum(0, tf.cast(self.global_step, tf.int32)-8000)/2000, tf.float32))
+                self._train_summaries.append(tf.summary.scalar('debug/sgd_lr', self.sgd_lr))
+                momentum = tf.Variable(0.9, trainable=False)
+
+                self.optimizer = tf.train.MomentumOptimizer(self.sgd_lr, momentum).apply_gradients(
+                    zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
             else:
                 self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
