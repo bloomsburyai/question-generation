@@ -1111,9 +1111,9 @@ class CopyAttentionWrapper(rnn_cell_impl.RNNCell):
     """
     super(CopyAttentionWrapper, self).__init__(name=name)
     self.copy_mechanism = copy_mechanism
-    if not rnn_cell_impl._like_rnncell(cell):  # pylint: disable=protected-access
-      raise TypeError(
-          "cell must be an RNNCell, saw type: %s" % type(cell).__name__)
+    # if not rnn_cell_impl._like_rnncell(cell):  # pylint: disable=protected-access
+    #   raise TypeError(
+    #       "cell must be an RNNCell, saw type: %s" % type(cell).__name__)
     if isinstance(attention_mechanism, (list, tuple)):
       self._is_multi = True
       attention_mechanisms = attention_mechanism

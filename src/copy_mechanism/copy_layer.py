@@ -133,7 +133,7 @@ class CopyLayer(base.Layer):
         self.bias_constraint = bias_constraint
         self.input_spec = base.InputSpec(min_ndim=2)
         self.training_mode=training_mode
-        self.output_mask=output_mask
+        # self.output_mask=output_mask
         self.max_copy_size=max_copy_size
         self.mask_oovs = mask_oovs
         self.context_as_set=context_as_set
@@ -213,8 +213,8 @@ class CopyLayer(base.Layer):
             self.switch = 1
 
 
-        if self.output_mask is not None:
-            alignments = self.output_mask() * alignments
+        # if self.output_mask is not None:
+        #     alignments = self.output_mask() * alignments
 
 
         source_tiled = tf.contrib.seq2seq.tile_batch(source, multiplier=beam_width)
