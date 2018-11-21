@@ -190,12 +190,10 @@ def main(_):
 
 
             best_oos_nll=1e6
-            best_oos_reward=-1e6
 
             lm_score_moments = online_moments.OnlineMoment()
             qa_score_moments = online_moments.OnlineMoment()
             disc_score_moments = online_moments.OnlineMoment()
-            bleu_score_moments = online_moments.OnlineMoment()
 
             # for e in range(start_e,start_e+FLAGS.num_epochs):
                 # Train for one epoch
@@ -242,13 +240,11 @@ def main(_):
                     qa_f1s.extend([metrics.f1(metrics.normalize_answer(gold_ans_str[b]), metrics.normalize_answer(qa_pred[b])) for b in range(curr_batch_size)])
 
                     disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
-                    bleu_scores = [metrics.bleu(pred_str[b], gold_q_str[b]) for b in range(curr_batch_size)]
 
                     if i > FLAGS.pg_burnin//2:
                         lm_score_moments.push(lm_score)
                         qa_score_moments.push(qa_f1s)
                         disc_score_moments.push(disc_scores)
-                        bleu_score_moments.push(bleu_scores)
 
 
                     # print(disc_scores)
@@ -259,7 +255,6 @@ def main(_):
                         qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
                         lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
                         disc_score_whitened = (disc_scores-disc_score_moments.mean)/np.sqrt(disc_score_moments.variance+1e-6)
-                        bleu_score_whitened = (bleu_scores-bleu_score_moments.mean)/np.sqrt(bleu_score_moments.variance+1e-6)
 
                         lm_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm",
                                                          simple_value=np.mean(lm_score))])
@@ -270,9 +265,6 @@ def main(_):
                         disc_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/disc",
                                                          simple_value=np.mean(disc_scores))])
                         summary_writer.add_summary(disc_summary, global_step=(i))
-                        bleureward_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/bleu",
-                                                         simple_value=np.mean(bleu_scores))])
-                        summary_writer.add_summary(bleureward_summary, global_step=(i))
 
                         lm_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/lm_white",
                                                          simple_value=np.mean(lm_score_whitened))])
@@ -283,9 +275,6 @@ def main(_):
                         disc_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/disc_white",
                                                          simple_value=np.mean(disc_score_whitened))])
                         summary_writer.add_summary(disc_white_summary, global_step=(i))
-                        bleu_white_summary = tf.Summary(value=[tf.Summary.Value(tag="rl_rewards/bleu_white",
-                                                         simple_value=np.mean(bleu_score_whitened))])
-                        summary_writer.add_summary(bleu_white_summary, global_step=(i))
 
                         # Build a combined batch - half ground truth for MLE, half generated for PG
                         train_batch_ext = duplicate_batch_and_inject(train_batch, qhat_ids, qhat_str, qhat_lens)
@@ -297,11 +286,9 @@ def main(_):
                         rl_dict={model.lm_score: np.asarray((lm_score_whitened*FLAGS.lm_weight).tolist()+[FLAGS.pg_ml_weight for b in range(curr_batch_size)]),
                             model.qa_score: np.asarray((qa_score_whitened*FLAGS.qa_weight).tolist()+[0 for b in range(curr_batch_size)]),
                             model.disc_score: np.asarray((disc_score_whitened*FLAGS.disc_weight).tolist()+[0 for b in range(curr_batch_size)]),
-                            model.bleu_score: np.asarray((bleu_score_whitened*FLAGS.bleu_weight).tolist()+[0 for b in range(curr_batch_size)]),
                             model.rl_lm_enabled: True,
                             model.rl_qa_enabled: True,
                             model.rl_disc_enabled: FLAGS.disc_weight > 0,
-                            model.rl_bleu_enabled: FLAGS.bleu_weight > 0,
                             model.step: i-FLAGS.pg_burnin,
                             model.hide_answer_in_copy: True}
 
@@ -339,11 +326,9 @@ def main(_):
                         rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
                             model.qa_score: [0 for b in range(curr_batch_size)],
                             model.disc_score: [0 for b in range(curr_batch_size)],
-                            model.bleu_score: [0 for b in range(curr_batch_size)],
                             model.rl_lm_enabled: False,
                             model.rl_qa_enabled: False,
                             model.rl_disc_enabled: False,
-                            model.rl_bleu_enabled: False,
                             model.hide_answer_in_copy: False}
                     else:
                         rl_dict={}
@@ -386,9 +371,6 @@ def main(_):
                     f1s=[]
                     bleus=[]
                     nlls=[]
-                    gold_strs=[]
-                    pred_strs=[]
-                    rewards=[]
 
                     np.random.shuffle(dev_data)
                     dev_subset = dev_data[:num_dev_samples]
@@ -397,40 +379,6 @@ def main(_):
                         dev_batch, curr_batch_size = dev_data_source.get_batch()
                         pred_batch,pred_ids,pred_lens,gold_batch, gold_lens,ctxt,ctxt_len,ans,ans_len,nll= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids,model.q_hat_beam_lens,model.question_raw, model.question_length, model.context_raw, model.context_length, model.answer_locs, model.answer_length, model.nll], feed_dict={model.input_batch: dev_batch ,model.is_training:False})
 
-                        pred_str = byte_token_array_to_str(pred_batch, pred_lens-1)
-                        gold_q_str = byte_token_array_to_str(dev_batch[1][0], dev_batch[1][3])
-
-
-                        if FLAGS.policy_gradient:
-                            # Get reward values
-                            lm_score = (-1*model.lm.get_seq_perplexity(pred_str)).tolist() # lower perplexity is better
-
-                            # retrieve the uncropped context for QA evaluation
-                            unfilt_ctxt_batch = [dev_contexts_unfilt[ix] for ix in dev_batch[3]]
-                            ans_text_batch = [dev_ans_text_unfilt[ix] for ix in dev_batch[3]]
-                            ans_pos_batch = [dev_ans_pos_unfilt[ix] for ix in dev_batch[3]]
-
-                            qa_pred = model.qa.get_ans(unfilt_ctxt_batch, pred_str)
-                            qa_pred_gold = model.qa.get_ans(unfilt_ctxt_batch, gold_q_str)
-
-                            # gold_str=[]
-                            # pred_str=[]
-                            qa_f1s = []
-                            gold_ans_str = byte_token_array_to_str(dev_batch[2][0], dev_batch[2][2], is_array=False)
-
-
-                            qa_f1s.extend([metrics.f1(metrics.normalize_answer(gold_ans_str[b]), metrics.normalize_answer(qa_pred[b])) for b in range(curr_batch_size)])
-
-                            disc_scores = discriminator.get_pred(unfilt_ctxt_batch, pred_str, ans_text_batch, ans_pos_batch )
-                            bleu_scores = [metrics.bleu(pred_str[b], gold_q_str[b]) for b in range(curr_batch_size)]
-
-                            qa_score_whitened = (qa_f1s-qa_score_moments.mean)/np.sqrt(qa_score_moments.variance+1e-6)
-                            lm_score_whitened = (lm_score-lm_score_moments.mean)/np.sqrt(lm_score_moments.variance+1e-6)
-                            disc_score_whitened = (disc_scores-disc_score_moments.mean)/np.sqrt(disc_score_moments.variance+1e-6)
-                            bleu_score_whitened = (bleu_scores-bleu_score_moments.mean)/np.sqrt(bleu_score_moments.variance+1e-6)
-
-                            rewards.extend((qa_score_whitened*FLAGS.qa_weight + lm_score_whitened*FLAGS.lm_weight + disc_score_whitened*FLAGS.disc_weight + bleu_score_whitened*FLAGS.bleu_weight).tolist())
-
                         nlls.extend(nll.tolist())
                         # out_str="<h1>"+str(e)+' - '+str(datetime.datetime.now())+'</h1>'
                         for b, pred in enumerate(pred_batch):
@@ -438,8 +386,6 @@ def main(_):
                             gold_str = tokens_to_string(gold_batch[b][:gold_lens[b]-1])
                             f1s.append(metrics.f1(gold_str, pred_str))
                             bleus.append(metrics.bleu(gold_str, pred_str))
-                            gold_strs.append(gold_str)
-                            pred_strs.append(pred_str)
                             # out_str+=pred_str.replace('>','&gt;').replace('<','&lt;')+"<br/>"+gold_str.replace('>','&gt;').replace('<','&lt;')+"<hr/>"
                         if j==0:
                             title=chkpt_path
@@ -447,38 +393,27 @@ def main(_):
                             with open(FLAGS.log_dir+'out_eval_'+FLAGS.model_type+'.htm', 'w', encoding='utf-8') as fp:
                                 fp.write(out_str)
 
-                    dev_bleu = metrics.bleu_corpus(gold_strs, pred_strs)
-
                     f1summary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/f1",
                                                      simple_value=sum(f1s)/len(f1s))])
                     bleusummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/bleu",
-                                              simple_value=dev_bleu)])
+                                              simple_value=sum(bleus)/len(bleus))])
                     nllsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/nll",
                                        simple_value=sum(nlls)/len(nlls))])
 
                     summary_writer.add_summary(f1summary, global_step=i)
                     summary_writer.add_summary(bleusummary, global_step=i)
                     summary_writer.add_summary(nllsummary, global_step=i)
-                    if FLAGS.policy_gradient:
-                        mean_reward = np.mean(rewards)
-                        rewardsummary = tf.Summary(value=[tf.Summary.Value(tag="dev_perf/reward",
-                                             simple_value=mean_reward)])
-                        summary_writer.add_summary(rewardsummary, global_step=i)
 
                     mean_nll=sum(nlls)/len(nlls)
-                    if (not FLAGS.policy_gradient and mean_nll < best_oos_nll):
+                    if mean_nll < best_oos_nll:
                         print("New best NLL! ", mean_nll, " Saving...")
                         best_oos_nll = mean_nll
                         saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
-                    elif (FLAGS.policy_gradient and mean_reward > best_oos_reward):
-                        print("New best reward! ", mean_reward, " Saving...")
-                        best_oos_reward = mean_reward
-                        saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
                     else:
                         print("NLL not improved ", mean_nll)
-                        # if FLAGS.policy_gradient:
-                        #     print("Saving anyway")
-                        #     saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
+                        if FLAGS.policy_gradient:
+                            print("Saving anyway")
+                            saver.save(sess, chkpt_path+'/model.checkpoint', global_step=i)
                         if FLAGS.disc_train:
                             print("Saving disc")
                             discriminator.save_to_chkpt(FLAGS.model_dir, i)

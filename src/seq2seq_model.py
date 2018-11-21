@@ -196,12 +196,8 @@ class Seq2SeqModel(TFModel):
             r = tf.reduce_sum(self.context_encoder_output, axis=1)/tf.expand_dims(tf.cast(self.context_length,tf.float32),axis=1) + tf.matmul(self.context_encoding,L)
             self.s0 = tf.nn.tanh(tf.matmul(r,W0) + b0)
 
-        if self.advanced_condition_encoding:
-            # for Maluuba model, decoder inputs are concat of context and answer encoding
-            # Strictly speaking this is still wrong - the attn mech uses only the context encoding
-            self.context_encoder_output = tf.concat([self.context_encoder_output, tf.tile(tf.expand_dims(self.a_encoder_final_state,axis=1),[1,max_context_len,1])], axis=2)
-
         # decode
+        # TODO: for Maluuba model, decoder inputs are concat of context and answer encoding
         with tf.variable_scope('decoder_init'):
 
             beam_memory = tf.contrib.seq2seq.tile_batch( self.context_encoder_output, multiplier=FLAGS.beam_width )
@@ -478,15 +474,6 @@ class Seq2SeqModel(TFModel):
                 self.sgd_lr = 1 * tf.pow(0.5, tf.cast(tf.maximum(0, tf.cast(self.global_step, tf.int32)-8000)/1000, tf.float32))
                 self._train_summaries.append(tf.summary.scalar('debug/sgd_lr', self.sgd_lr))
                 self.optimizer = tf.train.GradientDescentOptimizer(self.sgd_lr).apply_gradients(
-                    zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
-            elif FLAGS.opt_type == "sgd_mom":
-                self.global_step = tf.train.create_global_step(self.graph)
-
-                self.sgd_lr = 0.1 * tf.pow(0.5, tf.cast(tf.maximum(0, tf.cast(self.global_step, tf.int32)-16000)/2000, tf.float32))
-                self._train_summaries.append(tf.summary.scalar('debug/sgd_lr', self.sgd_lr))
-                momentum = tf.Variable(0.1, trainable=False)
-
-                self.optimizer = tf.train.MomentumOptimizer(self.sgd_lr, momentum).apply_gradients(
                     zip(clipped_gradients, params)) if self.training_mode else tf.no_op()
             else:
                 self.optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate).apply_gradients(
