@@ -13,12 +13,10 @@ Requires python 3 and TensorFlow 1.4 or 1.7
 
 ### tl;dr
 
-To use the saved models, checkout commit be134175652204f3bf51cb194454d7b72c8b8105 - breaking changes have been made since then, I will update the models once retrained.
-
 ```bash
 pip install -r requirements.txt
 ./setup.sh
-./demo.sh --model_type MALUUBA --context_as_set --glove_vocab
+./demo.sh --model_type MALUUBA --context_as_set --glove_vocab --nofull_context_encoding
 ```
 
 ### Usage
