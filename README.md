@@ -9,7 +9,7 @@
 
 This repo primarily comprises an implmentation of [Machine Comprehension by Text-to-Text Neural Question Generation](https://arxiv.org/pdf/1705.02012.pdf), plus a load of other research code. It is a work in progress and almost certainly contains bugs!
 
-Requires python 3 and TensorFlow 1.4 or 1.7
+Requires python 3 and TensorFlow - tested on 1.4, 1.7, 1.12
 
 ### tl;dr
 
