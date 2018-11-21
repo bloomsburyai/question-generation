@@ -38,8 +38,9 @@ tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden unit
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("switch_units", 64, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
-tf.app.flags.DEFINE_integer("ctxt_encoder_depth", 1, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
-tf.app.flags.DEFINE_integer("ans_encoder_depth", 1, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
+tf.app.flags.DEFINE_integer("ctxt_encoder_depth", 1, "Number of RNN layers in context encoder")
+tf.app.flags.DEFINE_integer("ans_encoder_depth", 1, "Number of RNN layers in answer encoder (ie the Maluuba widget)")
+
 
 tf.app.flags.DEFINE_integer("vocab_size", 2000, "Shortlist vocab size")
 tf.app.flags.DEFINE_float("learning_rate", 2e-4, "Optimizer learning rate")
@@ -52,6 +53,8 @@ tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q usi
 tf.app.flags.DEFINE_boolean("smart_copy", True, "Use smarter heuristics to determine copy location if there are multiple choices")
 tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of weights for the copy mech and attention mech")
 tf.app.flags.DEFINE_boolean("begin_ans_feat", False, "Include a feature denoting the first token of the answer span")
+tf.app.flags.DEFINE_boolean("maxout_pointer", False, "Use a maxout pointer network (see http://aclweb.org/anthology/D18-1424)")
+
 
 tf.app.flags.DEFINE_boolean("disable_copy", False, "Prevent the model from generating using the copy vocab")
 tf.app.flags.DEFINE_boolean("disable_shortlist", False, "Prevent the model from generating using the shortlist vocab")
@@ -65,6 +68,7 @@ tf.app.flags.DEFINE_boolean("pg_dropout", False, "Use dropout when generating th
 
 tf.app.flags.DEFINE_float("lm_weight", 0.25, "Loss multiplier for LM in Maluuba model. Paper gives 0.1 alone or 0.25 joint")
 tf.app.flags.DEFINE_float("qa_weight", 0.5, "Loss multiplier for QA in Maluuba model. Paper gives 1.0 alone or 0.5 joint")
+tf.app.flags.DEFINE_float("bleu_weight", 0.0, "Loss multiplier for BLEU reward")
 tf.app.flags.DEFINE_float("pg_ml_weight", 1, "Loss multiplier for maximum likelihood when doing PG")
 
 

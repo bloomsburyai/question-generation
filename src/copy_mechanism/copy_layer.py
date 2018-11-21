@@ -237,7 +237,7 @@ class CopyLayer(base.Layer):
             batch_ix = tf.tile(tf.expand_dims(tf.range(batch_size*beam_width),axis=-1),[1,len_source])
             # seq_ix = tf.tile(tf.expand_dims(tf.range(len_source),axis=0),[batch_size*beam_width,1])
             tgt_indices = tf.reshape(tf.concat([tf.expand_dims(batch_ix,-1),tf.expand_dims(source_tiled_sl,-1)], axis=2),[-1,2])
-            ident_indices = tf.where(tf.greater(source_tiled_sl, -1))
+            ident_indices = tf.where(tf.greater(source_tiled_sl, -1)) # get ixs of all elements
             # ident_indices = tf.where()
             # tgt_indices = debug_tensor(tgt_indices)
 
@@ -261,7 +261,10 @@ class CopyLayer(base.Layer):
             # print(source) # batch x seq
             # print(alignments) # batch x seq
             pos_to_id = tf.one_hot(source_tiled-self.vocab_size, depth=self.max_copy_size) # batch x seq x vocab
-            copy_dist = tf.squeeze(tf.matmul(tf.expand_dims(alignments,1), pos_to_id), axis=1)
+            if FLAGS.maxout_pointer:
+                copy_dist = tf.reduce_max(pos_to_id * tf.expand_dims(alignments, 2), axis=1)
+            else:
+                copy_dist = tf.squeeze(tf.matmul(tf.expand_dims(alignments,1), pos_to_id), axis=1)
         else:
             copy_dist=alignments
 
