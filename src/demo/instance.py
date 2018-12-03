@@ -1,7 +1,4 @@
 import sys,os
-sys.path.insert(0, "/Users/tom/Dropbox/msc-ml/project/src/")
-sys.path.insert(0, "/home/tomhosking/webapps/qgen/qgen/src/")
-
 
 import tensorflow as tf
 import numpy as np

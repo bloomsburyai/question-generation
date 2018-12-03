@@ -36,6 +36,7 @@ tf.app.flags.DEFINE_integer("max_copy_size", 203, "Max size of copy vocab to lim
 tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for learned word embeddings")
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
+tf.app.flags.DEFINE_boolean("full_context_encoding", True, "Concat the context encoding with the answer encoding to give the encoder output")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
 tf.app.flags.DEFINE_integer("switch_units", 128, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
 tf.app.flags.DEFINE_integer("ctxt_encoder_depth", 1, "Number of RNN layers in context encoder")

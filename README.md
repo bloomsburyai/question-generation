@@ -9,16 +9,14 @@
 
 This repo primarily comprises an implmentation of [Machine Comprehension by Text-to-Text Neural Question Generation](https://arxiv.org/pdf/1705.02012.pdf), plus a load of other research code. It is a work in progress and almost certainly contains bugs!
 
-Requires python 3 and TensorFlow 1.4 or 1.7
+Requires python 3 and TensorFlow - tested on 1.4, 1.7, 1.12
 
 ### tl;dr
-
-To use the saved models, checkout commit be134175652204f3bf51cb194454d7b72c8b8105 - breaking changes have been made since then, I will update the models once retrained.
 
 ```bash
 pip install -r requirements.txt
 ./setup.sh
-./demo.sh --model_type MALUUBA --context_as_set --glove_vocab
+./demo.sh --model_type MALUUBA --context_as_set --glove_vocab --nofull_context_encoding
 ```
 
 ### Usage
