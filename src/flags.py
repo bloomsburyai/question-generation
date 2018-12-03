@@ -92,7 +92,7 @@ tf.app.flags.DEFINE_float("lm_dropout", 0.3, "LM num epochs")
 
 
 # eval params
-tf.app.flags.DEFINE_integer("beam_width", 32, "Beam width for decoding")
+tf.app.flags.DEFINE_integer("beam_width", 16, "Beam width for decoding")
 # tf.app.flags.DEFINE_integer("num_dev_samples", 4691, "How many examples to use for OOS evaluations")
 tf.app.flags.DEFINE_integer("num_dev_samples", 10570, "How many examples to use for OOS evaluations")
 # tf.app.flags.DEFINE_integer("num_eval_samples", 5609, "How many examples to use for evaluations")
