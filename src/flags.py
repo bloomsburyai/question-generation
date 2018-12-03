@@ -18,7 +18,7 @@ tf.app.flags.DEFINE_boolean("combine_vocab", False, "Combine pointer and shortli
 tf.app.flags.DEFINE_boolean("lr_schedule", False, "Adjust LR according to a (hard coded) schedule")
 
 tf.app.flags.DEFINE_integer("eval_freq", 1000, "Evaluate the model after this many steps")
-tf.app.flags.DEFINE_integer("num_epochs", 30, "Train the model for this many epochs")
+tf.app.flags.DEFINE_integer("num_epochs", 25, "Train the model for this many epochs")
 tf.app.flags.DEFINE_integer("batch_size", 64, "Batch size")
 tf.app.flags.DEFINE_integer("eval_batch_size", 16, "Batch size")
 tf.app.flags.DEFINE_string("data_path", './data/', "Path to dataset")
@@ -37,7 +37,7 @@ tf.app.flags.DEFINE_integer("embedding_size", 200, "Dimensionality to use for le
 tf.app.flags.DEFINE_integer("context_encoder_units", 768, "Number of hidden units for context encoder (ie 1st stage)")
 tf.app.flags.DEFINE_integer("answer_encoder_units", 768, "Number of hidden units for answer encoder (ie 2nd stage)")
 tf.app.flags.DEFINE_integer("decoder_units", 768, "Number of hidden units for decoder")
-tf.app.flags.DEFINE_integer("switch_units", 64, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
+tf.app.flags.DEFINE_integer("switch_units", 128, "Number of hidden units for switch network. NOTE this should be 384 according to Eric")
 tf.app.flags.DEFINE_integer("ctxt_encoder_depth", 1, "Number of RNN layers in context encoder")
 tf.app.flags.DEFINE_integer("ans_encoder_depth", 1, "Number of RNN layers in answer encoder (ie the Maluuba widget)")
 
@@ -48,7 +48,7 @@ tf.app.flags.DEFINE_string("opt_type", "adam", "Optimizer")
 tf.app.flags.DEFINE_float("entropy_weight", 0.01, "Weight for aux entropy loss")
 tf.app.flags.DEFINE_float("suppression_weight", 0.01, "Weight for suppression loss")
 tf.app.flags.DEFINE_float("dropout_rate", 0.3, "Dropout probability")
-tf.app.flags.DEFINE_boolean("context_as_set", False, "Convert context into a set of tokens rather than list for use by copy mech. Must use copy priority if this is enabled!!")
+tf.app.flags.DEFINE_boolean("context_as_set", True, "Convert context into a set of tokens rather than list for use by copy mech. Must use copy priority if this is enabled!!")
 tf.app.flags.DEFINE_boolean("copy_priority", False, "Preferentially encode q using copy priority")
 tf.app.flags.DEFINE_boolean("smart_copy", True, "Use smarter heuristics to determine copy location if there are multiple choices")
 tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of weights for the copy mech and attention mech")
@@ -61,7 +61,7 @@ tf.app.flags.DEFINE_boolean("disable_shortlist", False, "Prevent the model from 
 
 
 
-tf.app.flags.DEFINE_float("length_penalty", 0.12, "TF beam search length penalty hparam")
+tf.app.flags.DEFINE_float("length_penalty", 0.05, "TF beam search length penalty hparam")
 
 tf.app.flags.DEFINE_integer("pg_burnin", 200, "Num steps to burn in reward whitening before updating")
 tf.app.flags.DEFINE_boolean("pg_dropout", False, "Use dropout when generating the examples for policy gradient")

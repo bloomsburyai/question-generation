@@ -67,7 +67,8 @@ class Seq2SeqModel(TFModel):
             # build teacher output - coerce to vocab and pad with SOS/EOS
             # also build output for loss - one hot over vocab+context
 
-            self.question_teach_oh = tf.concat([tf.one_hot(tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), depth=len(self.vocab)+FLAGS.max_copy_size), self.question_onehot[:,:-1,:]], axis=1)
+            self.question_teach = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), self.question_ids[:,:-1]], axis=1)
+            # self.question_teach_oh = tf.concat([tf.one_hot(tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size,1]), depth=len(self.vocab)+FLAGS.max_copy_size), self.question_onehot[:,:-1,:]], axis=1)
 
 
             # init embeddings
@@ -75,6 +76,8 @@ class Seq2SeqModel(TFModel):
                 glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
                 embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
                 self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
+                self.copy_embeddings = tf.get_variable('copy_embeddings', shape=(FLAGS.max_copy_size, FLAGS.embedding_size), dtype=tf.float32)
+                self.full_embeddings = tf.concat([self.embeddings, self.copy_embeddings], axis=0)
                 assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
                 # this uses a load of memory, dont create unless it's actually needed
@@ -83,6 +86,7 @@ class Seq2SeqModel(TFModel):
                     extended_embeddings_init = tf.constant(loader.get_embeddings(self.glove_vocab, glove_embeddings, D=FLAGS.embedding_size))
                     self.extended_embeddings = tf.get_variable('full_word_embeddings', initializer=extended_embeddings_init, dtype=tf.float32, trainable=False)
 
+                self.question_teach_embedded = tf.nn.embedding_lookup(self.full_embeddings, self.question_teach)
 
             # First, coerce them to the shortlist vocab. Then embed
             self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
@@ -231,7 +235,7 @@ class Seq2SeqModel(TFModel):
                         input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                         state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                         output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-                        input_size=len(self.vocab)+FLAGS.max_copy_size+self.decoder_units//2,
+                        input_size=self.embedding_size+self.decoder_units//2,
                         variational_recurrent=True,
                         dtype=tf.float32)
 
@@ -268,7 +272,7 @@ class Seq2SeqModel(TFModel):
                         input_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                         state_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
                         output_keep_prob=(tf.cond(self.is_training,lambda: 1.0 - self.dropout_prob,lambda: 1.)),
-                        input_size=len(self.vocab)+FLAGS.max_copy_size+self.decoder_units//2,
+                        input_size=self.embedding_size+self.decoder_units//2,
                         variational_recurrent=True,
                         dtype=tf.float32)
 
@@ -321,7 +325,8 @@ class Seq2SeqModel(TFModel):
         with tf.variable_scope('decoder_unroll') as scope:
             # Helper - training
             training_helper = tf.contrib.seq2seq.TrainingHelper(
-                self.question_teach_oh, self.question_length)
+                self.question_teach_embedded, self.question_length)
+                # self.question_teach_oh, self.question_length)
                 # decoder_emb_inp, length(decoder_emb_inp)+1)
 
             # Decoder - training
@@ -343,7 +348,7 @@ class Seq2SeqModel(TFModel):
             end_token = self.vocab[EOS]
 
             beam_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = beam_decoder_cell,
-                                                               embedding = tf.eye(len(self.vocab) + FLAGS.max_copy_size),
+                                                               embedding = self.full_embeddings,
                                                                start_tokens = start_tokens,
                                                                end_token = end_token,
                                                                initial_state = beam_init_state,
