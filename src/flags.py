@@ -55,6 +55,7 @@ tf.app.flags.DEFINE_boolean("smart_copy", True, "Use smarter heuristics to deter
 tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of weights for the copy mech and attention mech")
 tf.app.flags.DEFINE_boolean("begin_ans_feat", False, "Include a feature denoting the first token of the answer span")
 tf.app.flags.DEFINE_boolean("maxout_pointer", False, "Use a maxout pointer network (see http://aclweb.org/anthology/D18-1424)")
+tf.app.flags.DEFINE_boolean("loc_embeddings", False, "Use different embeddings for each copy position? Otherwise use OOV embedding")
 
 
 tf.app.flags.DEFINE_boolean("disable_copy", False, "Prevent the model from generating using the copy vocab")
@@ -101,3 +102,7 @@ tf.app.flags.DEFINE_boolean("eval_on_dev", True, "Should the eval script use the
 tf.app.flags.DEFINE_boolean("eval_on_test", False, "Should the eval script use the test set?")
 tf.app.flags.DEFINE_string("eval_model_id", "", "Run ID of the saved model to be evaluated")
 tf.app.flags.DEFINE_boolean("eval_metrics", True, "Calculate metrics when evaling - disable to speed up results generation")
+
+tf.app.flags.DEFINE_boolean("diverse_bs", False, "Use diverse BS to generate mutliple outputs")
+tf.app.flags.DEFINE_integer("beam_groups", 1, "How many groups to split the beam into for DBS?")
+tf.app.flags.DEFINE_float("beam_diversity", 0.5, "Diversity parameter used for rescoring paths in each group")

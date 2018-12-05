@@ -13,6 +13,8 @@ import helpers.loader as loader
 
 from copy_mechanism import copy_attention_wrapper, copy_layer
 
+from dbs.diverse_bs import DiverseBeamSearchDecoder
+
 import helpers.ops as ops
 from helpers.misc_utils import debug_shape, debug_tensor, debug_op
 
@@ -76,7 +78,10 @@ class Seq2SeqModel(TFModel):
                 glove_embeddings = loader.load_glove(FLAGS.data_path, d=FLAGS.embedding_size)
                 embeddings_init = tf.constant(loader.get_embeddings(self.vocab, glove_embeddings, D=FLAGS.embedding_size))
                 self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
-                self.copy_embeddings = tf.get_variable('copy_embeddings', shape=(FLAGS.max_copy_size, FLAGS.embedding_size), dtype=tf.float32)
+                if FLAGS.loc_embeddings:
+                    self.copy_embeddings = tf.get_variable('copy_embeddings', shape=(FLAGS.max_copy_size, FLAGS.embedding_size), dtype=tf.float32)
+                else:
+                    self.copy_embeddings = tf.nn.embedding_lookup(self.embeddings, tf.tile([self.vocab[OOV]], [FLAGS.max_copy_size]))
                 self.full_embeddings = tf.concat([self.embeddings, self.copy_embeddings], axis=0)
                 assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
 
@@ -86,14 +91,15 @@ class Seq2SeqModel(TFModel):
                     extended_embeddings_init = tf.constant(loader.get_embeddings(self.glove_vocab, glove_embeddings, D=FLAGS.embedding_size))
                     self.extended_embeddings = tf.get_variable('full_word_embeddings', initializer=extended_embeddings_init, dtype=tf.float32, trainable=False)
 
-                self.question_teach_embedded = tf.nn.embedding_lookup(self.full_embeddings, self.question_teach)
+                self.question_teach_ids = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size, 1]), self.question_ids[:, :-1]], axis=1)
+                self.question_teach_embedded = tf.nn.embedding_lookup(self.full_embeddings, self.question_teach_ids)
 
             # First, coerce them to the shortlist vocab. Then embed
             self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
-            self.context_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.context_coerced), rate=FLAGS.dropout_rate, training=self.is_training)
+            self.context_embedded = tf.nn.embedding_lookup(self.embeddings, self.context_coerced)
 
             self.answer_coerced = tf.where(tf.greater_equal(self.answer_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.answer_ids)), self.answer_ids)
-            self.answer_embedded = tf.layers.dropout(tf.nn.embedding_lookup(self.embeddings, self.answer_coerced), rate=FLAGS.dropout_rate, training=self.is_training) # batch x seq x embed
+            self.answer_embedded = tf.nn.embedding_lookup(self.embeddings, self.answer_coerced) # batch x seq x embed
 
             # Is context token in answer?
             max_context_len = tf.reduce_max(self.context_length)
@@ -347,14 +353,27 @@ class Seq2SeqModel(TFModel):
             start_tokens = tf.tile(tf.constant([self.vocab[SOS]], dtype=tf.int32), [ curr_batch_size  ] )
             end_token = self.vocab[EOS]
 
-            beam_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = beam_decoder_cell,
+            # DBS degrades to normal BS with groups=1, but my implementation is 1) probably slower and 2) wont receive updates from upstream
+            if FLAGS.diverse_bs:
+                beam_decoder = DiverseBeamSearchDecoder( cell = beam_decoder_cell,
                                                                embedding = self.full_embeddings,
                                                                start_tokens = start_tokens,
                                                                end_token = end_token,
                                                                initial_state = beam_init_state,
                                                                beam_width = FLAGS.beam_width,
                                                                output_layer = beam_projection_layer ,
-                                                               length_penalty_weight=FLAGS.length_penalty)
+                                                               length_penalty_weight=FLAGS.length_penalty,
+                                                               num_groups=FLAGS.beam_groups,
+                                                               diversity_param=FLAGS.beam_diversity)
+            else:
+               beam_decoder = tf.contrib.seq2seq.BeamSearchDecoder( cell = beam_decoder_cell,
+                                                                  embedding = self.full_embeddings,
+                                                                  start_tokens = start_tokens,
+                                                                  end_token = end_token,
+                                                                  initial_state = beam_init_state,
+                                                                  beam_width = FLAGS.beam_width,
+                                                                  output_layer = beam_projection_layer ,
+                                                                  length_penalty_weight=FLAGS.length_penalty)
 
             beam_outputs, beam_decoder_states,beam_out_lens = tf.contrib.seq2seq.dynamic_decode(  beam_decoder,
                                                                     impute_finished=False,
