@@ -58,6 +58,8 @@ tf.app.flags.DEFINE_boolean("maxout_pointer", False, "Use a maxout pointer netwo
 tf.app.flags.DEFINE_boolean("loc_embeddings", False, "Use different embeddings for each copy position? Otherwise use OOV embedding")
 tf.app.flags.DEFINE_boolean("out_vocab_cpu", False, "Place output projection on CPU - enable for big vocabs")
 
+tf.app.flags.DEFINE_boolean("advanced_condition_encoding", False, "Use the extra layers from the Maluuba paper")
+
 
 tf.app.flags.DEFINE_boolean("disable_copy", False, "Prevent the model from generating using the copy vocab")
 tf.app.flags.DEFINE_boolean("disable_shortlist", False, "Prevent the model from generating using the shortlist vocab")

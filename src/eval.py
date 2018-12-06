@@ -17,7 +17,7 @@ from helpers.output import output_pretty, tokens_to_string, output_eval
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
-from maluuba_model import MaluubaModel
+from maluuba_model import RLModel
 from datasources.squad_streamer import SquadStreamer
 from langmodel.lm import LstmLmInstance
 # from qa.mpcm import MpcmQaInstance
@@ -39,7 +39,7 @@ def main(_):
     # load dataset
     # train_data = loader.load_squad_triples(FLAGS.data_path, False)
     dev_data = loader.load_squad_triples(FLAGS.data_path, dev=FLAGS.eval_on_dev, test=FLAGS.eval_on_test)
-    
+
     if len(dev_data) < FLAGS.num_eval_samples:
         exit('***ERROR*** Eval dataset is smaller than the num_eval_samples flag!')
     if len(dev_data) > FLAGS.num_eval_samples:
@@ -71,7 +71,7 @@ def main(_):
         # Create model
         if model_type[:7] == "SEQ2SEQ":
             model = Seq2SeqModel(vocab, training_mode=False)
-        elif model_type[:7] == "MALUUBA":
+        elif model_type[:2] == "RL":
             # TEMP - no need to spin up the LM or QA model at eval time
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0

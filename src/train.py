@@ -14,7 +14,7 @@ from helpers.output import output_pretty, output_basic, tokens_to_string, output
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
-from maluuba_model import MaluubaModel
+from rl_model import RLModel
 from discriminator.instance import DiscriminatorInstance
 
 from datasources.squad_streamer import SquadStreamer
@@ -133,12 +133,12 @@ def main(_):
     # Create model
     if FLAGS.model_type[:7] == "SEQ2SEQ":
         model = Seq2SeqModel(vocab, training_mode=True, use_embedding_loss=FLAGS.embedding_loss)
-    elif FLAGS.model_type[:7] == "MALUUBA":
+    elif FLAGS.model_type[:2] == "RL":
         # TEMP
         if not FLAGS.policy_gradient:
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0
-        model = MaluubaModel(vocab, training_mode=True, use_embedding_loss=FLAGS.embedding_loss)
+        model = RLModel(vocab, training_mode=True, use_embedding_loss=FLAGS.embedding_loss)
         # if FLAGS.model_type[:10] == "MALUUBA_RL":
         #     qa_vocab=model.qa.vocab
         #     lm_vocab=model.lm.vocab
@@ -204,7 +204,7 @@ def main(_):
                 train_batch, curr_batch_size = train_data_source.get_batch()
 
                 # Are we doing policy gradient? Do a forward pass first, then build the PG batch and do an update step
-                if FLAGS.model_type[:10] == "MALUUBA_RL" and FLAGS.policy_gradient:
+                if FLAGS.model_type[:2] == "RL" and FLAGS.policy_gradient:
 
                     # do a fwd pass first, get the score, then do another pass and optimize
                     qhat_str,qhat_ids, qhat_lens= sess.run([model.q_hat_beam_string, model.q_hat_beam_ids, model.q_hat_beam_lens],
@@ -335,7 +335,7 @@ def main(_):
 
                 else:
                     # Normal single pass update step. If model has PG capability, fill in the placeholders with empty values
-                    if FLAGS.model_type[:7] == "MALUUBA" and not FLAGS.policy_gradient:
+                    if FLAGS.model_type[:2] == "RL" and not FLAGS.policy_gradient:
                         rl_dict={model.lm_score: [0 for b in range(curr_batch_size)],
                             model.qa_score: [0 for b in range(curr_batch_size)],
                             model.disc_score: [0 for b in range(curr_batch_size)],
