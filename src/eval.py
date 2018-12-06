@@ -17,7 +17,7 @@ from helpers.output import output_pretty, tokens_to_string, output_eval
 from tqdm import tqdm
 
 from seq2seq_model import Seq2SeqModel
-from maluuba_model import RLModel
+from rl_model import RLModel
 from datasources.squad_streamer import SquadStreamer
 from langmodel.lm import LstmLmInstance
 # from qa.mpcm import MpcmQaInstance

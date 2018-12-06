@@ -23,7 +23,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Seq2SeqModel(TFModel):
-    def __init__(self, vocab, advanced_condition_encoding=False, training_mode=False, use_embedding_loss=False):
+    def __init__(self, vocab, training_mode=False, use_embedding_loss=False):
         self.vocab=vocab
         self.rev_vocab = {v:k for k,v in self.vocab.items()}
 
@@ -34,7 +34,7 @@ class Seq2SeqModel(TFModel):
         self.context_encoder_units = tf.app.flags.FLAGS.context_encoder_units
         self.answer_encoder_units = tf.app.flags.FLAGS.answer_encoder_units
         self.decoder_units = tf.app.flags.FLAGS.decoder_units
-        self.advanced_condition_encoding = advanced_condition_encoding
+        self.advanced_condition_encoding = FLAGS.advanced_condition_encoding
         super().__init__()
 
     def build_model(self):

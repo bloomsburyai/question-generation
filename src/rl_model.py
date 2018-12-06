@@ -17,7 +17,7 @@ class RLModel(Seq2SeqModel):
     def __init__(self, vocab, training_mode=False, use_embedding_loss=False):
 
 
-        super().__init__(vocab, advanced_condition_encoding=FLAGS.advanced_condition_encoding, training_mode=training_mode, use_embedding_loss=use_embedding_loss)
+        super().__init__(vocab, training_mode=training_mode, use_embedding_loss=use_embedding_loss)
         self.modify_seq2seq_model()
 
     def modify_seq2seq_model(self):
