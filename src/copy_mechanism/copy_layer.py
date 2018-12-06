@@ -175,8 +175,11 @@ class CopyLayer(base.Layer):
         # attention, alignments = tf.split(inputs, [self.embedding_dim, -1], axis=1)
         attention, alignments = tf.split(inputs_new, num_or_size_splits=[self.embedding_dim, -1], axis=-1)
         # [len_target, batch_size, vocab_size]
-        shortlist = tf.layers.dense(attention, self.vocab_size, activation=tf.nn.softmax, use_bias=False)
-
+        if FLAGS.out_vocab_cpu:
+            with tf.device('/cpu:*'):
+                shortlist = tf.layers.dense(attention, self.vocab_size, activation=tf.nn.softmax, use_bias=False)
+        else:
+            shortlist = tf.layers.dense(attention, self.vocab_size, activation=tf.nn.softmax, use_bias=False)
 
         # attention = debug_shape(attention, "attn")
         # alignments = debug_shape(alignments, "align ("+str(self.units)+" desired)")

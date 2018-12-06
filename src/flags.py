@@ -56,6 +56,7 @@ tf.app.flags.DEFINE_boolean("separate_copy_mech", False, "Use a separate set of 
 tf.app.flags.DEFINE_boolean("begin_ans_feat", False, "Include a feature denoting the first token of the answer span")
 tf.app.flags.DEFINE_boolean("maxout_pointer", False, "Use a maxout pointer network (see http://aclweb.org/anthology/D18-1424)")
 tf.app.flags.DEFINE_boolean("loc_embeddings", False, "Use different embeddings for each copy position? Otherwise use OOV embedding")
+tf.app.flags.DEFINE_boolean("out_vocab_cpu", False, "Place output projection on CPU - enable for big vocabs")
 
 
 tf.app.flags.DEFINE_boolean("disable_copy", False, "Prevent the model from generating using the copy vocab")
