@@ -75,7 +75,7 @@ def main(_):
             # TEMP - no need to spin up the LM or QA model at eval time
             FLAGS.qa_weight = 0
             FLAGS.lm_weight = 0
-            model = MaluubaModel(vocab, training_mode=False)
+            model = RLModel(vocab, training_mode=False)
         else:
             exit("Unrecognised model type: "+model_type)
 
