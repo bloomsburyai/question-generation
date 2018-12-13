@@ -16,7 +16,7 @@ mem_limit=0.9
 
 
 # model_slug_list = ['MALUUBA-CROP-SET-GLOVE/1535568489','SEQ2SEQ/1533280948','qgen-s2s-filt1']
-model_slug_list = ['MALUUBA-CROP-SET-GLOVE']
+model_slug_list = ['RL-S2S-1544356761']
 model_slug_curr = model_slug_list[0]
 
 from flask import Flask, current_app, request, redirect

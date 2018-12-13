@@ -4,7 +4,7 @@ import tensorflow as tf
 # config
 tf.app.flags.DEFINE_boolean("testing", False, "Reduce model size for local testing")
 
-tf.app.flags.DEFINE_string("model_type", 'MALUUBA', "Model type code")
+tf.app.flags.DEFINE_string("model_type", 'RL-S2S', "Model type code")
 
 tf.app.flags.DEFINE_boolean("restore", False, "Restore from existing chkpt?")
 tf.app.flags.DEFINE_string("restore_path", None, "Restore from existing chkpt?")
