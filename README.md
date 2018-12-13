@@ -16,8 +16,10 @@ Requires python 3 and TensorFlow - tested on 1.4, 1.7, 1.12
 ```bash
 pip install -r requirements.txt
 ./setup.sh
-./demo.sh --model_type MALUUBA --context_as_set --glove_vocab --nofull_context_encoding
+./demo.sh
 ```
+
+Or run the demo with docker - you'll need to mount `./models` and `./data`
 
 ### Usage
 
