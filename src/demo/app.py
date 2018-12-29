@@ -32,7 +32,7 @@ def get_q():
 
     ctxt = request.args['context']
     ans = request.args['answer']
-    ans_pos = ctxt.find(ans)
+    ans_pos = int(request.args.get('ans_pos', ctxt.find(ans)))
 
     if FLAGS.filter_window_size_before >-1:
         ctxt,ans_pos = preprocessing.filter_context(ctxt, ans_pos, FLAGS.filter_window_size_before, FLAGS.filter_window_size_after, FLAGS.filter_max_tokens)
