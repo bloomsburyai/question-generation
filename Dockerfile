@@ -16,5 +16,5 @@ ADD ./src /app/src
 WORKDIR /app
 ENV PYTHONPATH "${PYTHONPATH}:./src"
 ENTRYPOINT ["python3"]
-CMD ["src/demo/app.py"]
+CMD ["-u", "src/demo/app.py"]
 # CMD ["bash", 'demo.sh']

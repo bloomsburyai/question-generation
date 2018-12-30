@@ -49,13 +49,12 @@ def get_q():
 def get_q_batch():
     args = request.get_json()
 
-    ctxts = args['contexts']
-    ans = args['answers']
-    ans_pos = args['ans_pos']
+    ctxts, ans, ans_pos = map(list, zip(*args['queries']))
 
     if FLAGS.filter_window_size_before >-1:
         for i in range(len(ctxts)):
             ctxts[i], ans_pos[i] = preprocessing.filter_context(ctxts[i], ans_pos[i], FLAGS.filter_window_size_before, FLAGS.filter_window_size_after, FLAGS.filter_max_tokens)
+            
             ctxts[i] = ctxts[i].encode()
             ans[i] = ans[i].encode()
 
@@ -64,13 +63,13 @@ def get_q_batch():
         qs = []
         for b in range(len(ctxts)//32 + 1):
             start_ix = b * 32
-            end_ix = min(len(ctt), (b + 1) * 32)
+            end_ix = min(len(ctxts), (b + 1) * 32)
             qs.append(current_app.generator.get_q_batch(ctxts[start_ix:end_ix], ans[start_ix:end_ix], ans_pos[start_ix:end_ix]))
     else:
         qs = current_app.generator.get_q_batch(ctxts, ans, ans_pos)
 
     resp = {'status': 'OK',
-            'qs': qs}
+            'results': [{'q': qs[i], 'a': ans[i].decode()} for i in range(len(qs))]}
     return json.dumps(resp)
     
 
