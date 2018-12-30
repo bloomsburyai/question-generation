@@ -39,6 +39,37 @@ class AQInstance():
         q_str = " ".join([w.decode().replace('>','&gt;').replace('<','&lt;') for w in q[0][:q_len[0]-1]])
         return q_str
 
+    def get_q_batch(self, contexts, answers, ans_pos):
+        # Process and create a batch of 1
+        ctxt_feats = [[x for x in preprocessing.process_squad_context(self.model.vocab, context_as_set=FLAGS.context_as_set)(contexts[i])] for i in range(len(contexts))]
+        ans_feats = [[x for x in preprocessing.process_squad_answer(self.model.vocab, context_as_set=FLAGS.context_as_set)(answers[i], ans_pos[i], contexts[i])] for i in range(len(contexts))]
+
+        # Now zip to get batches of features, not batches of examples
+        ctxt_feats = list(zip(*ctxt_feats))
+        ans_feats = list(zip(*ans_feats))
+
+        # pad
+        ctxt_pad = ['<PAD>', 0, 0, 0, 0]
+        ans_pad = ['<PAD>', 0, 0, 0]
+        for i in range(len(ctxt_feats)):
+            if i in [3,4]: # skip length feature
+                continue
+            max_len = max(len(feat) for feat in ctxt_feats[i])
+            ctxt_feats[i] = [list(feat) + [ctxt_pad[i] for j in range(max_len - len(feat))] for feat in ctxt_feats[i]]
+    
+        for i in range(len(ans_feats)):
+            if i in [2]: # skip length feature
+                continue
+            max_len = max(len(feat) for feat in ans_feats[i])
+            ans_feats[i] = [list(feat) + [ans_pad[i] for j in range(max_len - len(feat))] for feat in ans_feats[i]]
+
+        ctxt_dict = tuple([np.array(x) for x in ctxt_feats])
+        ans_dict = tuple([np.array(x) for x in ans_feats])
+
+        qs, q_lens = self.sess.run([self.model.q_hat_beam_string,self.model.q_hat_beam_lens], feed_dict={self.model.context_in: ctxt_dict, self.model.answer_in: ans_dict})
+        q_str = [" ".join([w.decode().replace('>','&gt;').replace('<','&lt;') for w in qs[i][:q_lens[i]-1]]) for i in range(len(qs))]
+        return q_str
+
     def ping(self):
         return self.sess.run(self.model.ping)
 

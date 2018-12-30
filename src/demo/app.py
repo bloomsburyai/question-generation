@@ -45,6 +45,35 @@ def get_q():
         print(ans)
         return "Couldnt find ans in context!"
 
+@app.route("/api/generate_batch", methods=['POST'])
+def get_q_batch():
+    args = request.get_json()
+
+    ctxts = args['contexts']
+    ans = args['answers']
+    ans_pos = args['ans_pos']
+
+    if FLAGS.filter_window_size_before >-1:
+        for i in range(len(ctxts)):
+            ctxts[i], ans_pos[i] = preprocessing.filter_context(ctxts[i], ans_pos[i], FLAGS.filter_window_size_before, FLAGS.filter_window_size_after, FLAGS.filter_max_tokens)
+            ctxts[i] = ctxts[i].encode()
+            ans[i] = ans[i].encode()
+
+    
+    if len(ctxts) > 32:
+        qs = []
+        for b in range(len(ctxts)//32 + 1):
+            start_ix = b * 32
+            end_ix = min(len(ctt), (b + 1) * 32)
+            qs.append(current_app.generator.get_q_batch(ctxts[start_ix:end_ix], ans[start_ix:end_ix], ans_pos[start_ix:end_ix]))
+    else:
+        qs = current_app.generator.get_q_batch(ctxts, ans, ans_pos)
+
+    resp = {'status': 'OK',
+            'qs': qs}
+    return json.dumps(resp)
+    
+
 @app.route("/api/ping")
 def ping():
     return app.generator.ping()
@@ -76,4 +105,4 @@ def init():
 if __name__ == '__main__':
     init()
     with app.app_context():
-        app.run(host="0.0.0.0", port=5000)
+        app.run(host="0.0.0.0", port=5004)

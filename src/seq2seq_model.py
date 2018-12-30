@@ -40,19 +40,19 @@ class Seq2SeqModel(TFModel):
     def build_model(self):
 
         with tf.device('/cpu:*'):
-            self.context_raw = tf.placeholder(tf.string, [None, None])  # source vectors of unknown size
+            self.context_raw = tf.placeholder(tf.string, [None, None], name='placeholder_context_raw')  # source vectors of unknown size
             self.question_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
-            self.answer_raw  = tf.placeholder(tf.string, [None, None])  # target vectors of unknown size
-        self.context_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
-        self.context_copy_ids = tf.placeholder(tf.int32, [None, None])  # source vectors of unknown size
-        self.context_length  = tf.placeholder(tf.int32, [None])     # size(source)
-        self.context_vocab_size  = tf.placeholder(tf.int32, [None])     # size(source_vocab)
+            self.answer_raw  = tf.placeholder(tf.string, [None, None], name='placeholder_ans_raw')  # target vectors of unknown size
+        self.context_ids = tf.placeholder(tf.int32, [None, None], name='placeholder_context_ids')  # source vectors of unknown size
+        self.context_copy_ids = tf.placeholder(tf.int32, [None, None], name='placeholder_context_cp_ids')  # source vectors of unknown size
+        self.context_length  = tf.placeholder(tf.int32, [None], name='placeholder_context_len')     # size(source)
+        self.context_vocab_size  = tf.placeholder(tf.int32, [None], name='placeholder_context_vocsize')     # size(source_vocab)
         self.question_ids = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
         self.question_onehot = tf.placeholder(tf.float32, [None, None, None])  # target vectors of unknown size
         self.question_length  = tf.placeholder(tf.int32, [None])     # size(source)
-        self.answer_ids  = tf.placeholder(tf.int32, [None, None])  # target vectors of unknown size
-        self.answer_length  = tf.placeholder(tf.int32, [None])
-        self.answer_locs  = tf.placeholder(tf.int32, [None,None])
+        self.answer_ids  = tf.placeholder(tf.int32, [None, None], name='placeholder_ans_ids')  # target vectors of unknown size
+        self.answer_length  = tf.placeholder(tf.int32, [None], name='placeholder_ans_len')
+        self.answer_locs  = tf.placeholder(tf.int32, [None,None], name='placeholder_ans_len')
         self.original_ix  = tf.placeholder(tf.int32, [None]) # unused - gives the index of the input in the unshuffled dataset
 
         self.hide_answer_in_copy = tf.placeholder_with_default(False, (),"hide_answer_in_copy")
