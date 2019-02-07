@@ -27,6 +27,8 @@ if not os.path.exists(os.path.join(os.getcwd(),dir_name)):
 # TODO: This needs to be passed in from the cmd line somehow - but flags doesnt exist yet because all the logic happens when the defaults are being built, grr
 if "CLUSTER" in os.environ.keys():
     target_dir = "/home/thosking/msc-project/models/saved/qanet"
+elif "QANET_DIR" in os.environ.keys():
+    target_dir = os.environ['QANET_DIR']
 else:
     target_dir = "./models/saved/qanet"
 
@@ -88,7 +90,7 @@ flags.DEFINE_integer("char_dim", 64, "Embedding dimension for char")
 
 flags.DEFINE_integer("para_limit", 400, "Limit length for paragraph")
 flags.DEFINE_integer("ques_limit", 50, "Limit length for question - NOTE QANet uses a different tokenizer so this can exceed the max generated len")
-flags.DEFINE_integer("ans_limit", 30, "Limit length for answers")
+flags.DEFINE_integer("ans_limit", 5, "Limit length for answers")
 flags.DEFINE_integer("test_para_limit", 1000, "Limit length for paragraph in test file")
 flags.DEFINE_integer("test_ques_limit", 260, "Limit length for question in test file")
 flags.DEFINE_integer("char_limit", 16, "Limit length for character")
