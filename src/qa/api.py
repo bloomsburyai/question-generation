@@ -36,7 +36,7 @@ def get_q_batch():
         for b in range(len(ctxts)//32 + 1):
             start_ix = b * 32
             end_ix = min(len(ctxts), (b + 1) * 32)
-            ans.append(current_app.generator.get_ans(ctxts[start_ix:end_ix], questions[start_ix:end_ix]))
+            ans.extend(current_app.generator.get_ans(ctxts[start_ix:end_ix], questions[start_ix:end_ix]))
     else:
         ans = current_app.generator.get_ans(ctxts, questions)
 

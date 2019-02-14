@@ -64,7 +64,7 @@ def get_q_batch():
         for b in range(len(ctxts)//32 + 1):
             start_ix = b * 32
             end_ix = min(len(ctxts), (b + 1) * 32)
-            qs.append(current_app.generator.get_q_batch(ctxts[start_ix:end_ix], ans[start_ix:end_ix], ans_pos[start_ix:end_ix]))
+            qs.extend(current_app.generator.get_q_batch(ctxts[start_ix:end_ix], ans[start_ix:end_ix], ans_pos[start_ix:end_ix]))
     else:
         qs = current_app.generator.get_q_batch(ctxts, ans, ans_pos)
 

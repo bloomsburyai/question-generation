@@ -36,7 +36,7 @@ def get_q_batch():
         for b in range(len(questions)//32 + 1):
             start_ix = b * 32
             end_ix = min(len(questions), (b + 1) * 32)
-            log_probs.append(current_app.generator.get_seq_perplexity(questions[start_ix:end_ix]))
+            log_probs.extend(current_app.generator.get_seq_perplexity(questions[start_ix:end_ix]))
     else:
         log_probs = current_app.generator.get_seq_perplexity(questions)
 
