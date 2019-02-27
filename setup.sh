@@ -1,4 +1,5 @@
 mkdir ./models
+mkdir ./data
 mkdir ./models/qgen
 mkdir ./models/lm
 mkdir ./models/qanet
