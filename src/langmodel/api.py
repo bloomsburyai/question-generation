@@ -25,7 +25,7 @@ def hello():
 
 
 @app.route("/api/get_log_prob", methods=['POST'])
-def get_q_batch():
+def get_log_prob():
     args = request.get_json()
 
     questions = args['queries']
