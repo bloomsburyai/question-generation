@@ -22,10 +22,12 @@ model_slug_curr = model_slug_list[0]
 
 from celery.signals import worker_init, worker_process_init
 from celery.concurrency import asynpool
-asynpool.PROC_ALIVE_TIMEOUT = 30.0 #set this long enough
+asynpool.PROC_ALIVE_TIMEOUT = 180.0 #set this long enough
 
 
 BROKER_ENDPOINT = os.environ.get('BROKER_ENDPOINT', None)
+
+BATCH_SIZE = 8
 
 if BROKER_ENDPOINT is not None:
     from demo.instance import AQInstance
@@ -80,11 +82,11 @@ def get_q_batch_async(queries):
                 ans[i] = ans[i].encode()
 
         print('Sending to model...')
-        if len(ctxts) > 32:
+        if len(ctxts) > BATCH_SIZE:
             qs = []
-            for b in range(len(ctxts)//32 + 1):
-                start_ix = b * 32
-                end_ix = min(len(ctxts), (b + 1) * 32)
+            for b in range(len(ctxts)//BATCH_SIZE + 1):
+                start_ix = b * BATCH_SIZE
+                end_ix = min(len(ctxts), (b + 1) * BATCH_SIZE)
                 qs.extend(taskengine.generator.get_q_batch(ctxts[start_ix:end_ix], ans[start_ix:end_ix], ans_pos[start_ix:end_ix]))
         else:
             qs = taskengine.generator.get_q_batch(ctxts, ans, ans_pos)

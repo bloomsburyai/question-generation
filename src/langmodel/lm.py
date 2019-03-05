@@ -40,6 +40,7 @@ class LstmLm(TFModel):
             self.embeddings = tf.get_variable('word_embeddings', initializer=embeddings_init, dtype=tf.float32)
             # self.embeddings = tf.get_variable('word_embeddings', (len(self.vocab), FLAGS.embedding_size), dtype=tf.float32)
             assert self.embeddings.shape == [len(self.vocab), self.embedding_size]
+            del glove_embeddings
 
         # input placeholder
         self.input_seqs = tf.placeholder(tf.int32, [None, None])

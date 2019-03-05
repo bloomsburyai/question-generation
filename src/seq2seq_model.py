@@ -94,6 +94,8 @@ class Seq2SeqModel(TFModel):
                 self.question_teach_ids = tf.concat([tf.tile(tf.constant(self.vocab[SOS], shape=[1, 1]), [curr_batch_size, 1]), self.question_ids[:, :-1]], axis=1)
                 self.question_teach_embedded = tf.nn.embedding_lookup(self.full_embeddings, self.question_teach_ids)
 
+                del glove_embeddings
+
             # First, coerce them to the shortlist vocab. Then embed
             self.context_coerced = tf.where(tf.greater_equal(self.context_ids, len(self.vocab)), tf.tile(tf.constant([[self.vocab[OOV]]]), tf.shape(self.context_ids)), self.context_ids)
             self.context_embedded = tf.nn.embedding_lookup(self.embeddings, self.context_coerced)
