@@ -1,4 +1,4 @@
-import sys,os
+import sys,os,traceback
 
 import tensorflow as tf
 import numpy as np
@@ -96,7 +96,9 @@ def get_q_batch_async(queries):
             'results': [{'q': qs[i], 'a': ans[i].decode()} for i in range(len(qs))]}
         return resp
     except Exception as e:
-        return e
+        print(e)
+        traceback.print_exc()
+        return str(e)
 
     
     
