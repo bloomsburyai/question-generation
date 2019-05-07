@@ -39,9 +39,15 @@ If you have a saved model checkpoint, you can interact with it using the demo - 
 
 `src/discriminator/` is a modified QANet architecture, used to predict whether a context/question/answer triple is valid or not - this could be used to distinguish between generated questions and real ones or to filter out adversarial examples (eg SQuAD v2).
 
-### ToDo
+### Citation
 
- - [x] Train using the RL components
- - [x] Some config options are still hardcoded (eg restore paths, model type)
- - [x] The output code is still a bit ad-hoc, and could do with tidying up
- - [ ] `train.py` does a lot of work that would ideally be refactored out
+If you find this code useful, please cite our paper!
+
+```@misc{hosking2019evaluating,
+    title={Evaluating Rewards for Question Generation Models},
+    author={Tom Hosking and Sebastian Riedel},
+    year={2019},
+    eprint={1902.11049},
+    archivePrefix={arXiv},
+    primaryClass={cs.CL}
+}```
