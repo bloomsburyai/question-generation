@@ -43,11 +43,13 @@ If you have a saved model checkpoint, you can interact with it using the demo - 
 
 If you find this code useful, please cite our paper!
 
-```@misc{hosking2019evaluating,
+```
+@misc{hosking2019evaluating,
     title={Evaluating Rewards for Question Generation Models},
     author={Tom Hosking and Sebastian Riedel},
     year={2019},
     eprint={1902.11049},
     archivePrefix={arXiv},
     primaryClass={cs.CL}
-}```
+}
+```
