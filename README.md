@@ -4,7 +4,7 @@
 
 ## Question Generation
 
-![Model Architecture](https://github.com/bloomsburyai/question-generation/raw/master/docs/qgen_arch-1.jpg "Model Architecture" =400x)
+<img src="https://raw.githubusercontent.com/bloomsburyai/question-generation/master/docs/qgen_arch-1.jpg" alt="Model Architecture" style="max-width:400px;" />
 
 
 This repo primarily comprises an implmentation of [Machine Comprehension by Text-to-Text Neural Question Generation](https://arxiv.org/pdf/1705.02012.pdf), plus a load of other research code. It is a work in progress and almost certainly contains bugs!
