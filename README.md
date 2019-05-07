@@ -7,7 +7,8 @@
 <img src="https://raw.githubusercontent.com/bloomsburyai/question-generation/master/docs/qgen_arch-1.jpg" alt="Model Architecture" width="400" />
 
 
-This repo primarily comprises an implmentation of [Machine Comprehension by Text-to-Text Neural Question Generation](https://arxiv.org/pdf/1705.02012.pdf), plus a load of other research code. It is a work in progress and almost certainly contains bugs!
+This repo primarily comprises an implmentation of [Machine Comprehension by Text-to-Text Neural Question Generation](https://arxiv.org/pdf/1705.02012.pdf) as used for our paper [Evaluating Rewards for Question Generation Models
+](https://arxiv.org/abs/1902.11049), plus a load of other research code. It is a work in progress and almost certainly contains bugs!
 
 Requires python 3 and TensorFlow - tested on 1.4, 1.7, 1.12
 
