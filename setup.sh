@@ -9,9 +9,9 @@ curl https://raw.githubusercontent.com/tomhosking/squad-du-split/master/train-v1
 curl https://raw.githubusercontent.com/tomhosking/squad-du-split/master/dev-v1.1.json -o ./data/dev-v1.1.json -L -C -
 curl https://raw.githubusercontent.com/tomhosking/squad-du-split/master/test-v1.1.json -o ./data/test-v1.1.json -L -C -
 
-curl https://www.dropbox.com/s/l2ne2fe4wqm0buq/RL-S2S-1544356761.zip?dl=0 -o ./models/qgen/RL-S2S-1544356761.zip -L -C -
-curl https://www.dropbox.com/s/3mdni7dw76f3oih/lmtest.zip?dl=0 -o ./models/lm/lmtest.zip -L -C -
-curl https://www.dropbox.com/s/2ntmnni1tf36afq/qanet.zip?dl=0 -o ./models/qanet/qanet.zip -L -C -
+curl http://tomho.sk/models/RL-S2S-1544356761.zip -o ./models/qgen/RL-S2S-1544356761.zip -L -C -
+curl http://tomho.sk/models/lmtest.zip -o ./models/lm/lmtest.zip -L -C -
+curl http://tomho.sk/models/qanet.zip -o ./models/qanet/qanet.zip -L -C -
 
 unzip ./models/qgen/RL-S2S-1544356761.zip -d ./models/qgen
 unzip ./models/lm/lmtest.zip -d ./models/lm
